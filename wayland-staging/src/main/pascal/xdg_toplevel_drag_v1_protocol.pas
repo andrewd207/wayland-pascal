@@ -1,0 +1,135 @@
+unit xdg_toplevel_drag_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland, xdg_shell_protocol;
+
+type
+  TXdgToplevelDragV1Class = class of TXdgToplevelDragV1;
+  { TXdgToplevelDragV1 }
+  TXdgToplevelDragV1 = class;
+
+  TXdgToplevelDragManagerV1Class = class of TXdgToplevelDragManagerV1;
+  { TXdgToplevelDragManagerV1 }
+  TXdgToplevelDragManagerV1 = class;
+
+  IXdgToplevelDragManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_xdg_toplevel_drag(no)', '')]
+  { TXdgToplevelDragManagerV1 }
+  TXdgToplevelDragManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erInvalidsource = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_XDG_TOPLEVEL_DRAG = 1);
+  public
+    destructor Destroy; override;
+    function GetXdgToplevelDrag(aDataSource: TWlDataSource; aClassType: TXdgToplevelDragV1Class = nil): TXdgToplevelDragV1;
+  private
+    FListeners: array of IXdgToplevelDragManagerV1Listener;
+  public
+    function AddListener(AIntf: IXdgToplevelDragManagerV1Listener): LongInt;
+  end;
+
+  IXdgToplevelDragManagerV1Listener = interface
+  ['IXdgToplevelDragManagerV1Listener']
+  end;
+
+  IXdgToplevelDragV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),attach(oii)', '')]
+  { TXdgToplevelDragV1 }
+  TXdgToplevelDragV1 = class(TWaylandBase)
+  public type
+    TError = (erToplevelattached = 0, erOngoingdrag = 1);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _ATTACH = 1);
+  public
+    destructor Destroy; override;
+    procedure Attach(aToplevel: TXdgToplevel; aXOffset: Integer; aYOffset: Integer);
+  private
+    FListeners: array of IXdgToplevelDragV1Listener;
+  public
+    function AddListener(AIntf: IXdgToplevelDragV1Listener): LongInt;
+  end;
+
+  IXdgToplevelDragV1Listener = interface
+  ['IXdgToplevelDragV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgToplevelDragManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgToplevelDragManagerV1.GetInterfaceName: String;
+begin
+  Result := 'xdg_toplevel_drag_manager_v1';
+end;
+
+destructor TXdgToplevelDragManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgToplevelDragManagerV1.GetXdgToplevelDrag(aDataSource: TWlDataSource; aClassType: TXdgToplevelDragV1Class = nil): TXdgToplevelDragV1;
+begin
+  if aClassType = nil then aClassType := TXdgToplevelDragV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_XDG_TOPLEVEL_DRAG), [Result.GetObjectId,aDataSource.GetObjectId]);
+end;
+
+function TXdgToplevelDragManagerV1.AddListener(AIntf: IXdgToplevelDragManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgToplevelDragV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgToplevelDragV1.GetInterfaceName: String;
+begin
+  Result := 'xdg_toplevel_drag_v1';
+end;
+
+destructor TXdgToplevelDragV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgToplevelDragV1.Attach(aToplevel: TXdgToplevel; aXOffset: Integer; aYOffset: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._ATTACH), [aToplevel.GetObjectId,aXOffset,aYOffset]);
+end;
+
+function TXdgToplevelDragV1.AddListener(AIntf: IXdgToplevelDragV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

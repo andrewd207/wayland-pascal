@@ -206,6 +206,7 @@ type
   private
     FDoc: TXMLDocument;
     FCopyright: TWICopyrightNode;
+    FDescription: TWIDescriptionNode;
     FInterfaces: TWInterfaceNodeList;
     function GetName: String;
   protected
@@ -213,6 +214,7 @@ type
     function HandleNode(ANode: TDOMElement): Boolean; override;
   public
     property Copyright: TWICopyrightNode read FCopyright;
+    property Description: TWIDescriptionNode read FDescription;
     property Interfaces: TWInterfaceNodeList read FInterfaces;
     property Name: String read GetName;
     constructor Create(AFileName: String);
@@ -328,7 +330,6 @@ procedure TWIEventNode.ReadElements;
 begin
   FArgs := TWIArgList.Create(True);
   inherited ReadElements;
-  WriteLn('Event ', Name ,' signature: ', FArgs.Signature);
 end;
 
 function TWIEventNode.HandleNode(ANode: TDOMElement): Boolean;
@@ -366,7 +367,6 @@ procedure TWIRequestNode.ReadElements;
 begin
   FArgs := TWIArgList.Create(True);
   inherited ReadElements;
-  WriteLn('Request ', Name ,' signature: ', FArgs.Signature);
 end;
 
 function TWIRequestNode.HandleNode(ANode: TDOMElement): Boolean;
@@ -517,8 +517,9 @@ begin
   Result:=inherited HandleNode(ANode);
   if not Result then
     case ANode.NodeName of
-      'copyright' : FCopyright := TWICopyrightNode.Create(ANode);
-      'interface' : FInterfaces.Add(TWInterfaceNode.Create(ANode));
+      'copyright'   : FCopyright := TWICopyrightNode.Create(ANode);
+      'description' : FDescription := TWIDescriptionNode.Create(ANode);
+      'interface'   : FInterfaces.Add(TWInterfaceNode.Create(ANode));
     else
       Exit(False);
     end;
@@ -544,6 +545,7 @@ end;
 destructor TWIProtocolNode.Destroy;
 begin
   FreeAndNil(FCopyright);
+  FreeAndNil(FDescription);
   FreeAndNil(FInterfaces);
   FreeAndNil(FDoc);
   inherited Destroy;

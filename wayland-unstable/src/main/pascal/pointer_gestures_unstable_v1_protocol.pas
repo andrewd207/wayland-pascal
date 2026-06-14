@@ -1,0 +1,424 @@
+unit pointer_gestures_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpPointerGestureHoldV1Class = class of TWpPointerGestureHoldV1;
+  { TWpPointerGestureHoldV1 }
+  TWpPointerGestureHoldV1 = class;
+
+  TWpPointerGesturePinchV1Class = class of TWpPointerGesturePinchV1;
+  { TWpPointerGesturePinchV1 }
+  TWpPointerGesturePinchV1 = class;
+
+  TWpPointerGestureSwipeV1Class = class of TWpPointerGestureSwipeV1;
+  { TWpPointerGestureSwipeV1 }
+  TWpPointerGestureSwipeV1 = class;
+
+  TWpPointerGesturesV1Class = class of TWpPointerGesturesV1;
+  { TWpPointerGesturesV1 }
+  TWpPointerGesturesV1 = class;
+
+  IWpPointerGesturesV1Listener = interface;
+
+  [TWLIntfAttribute('get_swipe_gesture(no),get_pinch_gesture(no),release(),get_hold_gesture(no)', '')]
+  { TWpPointerGesturesV1 }
+  TWpPointerGesturesV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_GET_SWIPE_GESTURE = 0, _GET_PINCH_GESTURE = 1, _RELEASE = 2, _GET_HOLD_GESTURE = 3);
+  public
+    function GetSwipeGesture(aPointer: TWlPointer; aClassType: TWpPointerGestureSwipeV1Class = nil): TWpPointerGestureSwipeV1;
+    function GetPinchGesture(aPointer: TWlPointer; aClassType: TWpPointerGesturePinchV1Class = nil): TWpPointerGesturePinchV1;
+    destructor Destroy; override;
+    function GetHoldGesture(aPointer: TWlPointer; aClassType: TWpPointerGestureHoldV1Class = nil): TWpPointerGestureHoldV1;
+  private
+    FListeners: array of IWpPointerGesturesV1Listener;
+  public
+    function AddListener(AIntf: IWpPointerGesturesV1Listener): LongInt;
+  end;
+
+  IWpPointerGesturesV1Listener = interface
+  ['IWpPointerGesturesV1Listener']
+  end;
+
+  IWpPointerGestureSwipeV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'begin(uuou),update(uff),end(uui)')]
+  { TWpPointerGestureSwipeV1 }
+  TWpPointerGestureSwipeV1 = class(TWaylandBase)
+  public type
+    TBeginEvent = procedure(Sender: TWpPointerGestureSwipeV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord) of object;
+    TUpdateEvent = procedure(Sender: TWpPointerGestureSwipeV1; aTime: DWord; aDx: TWaylandFixed; aDy: TWaylandFixed) of object;
+    TEndEvent = procedure(Sender: TWpPointerGestureSwipeV1; aSerial: DWord; aTime: DWord; aCancelled: Integer) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_BEGIN = 0, EV_UPDATE = 1, EV_END = 2);
+  private
+    FOnBeginPriv: TBeginEvent;
+    FOnUpdatePriv: TUpdateEvent;
+    FOnEndPriv: TEndEvent;
+  protected
+    procedure HandleBegin(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_BEGIN); virtual;
+    procedure HandleUpdate(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_UPDATE); virtual;
+    procedure HandleEnd(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_END); virtual;
+  published
+    property OnBegin: TBeginEvent read FOnBeginPriv write FOnBeginPriv;
+    property OnUpdate: TUpdateEvent read FOnUpdatePriv write FOnUpdatePriv;
+    property OnEnd: TEndEvent read FOnEndPriv write FOnEndPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPointerGestureSwipeV1Listener;
+  public
+    function AddListener(AIntf: IWpPointerGestureSwipeV1Listener): LongInt;
+  end;
+
+  IWpPointerGestureSwipeV1Listener = interface
+  ['IWpPointerGestureSwipeV1Listener']
+    procedure wp_pointer_gesture_swipe_v1_begin(AWpPointerGestureSwipeV1: TWpPointerGestureSwipeV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord);
+    procedure wp_pointer_gesture_swipe_v1_update(AWpPointerGestureSwipeV1: TWpPointerGestureSwipeV1; aTime: DWord; aDx: TWaylandFixed; aDy: TWaylandFixed);
+    procedure wp_pointer_gesture_swipe_v1_end(AWpPointerGestureSwipeV1: TWpPointerGestureSwipeV1; aSerial: DWord; aTime: DWord; aCancelled: Integer);
+  end;
+
+  IWpPointerGesturePinchV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'begin(uuou),update(uffff),end(uui)')]
+  { TWpPointerGesturePinchV1 }
+  TWpPointerGesturePinchV1 = class(TWaylandBase)
+  public type
+    TBeginEvent = procedure(Sender: TWpPointerGesturePinchV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord) of object;
+    TUpdateEvent = procedure(Sender: TWpPointerGesturePinchV1; aTime: DWord; aDx: TWaylandFixed; aDy: TWaylandFixed; aScale: TWaylandFixed; aRotation: TWaylandFixed) of object;
+    TEndEvent = procedure(Sender: TWpPointerGesturePinchV1; aSerial: DWord; aTime: DWord; aCancelled: Integer) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_BEGIN = 0, EV_UPDATE = 1, EV_END = 2);
+  private
+    FOnBeginPriv: TBeginEvent;
+    FOnUpdatePriv: TUpdateEvent;
+    FOnEndPriv: TEndEvent;
+  protected
+    procedure HandleBegin(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_BEGIN); virtual;
+    procedure HandleUpdate(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_UPDATE); virtual;
+    procedure HandleEnd(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_END); virtual;
+  published
+    property OnBegin: TBeginEvent read FOnBeginPriv write FOnBeginPriv;
+    property OnUpdate: TUpdateEvent read FOnUpdatePriv write FOnUpdatePriv;
+    property OnEnd: TEndEvent read FOnEndPriv write FOnEndPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPointerGesturePinchV1Listener;
+  public
+    function AddListener(AIntf: IWpPointerGesturePinchV1Listener): LongInt;
+  end;
+
+  IWpPointerGesturePinchV1Listener = interface
+  ['IWpPointerGesturePinchV1Listener']
+    procedure wp_pointer_gesture_pinch_v1_begin(AWpPointerGesturePinchV1: TWpPointerGesturePinchV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord);
+    procedure wp_pointer_gesture_pinch_v1_update(AWpPointerGesturePinchV1: TWpPointerGesturePinchV1; aTime: DWord; aDx: TWaylandFixed; aDy: TWaylandFixed; aScale: TWaylandFixed; aRotation: TWaylandFixed);
+    procedure wp_pointer_gesture_pinch_v1_end(AWpPointerGesturePinchV1: TWpPointerGesturePinchV1; aSerial: DWord; aTime: DWord; aCancelled: Integer);
+  end;
+
+  IWpPointerGestureHoldV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'begin(uuou),end(uui)')]
+  { TWpPointerGestureHoldV1 }
+  TWpPointerGestureHoldV1 = class(TWaylandBase)
+  public type
+    TBeginEvent = procedure(Sender: TWpPointerGestureHoldV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord) of object;
+    TEndEvent = procedure(Sender: TWpPointerGestureHoldV1; aSerial: DWord; aTime: DWord; aCancelled: Integer) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_BEGIN = 0, EV_END = 1);
+  private
+    FOnBeginPriv: TBeginEvent;
+    FOnEndPriv: TEndEvent;
+  protected
+    procedure HandleBegin(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_BEGIN); virtual;
+    procedure HandleEnd(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_END); virtual;
+  published
+    property OnBegin: TBeginEvent read FOnBeginPriv write FOnBeginPriv;
+    property OnEnd: TEndEvent read FOnEndPriv write FOnEndPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPointerGestureHoldV1Listener;
+  public
+    function AddListener(AIntf: IWpPointerGestureHoldV1Listener): LongInt;
+  end;
+
+  IWpPointerGestureHoldV1Listener = interface
+  ['IWpPointerGestureHoldV1Listener']
+    procedure wp_pointer_gesture_hold_v1_begin(AWpPointerGestureHoldV1: TWpPointerGestureHoldV1; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord);
+    procedure wp_pointer_gesture_hold_v1_end(AWpPointerGestureHoldV1: TWpPointerGestureHoldV1; aSerial: DWord; aTime: DWord; aCancelled: Integer);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpPointerGesturesV1.GetInterfaceVersion: Integer;
+begin
+  Result := 3;
+end;
+
+class function TWpPointerGesturesV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_pointer_gestures_v1';
+end;
+
+function TWpPointerGesturesV1.GetSwipeGesture(aPointer: TWlPointer; aClassType: TWpPointerGestureSwipeV1Class = nil): TWpPointerGestureSwipeV1;
+begin
+  if aClassType = nil then aClassType := TWpPointerGestureSwipeV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SWIPE_GESTURE), [Result.GetObjectId,aPointer.GetObjectId]);
+end;
+
+function TWpPointerGesturesV1.GetPinchGesture(aPointer: TWlPointer; aClassType: TWpPointerGesturePinchV1Class = nil): TWpPointerGesturePinchV1;
+begin
+  if aClassType = nil then aClassType := TWpPointerGesturePinchV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_PINCH_GESTURE), [Result.GetObjectId,aPointer.GetObjectId]);
+end;
+
+destructor TWpPointerGesturesV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RELEASE), []);
+  inherited Destroy;
+end;
+
+function TWpPointerGesturesV1.GetHoldGesture(aPointer: TWlPointer; aClassType: TWpPointerGestureHoldV1Class = nil): TWpPointerGestureHoldV1;
+begin
+  if aClassType = nil then aClassType := TWpPointerGestureHoldV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_HOLD_GESTURE), [Result.GetObjectId,aPointer.GetObjectId]);
+end;
+
+function TWpPointerGesturesV1.AddListener(AIntf: IWpPointerGesturesV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPointerGestureSwipeV1.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TWpPointerGestureSwipeV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_pointer_gesture_swipe_v1';
+end;
+
+procedure TWpPointerGestureSwipeV1.HandleBegin(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lSurface: TWlSurface;
+  lFingers: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
+  lFingers := AMsg.Args.ReadDWord;
+  if Assigned(OnBegin) then OnBegin(Self,lSerial,lTime,lSurface,lFingers);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_swipe_v1_begin(Self,lSerial,lTime,lSurface,lFingers);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPointerGestureSwipeV1.HandleUpdate(var AMsg: TWaylandEventMessage);
+var
+  lTime: DWord;
+  lDx: TWaylandFixed;
+  lDy: TWaylandFixed;
+  lListenerIdx: Integer;
+begin
+  lTime := AMsg.Args.ReadDWord;
+  lDx := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  lDy := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  if Assigned(OnUpdate) then OnUpdate(Self,lTime,lDx,lDy);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_swipe_v1_update(Self,lTime,lDx,lDy);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPointerGestureSwipeV1.HandleEnd(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lCancelled: Integer;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lCancelled := AMsg.Args.ReadInteger;
+  if Assigned(OnEnd) then OnEnd(Self,lSerial,lTime,lCancelled);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_swipe_v1_end(Self,lSerial,lTime,lCancelled);
+  AMsg.SetHandled;
+end;
+
+destructor TWpPointerGestureSwipeV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPointerGestureSwipeV1.AddListener(AIntf: IWpPointerGestureSwipeV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPointerGesturePinchV1.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TWpPointerGesturePinchV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_pointer_gesture_pinch_v1';
+end;
+
+procedure TWpPointerGesturePinchV1.HandleBegin(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lSurface: TWlSurface;
+  lFingers: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
+  lFingers := AMsg.Args.ReadDWord;
+  if Assigned(OnBegin) then OnBegin(Self,lSerial,lTime,lSurface,lFingers);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_pinch_v1_begin(Self,lSerial,lTime,lSurface,lFingers);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPointerGesturePinchV1.HandleUpdate(var AMsg: TWaylandEventMessage);
+var
+  lTime: DWord;
+  lDx: TWaylandFixed;
+  lDy: TWaylandFixed;
+  lScale: TWaylandFixed;
+  lRotation: TWaylandFixed;
+  lListenerIdx: Integer;
+begin
+  lTime := AMsg.Args.ReadDWord;
+  lDx := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  lDy := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  lScale := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  lRotation := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  if Assigned(OnUpdate) then OnUpdate(Self,lTime,lDx,lDy,lScale,lRotation);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_pinch_v1_update(Self,lTime,lDx,lDy,lScale,lRotation);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPointerGesturePinchV1.HandleEnd(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lCancelled: Integer;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lCancelled := AMsg.Args.ReadInteger;
+  if Assigned(OnEnd) then OnEnd(Self,lSerial,lTime,lCancelled);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_pinch_v1_end(Self,lSerial,lTime,lCancelled);
+  AMsg.SetHandled;
+end;
+
+destructor TWpPointerGesturePinchV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPointerGesturePinchV1.AddListener(AIntf: IWpPointerGesturePinchV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPointerGestureHoldV1.GetInterfaceVersion: Integer;
+begin
+  Result := 3;
+end;
+
+class function TWpPointerGestureHoldV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_pointer_gesture_hold_v1';
+end;
+
+procedure TWpPointerGestureHoldV1.HandleBegin(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lSurface: TWlSurface;
+  lFingers: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
+  lFingers := AMsg.Args.ReadDWord;
+  if Assigned(OnBegin) then OnBegin(Self,lSerial,lTime,lSurface,lFingers);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_hold_v1_begin(Self,lSerial,lTime,lSurface,lFingers);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPointerGestureHoldV1.HandleEnd(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lCancelled: Integer;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lCancelled := AMsg.Args.ReadInteger;
+  if Assigned(OnEnd) then OnEnd(Self,lSerial,lTime,lCancelled);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_pointer_gesture_hold_v1_end(Self,lSerial,lTime,lCancelled);
+  AMsg.SetHandled;
+end;
+
+destructor TWpPointerGestureHoldV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPointerGestureHoldV1.AddListener(AIntf: IWpPointerGestureHoldV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

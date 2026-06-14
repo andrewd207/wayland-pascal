@@ -25,7 +25,7 @@ interface
 
 uses
   SysUtils, ctypes, BaseUnix,
-  Wayland_Core, wayland, linux_dmabuf_v1;
+  Wayland_Core, wayland, linux_dmabuf_v1_protocol;
 
 type
   // One slot of our hand-rolled swapchain: a GPU image + its exported fd + the

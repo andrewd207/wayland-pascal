@@ -279,7 +279,12 @@ begin
           end;
         vtPointer:
           begin
-            lRequest.Write(Args[i].VPointer^, Args[i-1].VInteger);
+            // wl_array: length-prefixed byte blob. The generator passes the
+            // array as the pair (Length(x), Pointer(x)), so the count is in the
+            // preceding VInteger. Write the uint32 size header, then the bytes.
+            lRequest.WriteDWord(DWord(Args[i-1].VInteger));
+            if Args[i-1].VInteger > 0 then
+              lRequest.Write(Args[i].VPointer^, Args[i-1].VInteger);
             lNeedsPadding := True;
           end;
         vtAnsiString:

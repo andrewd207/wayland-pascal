@@ -1,0 +1,80 @@
+unit xdg_toplevel_tag_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland, xdg_shell_protocol;
+
+type
+  TXdgToplevelTagManagerV1Class = class of TXdgToplevelTagManagerV1;
+  { TXdgToplevelTagManagerV1 }
+  TXdgToplevelTagManagerV1 = class;
+
+  IXdgToplevelTagManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_toplevel_tag(os),set_toplevel_description(os)', '')]
+  { TXdgToplevelTagManagerV1 }
+  TXdgToplevelTagManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_TOPLEVEL_TAG = 1, _SET_TOPLEVEL_DESCRIPTION = 2);
+  public
+    destructor Destroy; override;
+    procedure SetToplevelTag(aToplevel: TXdgToplevel; aTag: String);
+    procedure SetToplevelDescription(aToplevel: TXdgToplevel; aDescription: String);
+  private
+    FListeners: array of IXdgToplevelTagManagerV1Listener;
+  public
+    function AddListener(AIntf: IXdgToplevelTagManagerV1Listener): LongInt;
+  end;
+
+  IXdgToplevelTagManagerV1Listener = interface
+  ['IXdgToplevelTagManagerV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgToplevelTagManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgToplevelTagManagerV1.GetInterfaceName: String;
+begin
+  Result := 'xdg_toplevel_tag_manager_v1';
+end;
+
+destructor TXdgToplevelTagManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgToplevelTagManagerV1.SetToplevelTag(aToplevel: TXdgToplevel; aTag: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_TOPLEVEL_TAG), [aToplevel.GetObjectId,aTag]);
+end;
+
+procedure TXdgToplevelTagManagerV1.SetToplevelDescription(aToplevel: TXdgToplevel; aDescription: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_TOPLEVEL_DESCRIPTION), [aToplevel.GetObjectId,aDescription]);
+end;
+
+function TXdgToplevelTagManagerV1.AddListener(AIntf: IXdgToplevelTagManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

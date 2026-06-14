@@ -1,4 +1,4 @@
-unit linux_dmabuf_v1;
+unit linux_dmabuf_unstable_v1_protocol;
 
 {$mode ObjFPC}{$H+}
 {$ScopedEnums on}

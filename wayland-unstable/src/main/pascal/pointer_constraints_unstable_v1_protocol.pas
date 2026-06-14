@@ -1,0 +1,269 @@
+unit pointer_constraints_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpConfinedPointerV1Class = class of TWpConfinedPointerV1;
+  { TWpConfinedPointerV1 }
+  TWpConfinedPointerV1 = class;
+
+  TWpLockedPointerV1Class = class of TWpLockedPointerV1;
+  { TWpLockedPointerV1 }
+  TWpLockedPointerV1 = class;
+
+  TWpPointerConstraintsV1Class = class of TWpPointerConstraintsV1;
+  { TWpPointerConstraintsV1 }
+  TWpPointerConstraintsV1 = class;
+
+  IWpPointerConstraintsV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),lock_pointer(noo?ou),confine_pointer(noo?ou)', '')]
+  { TWpPointerConstraintsV1 }
+  TWpPointerConstraintsV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyconstrained = 1);
+    TLifetime = (liOneshot = 1, liPersistent = 2);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _LOCK_POINTER = 1, _CONFINE_POINTER = 2);
+  public
+    destructor Destroy; override;
+    function LockPointer(aSurface: TWlSurface; aPointer: TWlPointer; aRegion: TWlRegion; aLifetime: TLifetime; aClassType: TWpLockedPointerV1Class = nil): TWpLockedPointerV1;
+    function ConfinePointer(aSurface: TWlSurface; aPointer: TWlPointer; aRegion: TWlRegion; aLifetime: TLifetime; aClassType: TWpConfinedPointerV1Class = nil): TWpConfinedPointerV1;
+  private
+    FListeners: array of IWpPointerConstraintsV1Listener;
+  public
+    function AddListener(AIntf: IWpPointerConstraintsV1Listener): LongInt;
+  end;
+
+  IWpPointerConstraintsV1Listener = interface
+  ['IWpPointerConstraintsV1Listener']
+  end;
+
+  IWpLockedPointerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_cursor_position_hint(ff),set_region(?o)', 'locked(),unlocked()')]
+  { TWpLockedPointerV1 }
+  TWpLockedPointerV1 = class(TWaylandBase)
+  public type
+    TLockedEvent = procedure(Sender: TWpLockedPointerV1) of object;
+    TUnlockedEvent = procedure(Sender: TWpLockedPointerV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_CURSOR_POSITION_HINT = 1, _SET_REGION = 2);
+    TEvents = (EV_LOCKED = 0, EV_UNLOCKED = 1);
+  private
+    FOnLockedPriv: TLockedEvent;
+    FOnUnlockedPriv: TUnlockedEvent;
+  protected
+    procedure HandleLocked(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_LOCKED); virtual;
+    procedure HandleUnlocked(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_UNLOCKED); virtual;
+  published
+    property OnLocked: TLockedEvent read FOnLockedPriv write FOnLockedPriv;
+    property OnUnlocked: TUnlockedEvent read FOnUnlockedPriv write FOnUnlockedPriv;
+  public
+    destructor Destroy; override;
+    procedure SetCursorPositionHint(aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
+    procedure SetRegion(aRegion: TWlRegion);
+  private
+    FListeners: array of IWpLockedPointerV1Listener;
+  public
+    function AddListener(AIntf: IWpLockedPointerV1Listener): LongInt;
+  end;
+
+  IWpLockedPointerV1Listener = interface
+  ['IWpLockedPointerV1Listener']
+    procedure wp_locked_pointer_v1_locked(AWpLockedPointerV1: TWpLockedPointerV1);
+    procedure wp_locked_pointer_v1_unlocked(AWpLockedPointerV1: TWpLockedPointerV1);
+  end;
+
+  IWpConfinedPointerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_region(?o)', 'confined(),unconfined()')]
+  { TWpConfinedPointerV1 }
+  TWpConfinedPointerV1 = class(TWaylandBase)
+  public type
+    TConfinedEvent = procedure(Sender: TWpConfinedPointerV1) of object;
+    TUnconfinedEvent = procedure(Sender: TWpConfinedPointerV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_REGION = 1);
+    TEvents = (EV_CONFINED = 0, EV_UNCONFINED = 1);
+  private
+    FOnConfinedPriv: TConfinedEvent;
+    FOnUnconfinedPriv: TUnconfinedEvent;
+  protected
+    procedure HandleConfined(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CONFINED); virtual;
+    procedure HandleUnconfined(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_UNCONFINED); virtual;
+  published
+    property OnConfined: TConfinedEvent read FOnConfinedPriv write FOnConfinedPriv;
+    property OnUnconfined: TUnconfinedEvent read FOnUnconfinedPriv write FOnUnconfinedPriv;
+  public
+    destructor Destroy; override;
+    procedure SetRegion(aRegion: TWlRegion);
+  private
+    FListeners: array of IWpConfinedPointerV1Listener;
+  public
+    function AddListener(AIntf: IWpConfinedPointerV1Listener): LongInt;
+  end;
+
+  IWpConfinedPointerV1Listener = interface
+  ['IWpConfinedPointerV1Listener']
+    procedure wp_confined_pointer_v1_confined(AWpConfinedPointerV1: TWpConfinedPointerV1);
+    procedure wp_confined_pointer_v1_unconfined(AWpConfinedPointerV1: TWpConfinedPointerV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpPointerConstraintsV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpPointerConstraintsV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_pointer_constraints_v1';
+end;
+
+destructor TWpPointerConstraintsV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPointerConstraintsV1.LockPointer(aSurface: TWlSurface; aPointer: TWlPointer; aRegion: TWlRegion; aLifetime: TLifetime; aClassType: TWpLockedPointerV1Class = nil): TWpLockedPointerV1;
+begin
+  if aClassType = nil then aClassType := TWpLockedPointerV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._LOCK_POINTER), [Result.GetObjectId,aSurface.GetObjectId,aPointer.GetObjectId,WlObjectId(aRegion),DWord(aLifetime)]);
+end;
+
+function TWpPointerConstraintsV1.ConfinePointer(aSurface: TWlSurface; aPointer: TWlPointer; aRegion: TWlRegion; aLifetime: TLifetime; aClassType: TWpConfinedPointerV1Class = nil): TWpConfinedPointerV1;
+begin
+  if aClassType = nil then aClassType := TWpConfinedPointerV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CONFINE_POINTER), [Result.GetObjectId,aSurface.GetObjectId,aPointer.GetObjectId,WlObjectId(aRegion),DWord(aLifetime)]);
+end;
+
+function TWpPointerConstraintsV1.AddListener(AIntf: IWpPointerConstraintsV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpLockedPointerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpLockedPointerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_locked_pointer_v1';
+end;
+
+procedure TWpLockedPointerV1.HandleLocked(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnLocked) then OnLocked(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_locked_pointer_v1_locked(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpLockedPointerV1.HandleUnlocked(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnUnlocked) then OnUnlocked(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_locked_pointer_v1_unlocked(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TWpLockedPointerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpLockedPointerV1.SetCursorPositionHint(aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CURSOR_POSITION_HINT), [aSurfaceX.AsFixed,aSurfaceY.AsFixed]);
+end;
+
+procedure TWpLockedPointerV1.SetRegion(aRegion: TWlRegion);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_REGION), [WlObjectId(aRegion)]);
+end;
+
+function TWpLockedPointerV1.AddListener(AIntf: IWpLockedPointerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpConfinedPointerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpConfinedPointerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_confined_pointer_v1';
+end;
+
+procedure TWpConfinedPointerV1.HandleConfined(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnConfined) then OnConfined(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_confined_pointer_v1_confined(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpConfinedPointerV1.HandleUnconfined(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnUnconfined) then OnUnconfined(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_confined_pointer_v1_unconfined(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TWpConfinedPointerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpConfinedPointerV1.SetRegion(aRegion: TWlRegion);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_REGION), [WlObjectId(aRegion)]);
+end;
+
+function TWpConfinedPointerV1.AddListener(AIntf: IWpConfinedPointerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

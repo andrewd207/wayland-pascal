@@ -1,0 +1,382 @@
+unit ext_data_control_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TExtDataControlOfferV1Class = class of TExtDataControlOfferV1;
+  { TExtDataControlOfferV1 }
+  TExtDataControlOfferV1 = class;
+
+  TExtDataControlDeviceV1Class = class of TExtDataControlDeviceV1;
+  { TExtDataControlDeviceV1 }
+  TExtDataControlDeviceV1 = class;
+
+  TExtDataControlSourceV1Class = class of TExtDataControlSourceV1;
+  { TExtDataControlSourceV1 }
+  TExtDataControlSourceV1 = class;
+
+  TExtDataControlManagerV1Class = class of TExtDataControlManagerV1;
+  { TExtDataControlManagerV1 }
+  TExtDataControlManagerV1 = class;
+
+  IExtDataControlManagerV1Listener = interface;
+
+  [TWLIntfAttribute('create_data_source(n),get_data_device(no),destroy()', '')]
+  { TExtDataControlManagerV1 }
+  TExtDataControlManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_CREATE_DATA_SOURCE = 0, _GET_DATA_DEVICE = 1, _DESTROY = 2);
+  public
+    function CreateDataSource(aClassType: TExtDataControlSourceV1Class = nil): TExtDataControlSourceV1;
+    function GetDataDevice(aSeat: TWlSeat; aClassType: TExtDataControlDeviceV1Class = nil): TExtDataControlDeviceV1;
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtDataControlManagerV1Listener;
+  public
+    function AddListener(AIntf: IExtDataControlManagerV1Listener): LongInt;
+  end;
+
+  IExtDataControlManagerV1Listener = interface
+  ['IExtDataControlManagerV1Listener']
+  end;
+
+  IExtDataControlDeviceV1Listener = interface;
+
+  [TWLIntfAttribute('set_selection(?o),destroy(),set_primary_selection(?o)', 'data_offer(n),selection(?o),finished(),primary_selection(?o)')]
+  { TExtDataControlDeviceV1 }
+  TExtDataControlDeviceV1 = class(TWaylandBase)
+  public type
+    TError = (erUsedsource = 1);
+    TDataOfferEvent = procedure(Sender: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1) of object;
+    TSelectionEvent = procedure(Sender: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1) of object;
+    TFinishedEvent = procedure(Sender: TExtDataControlDeviceV1) of object;
+    TPrimarySelectionEvent = procedure(Sender: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_SELECTION = 0, _DESTROY = 1, _SET_PRIMARY_SELECTION = 2);
+    TEvents = (EV_DATA_OFFER = 0, EV_SELECTION = 1, EV_FINISHED = 2, EV_PRIMARY_SELECTION = 3);
+  private
+    FOnDataOfferPriv: TDataOfferEvent;
+    FOnSelectionPriv: TSelectionEvent;
+    FOnFinishedPriv: TFinishedEvent;
+    FOnPrimarySelectionPriv: TPrimarySelectionEvent;
+  protected
+    procedure HandleDataOffer(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DATA_OFFER); virtual;
+    procedure HandleSelection(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SELECTION); virtual;
+    procedure HandleFinished(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_FINISHED); virtual;
+    procedure HandlePrimarySelection(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PRIMARY_SELECTION); virtual;
+  published
+    property OnDataOffer: TDataOfferEvent read FOnDataOfferPriv write FOnDataOfferPriv;
+    property OnSelection: TSelectionEvent read FOnSelectionPriv write FOnSelectionPriv;
+    property OnFinished: TFinishedEvent read FOnFinishedPriv write FOnFinishedPriv;
+    property OnPrimarySelection: TPrimarySelectionEvent read FOnPrimarySelectionPriv write FOnPrimarySelectionPriv;
+  public
+    procedure SetSelection(aSource: TExtDataControlSourceV1);
+    destructor Destroy; override;
+    procedure SetPrimarySelection(aSource: TExtDataControlSourceV1);
+  private
+    FListeners: array of IExtDataControlDeviceV1Listener;
+  public
+    function AddListener(AIntf: IExtDataControlDeviceV1Listener): LongInt;
+  end;
+
+  IExtDataControlDeviceV1Listener = interface
+  ['IExtDataControlDeviceV1Listener']
+    procedure ext_data_control_device_v1_data_offer(AExtDataControlDeviceV1: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1);
+    procedure ext_data_control_device_v1_selection(AExtDataControlDeviceV1: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1);
+    procedure ext_data_control_device_v1_finished(AExtDataControlDeviceV1: TExtDataControlDeviceV1);
+    procedure ext_data_control_device_v1_primary_selection(AExtDataControlDeviceV1: TExtDataControlDeviceV1; aId: TExtDataControlOfferV1);
+  end;
+
+  IExtDataControlSourceV1Listener = interface;
+
+  [TWLIntfAttribute('offer(s),destroy()', 'send(sh),cancelled()')]
+  { TExtDataControlSourceV1 }
+  TExtDataControlSourceV1 = class(TWaylandBase)
+  public type
+    TError = (erInvalidoffer = 1);
+    TSendEvent = procedure(Sender: TExtDataControlSourceV1; aMimeType: String; aFd: Integer) of object;
+    TCancelledEvent = procedure(Sender: TExtDataControlSourceV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_OFFER = 0, _DESTROY = 1);
+    TEvents = (EV_SEND = 0, EV_CANCELLED = 1);
+  private
+    FOnSendPriv: TSendEvent;
+    FOnCancelledPriv: TCancelledEvent;
+  protected
+    procedure HandleSend(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SEND); virtual;
+    procedure HandleCancelled(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CANCELLED); virtual;
+  published
+    property OnSend: TSendEvent read FOnSendPriv write FOnSendPriv;
+    property OnCancelled: TCancelledEvent read FOnCancelledPriv write FOnCancelledPriv;
+  public
+    procedure Offer(aMimeType: String);
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtDataControlSourceV1Listener;
+  public
+    function AddListener(AIntf: IExtDataControlSourceV1Listener): LongInt;
+  end;
+
+  IExtDataControlSourceV1Listener = interface
+  ['IExtDataControlSourceV1Listener']
+    procedure ext_data_control_source_v1_send(AExtDataControlSourceV1: TExtDataControlSourceV1; aMimeType: String; aFd: Integer);
+    procedure ext_data_control_source_v1_cancelled(AExtDataControlSourceV1: TExtDataControlSourceV1);
+  end;
+
+  IExtDataControlOfferV1Listener = interface;
+
+  [TWLIntfAttribute('receive(sh),destroy()', 'offer(s)')]
+  { TExtDataControlOfferV1 }
+  TExtDataControlOfferV1 = class(TWaylandBase)
+  public type
+    TOfferEvent = procedure(Sender: TExtDataControlOfferV1; aMimeType: String) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_RECEIVE = 0, _DESTROY = 1);
+    TEvents = (EV_OFFER = 0);
+  private
+    FOnOfferPriv: TOfferEvent;
+  protected
+    procedure HandleOffer(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_OFFER); virtual;
+  published
+    property OnOffer: TOfferEvent read FOnOfferPriv write FOnOfferPriv;
+  public
+    procedure Receive(aMimeType: String; aFd: Integer);
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtDataControlOfferV1Listener;
+  public
+    function AddListener(AIntf: IExtDataControlOfferV1Listener): LongInt;
+  end;
+
+  IExtDataControlOfferV1Listener = interface
+  ['IExtDataControlOfferV1Listener']
+    procedure ext_data_control_offer_v1_offer(AExtDataControlOfferV1: TExtDataControlOfferV1; aMimeType: String);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TExtDataControlManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtDataControlManagerV1.GetInterfaceName: String;
+begin
+  Result := 'ext_data_control_manager_v1';
+end;
+
+function TExtDataControlManagerV1.CreateDataSource(aClassType: TExtDataControlSourceV1Class = nil): TExtDataControlSourceV1;
+begin
+  if aClassType = nil then aClassType := TExtDataControlSourceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_DATA_SOURCE), [Result.GetObjectId]);
+end;
+
+function TExtDataControlManagerV1.GetDataDevice(aSeat: TWlSeat; aClassType: TExtDataControlDeviceV1Class = nil): TExtDataControlDeviceV1;
+begin
+  if aClassType = nil then aClassType := TExtDataControlDeviceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_DATA_DEVICE), [Result.GetObjectId,aSeat.GetObjectId]);
+end;
+
+destructor TExtDataControlManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtDataControlManagerV1.AddListener(AIntf: IExtDataControlManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtDataControlDeviceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtDataControlDeviceV1.GetInterfaceName: String;
+begin
+  Result := 'ext_data_control_device_v1';
+end;
+
+procedure TExtDataControlDeviceV1.HandleDataOffer(var AMsg: TWaylandEventMessage);
+var
+  lId: TExtDataControlOfferV1;
+  lListenerIdx: Integer;
+begin
+  lId := TExtDataControlOfferV1.Create(Connection, nil, AMsg.Args.ReadDWord);
+  if Assigned(OnDataOffer) then OnDataOffer(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_device_v1_data_offer(Self,lId);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlDeviceV1.HandleSelection(var AMsg: TWaylandEventMessage);
+var
+  lId: TExtDataControlOfferV1;
+  lListenerIdx: Integer;
+begin
+  lId := (Connection.GetObject(AMsg.Args.ReadDWord) as TExtDataControlOfferV1);
+  if Assigned(OnSelection) then OnSelection(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_device_v1_selection(Self,lId);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlDeviceV1.HandleFinished(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnFinished) then OnFinished(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_device_v1_finished(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlDeviceV1.HandlePrimarySelection(var AMsg: TWaylandEventMessage);
+var
+  lId: TExtDataControlOfferV1;
+  lListenerIdx: Integer;
+begin
+  lId := (Connection.GetObject(AMsg.Args.ReadDWord) as TExtDataControlOfferV1);
+  if Assigned(OnPrimarySelection) then OnPrimarySelection(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_device_v1_primary_selection(Self,lId);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlDeviceV1.SetSelection(aSource: TExtDataControlSourceV1);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SELECTION), [WlObjectId(aSource)]);
+end;
+
+destructor TExtDataControlDeviceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TExtDataControlDeviceV1.SetPrimarySelection(aSource: TExtDataControlSourceV1);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PRIMARY_SELECTION), [WlObjectId(aSource)]);
+end;
+
+function TExtDataControlDeviceV1.AddListener(AIntf: IExtDataControlDeviceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtDataControlSourceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtDataControlSourceV1.GetInterfaceName: String;
+begin
+  Result := 'ext_data_control_source_v1';
+end;
+
+procedure TExtDataControlSourceV1.HandleSend(var AMsg: TWaylandEventMessage);
+var
+  lMimeType: String;
+  lFd: Integer;
+  lListenerIdx: Integer;
+begin
+  lMimeType := AMsg.Args.ReadString;
+  lFd := AMsg.Args.ReadInteger;
+  if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_source_v1_send(Self,lMimeType,lFd);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlSourceV1.HandleCancelled(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnCancelled) then OnCancelled(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_source_v1_cancelled(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlSourceV1.Offer(aMimeType: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._OFFER), [aMimeType]);
+end;
+
+destructor TExtDataControlSourceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtDataControlSourceV1.AddListener(AIntf: IExtDataControlSourceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtDataControlOfferV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtDataControlOfferV1.GetInterfaceName: String;
+begin
+  Result := 'ext_data_control_offer_v1';
+end;
+
+procedure TExtDataControlOfferV1.HandleOffer(var AMsg: TWaylandEventMessage);
+var
+  lMimeType: String;
+  lListenerIdx: Integer;
+begin
+  lMimeType := AMsg.Args.ReadString;
+  if Assigned(OnOffer) then OnOffer(Self,lMimeType);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_offer_v1_offer(Self,lMimeType);
+  AMsg.SetHandled;
+end;
+
+procedure TExtDataControlOfferV1.Receive(aMimeType: String; aFd: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RECEIVE), [aMimeType,aFd], 1);
+end;
+
+destructor TExtDataControlOfferV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtDataControlOfferV1.AddListener(AIntf: IExtDataControlOfferV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

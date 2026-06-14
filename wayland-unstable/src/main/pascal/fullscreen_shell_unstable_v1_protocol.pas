@@ -1,0 +1,191 @@
+unit fullscreen_shell_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpFullscreenShellModeFeedbackV1Class = class of TWpFullscreenShellModeFeedbackV1;
+  { TWpFullscreenShellModeFeedbackV1 }
+  TWpFullscreenShellModeFeedbackV1 = class;
+
+  TWpFullscreenShellV1Class = class of TWpFullscreenShellV1;
+  { TWpFullscreenShellV1 }
+  TWpFullscreenShellV1 = class;
+
+  IWpFullscreenShellV1Listener = interface;
+
+  [TWLIntfAttribute('release(),present_surface(?ou?o),present_surface_for_mode(ooin)', 'capability(u)')]
+  { TWpFullscreenShellV1 }
+  TWpFullscreenShellV1 = class(TWaylandBase)
+  public type
+    TCapability = (caArbitrarymodes = 1, caCursorplane = 2);
+    TPresentMethod = (prDefault = 0, prCenter = 1, prZoom = 2, prZoomcrop = 3, prStretch = 4);
+    TError = (erInvalidmethod = 0, erRole = 1);
+    TCapabilityEvent = procedure(Sender: TWpFullscreenShellV1; aCapability: TCapability) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_RELEASE = 0, _PRESENT_SURFACE = 1, _PRESENT_SURFACE_FOR_MODE = 2);
+    TEvents = (EV_CAPABILITY = 0);
+  private
+    FOnCapabilityPriv: TCapabilityEvent;
+  protected
+    procedure HandleCapability(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CAPABILITY); virtual;
+  published
+    property OnCapability: TCapabilityEvent read FOnCapabilityPriv write FOnCapabilityPriv;
+  public
+    destructor Destroy; override;
+    procedure PresentSurface(aSurface: TWlSurface; aMethod: TPresentMethod; aOutput: TWlOutput);
+    procedure PresentSurfaceForMode(aSurface: TWlSurface; aOutput: TWlOutput; aFramerate: Integer; aFeedback: TWpFullscreenShellModeFeedbackV1);
+  private
+    FListeners: array of IWpFullscreenShellV1Listener;
+  public
+    function AddListener(AIntf: IWpFullscreenShellV1Listener): LongInt;
+  end;
+
+  IWpFullscreenShellV1Listener = interface
+  ['IWpFullscreenShellV1Listener']
+    procedure wp_fullscreen_shell_v1_capability(AWpFullscreenShellV1: TWpFullscreenShellV1; aCapability: TWpFullscreenShellV1.TCapability);
+  end;
+
+  IWpFullscreenShellModeFeedbackV1Listener = interface;
+
+  [TWLIntfAttribute('', 'mode_successful(),mode_failed(),present_cancelled()')]
+  { TWpFullscreenShellModeFeedbackV1 }
+  TWpFullscreenShellModeFeedbackV1 = class(TWaylandBase)
+  public type
+    TModeSuccessfulEvent = procedure(Sender: TWpFullscreenShellModeFeedbackV1) of object;
+    TModeFailedEvent = procedure(Sender: TWpFullscreenShellModeFeedbackV1) of object;
+    TPresentCancelledEvent = procedure(Sender: TWpFullscreenShellModeFeedbackV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TEvents = (EV_MODE_SUCCESSFUL = 0, EV_MODE_FAILED = 1, EV_PRESENT_CANCELLED = 2);
+  private
+    FOnModeSuccessfulPriv: TModeSuccessfulEvent;
+    FOnModeFailedPriv: TModeFailedEvent;
+    FOnPresentCancelledPriv: TPresentCancelledEvent;
+  protected
+    procedure HandleModeSuccessful(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_MODE_SUCCESSFUL); virtual;
+    procedure HandleModeFailed(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_MODE_FAILED); virtual;
+    procedure HandlePresentCancelled(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PRESENT_CANCELLED); virtual;
+  published
+    property OnModeSuccessful: TModeSuccessfulEvent read FOnModeSuccessfulPriv write FOnModeSuccessfulPriv;
+    property OnModeFailed: TModeFailedEvent read FOnModeFailedPriv write FOnModeFailedPriv;
+    property OnPresentCancelled: TPresentCancelledEvent read FOnPresentCancelledPriv write FOnPresentCancelledPriv;
+  private
+    FListeners: array of IWpFullscreenShellModeFeedbackV1Listener;
+  public
+    function AddListener(AIntf: IWpFullscreenShellModeFeedbackV1Listener): LongInt;
+  end;
+
+  IWpFullscreenShellModeFeedbackV1Listener = interface
+  ['IWpFullscreenShellModeFeedbackV1Listener']
+    procedure wp_fullscreen_shell_mode_feedback_v1_mode_successful(AWpFullscreenShellModeFeedbackV1: TWpFullscreenShellModeFeedbackV1);
+    procedure wp_fullscreen_shell_mode_feedback_v1_mode_failed(AWpFullscreenShellModeFeedbackV1: TWpFullscreenShellModeFeedbackV1);
+    procedure wp_fullscreen_shell_mode_feedback_v1_present_cancelled(AWpFullscreenShellModeFeedbackV1: TWpFullscreenShellModeFeedbackV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpFullscreenShellV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpFullscreenShellV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_fullscreen_shell_v1';
+end;
+
+procedure TWpFullscreenShellV1.HandleCapability(var AMsg: TWaylandEventMessage);
+var
+  lCapability: TCapability;
+  lListenerIdx: Integer;
+begin
+  lCapability := TCapability(AMsg.Args.ReadDWord);
+  if Assigned(OnCapability) then OnCapability(Self,lCapability);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_fullscreen_shell_v1_capability(Self,lCapability);
+  AMsg.SetHandled;
+end;
+
+destructor TWpFullscreenShellV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RELEASE), []);
+  inherited Destroy;
+end;
+
+procedure TWpFullscreenShellV1.PresentSurface(aSurface: TWlSurface; aMethod: TPresentMethod; aOutput: TWlOutput);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._PRESENT_SURFACE), [WlObjectId(aSurface),DWord(aMethod),WlObjectId(aOutput)]);
+end;
+
+procedure TWpFullscreenShellV1.PresentSurfaceForMode(aSurface: TWlSurface; aOutput: TWlOutput; aFramerate: Integer; aFeedback: TWpFullscreenShellModeFeedbackV1);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._PRESENT_SURFACE_FOR_MODE), [aSurface.GetObjectId,aOutput.GetObjectId,aFramerate,aFeedback]);
+end;
+
+function TWpFullscreenShellV1.AddListener(AIntf: IWpFullscreenShellV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpFullscreenShellModeFeedbackV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpFullscreenShellModeFeedbackV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_fullscreen_shell_mode_feedback_v1';
+end;
+
+procedure TWpFullscreenShellModeFeedbackV1.HandleModeSuccessful(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnModeSuccessful) then OnModeSuccessful(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_fullscreen_shell_mode_feedback_v1_mode_successful(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpFullscreenShellModeFeedbackV1.HandleModeFailed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnModeFailed) then OnModeFailed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_fullscreen_shell_mode_feedback_v1_mode_failed(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpFullscreenShellModeFeedbackV1.HandlePresentCancelled(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnPresentCancelled) then OnPresentCancelled(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_fullscreen_shell_mode_feedback_v1_present_cancelled(Self);
+  AMsg.SetHandled;
+end;
+
+function TWpFullscreenShellModeFeedbackV1.AddListener(AIntf: IWpFullscreenShellModeFeedbackV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

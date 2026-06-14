@@ -1,0 +1,344 @@
+unit wp_primary_selection_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpPrimarySelectionOfferV1Class = class of TWpPrimarySelectionOfferV1;
+  { TWpPrimarySelectionOfferV1 }
+  TWpPrimarySelectionOfferV1 = class;
+
+  TWpPrimarySelectionDeviceV1Class = class of TWpPrimarySelectionDeviceV1;
+  { TWpPrimarySelectionDeviceV1 }
+  TWpPrimarySelectionDeviceV1 = class;
+
+  TWpPrimarySelectionSourceV1Class = class of TWpPrimarySelectionSourceV1;
+  { TWpPrimarySelectionSourceV1 }
+  TWpPrimarySelectionSourceV1 = class;
+
+  TWpPrimarySelectionDeviceManagerV1Class = class of TWpPrimarySelectionDeviceManagerV1;
+  { TWpPrimarySelectionDeviceManagerV1 }
+  TWpPrimarySelectionDeviceManagerV1 = class;
+
+  IWpPrimarySelectionDeviceManagerV1Listener = interface;
+
+  [TWLIntfAttribute('create_source(n),get_device(no),destroy()', '')]
+  { TWpPrimarySelectionDeviceManagerV1 }
+  TWpPrimarySelectionDeviceManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_CREATE_SOURCE = 0, _GET_DEVICE = 1, _DESTROY = 2);
+  public
+    function CreateSource(aClassType: TWpPrimarySelectionSourceV1Class = nil): TWpPrimarySelectionSourceV1;
+    function GetDevice(aSeat: TWlSeat; aClassType: TWpPrimarySelectionDeviceV1Class = nil): TWpPrimarySelectionDeviceV1;
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPrimarySelectionDeviceManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpPrimarySelectionDeviceManagerV1Listener): LongInt;
+  end;
+
+  IWpPrimarySelectionDeviceManagerV1Listener = interface
+  ['IWpPrimarySelectionDeviceManagerV1Listener']
+  end;
+
+  IWpPrimarySelectionDeviceV1Listener = interface;
+
+  [TWLIntfAttribute('set_selection(?ou),destroy()', 'data_offer(n),selection(?o)')]
+  { TWpPrimarySelectionDeviceV1 }
+  TWpPrimarySelectionDeviceV1 = class(TWaylandBase)
+  public type
+    TDataOfferEvent = procedure(Sender: TWpPrimarySelectionDeviceV1; aOffer: TWpPrimarySelectionOfferV1) of object;
+    TSelectionEvent = procedure(Sender: TWpPrimarySelectionDeviceV1; aId: TWpPrimarySelectionOfferV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_SELECTION = 0, _DESTROY = 1);
+    TEvents = (EV_DATA_OFFER = 0, EV_SELECTION = 1);
+  private
+    FOnDataOfferPriv: TDataOfferEvent;
+    FOnSelectionPriv: TSelectionEvent;
+  protected
+    procedure HandleDataOffer(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DATA_OFFER); virtual;
+    procedure HandleSelection(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SELECTION); virtual;
+  published
+    property OnDataOffer: TDataOfferEvent read FOnDataOfferPriv write FOnDataOfferPriv;
+    property OnSelection: TSelectionEvent read FOnSelectionPriv write FOnSelectionPriv;
+  public
+    procedure SetSelection(aSource: TWpPrimarySelectionSourceV1; aSerial: DWord);
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPrimarySelectionDeviceV1Listener;
+  public
+    function AddListener(AIntf: IWpPrimarySelectionDeviceV1Listener): LongInt;
+  end;
+
+  IWpPrimarySelectionDeviceV1Listener = interface
+  ['IWpPrimarySelectionDeviceV1Listener']
+    procedure wp_primary_selection_device_v1_data_offer(AWpPrimarySelectionDeviceV1: TWpPrimarySelectionDeviceV1; aOffer: TWpPrimarySelectionOfferV1);
+    procedure wp_primary_selection_device_v1_selection(AWpPrimarySelectionDeviceV1: TWpPrimarySelectionDeviceV1; aId: TWpPrimarySelectionOfferV1);
+  end;
+
+  IWpPrimarySelectionOfferV1Listener = interface;
+
+  [TWLIntfAttribute('receive(sh),destroy()', 'offer(s)')]
+  { TWpPrimarySelectionOfferV1 }
+  TWpPrimarySelectionOfferV1 = class(TWaylandBase)
+  public type
+    TOfferEvent = procedure(Sender: TWpPrimarySelectionOfferV1; aMimeType: String) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_RECEIVE = 0, _DESTROY = 1);
+    TEvents = (EV_OFFER = 0);
+  private
+    FOnOfferPriv: TOfferEvent;
+  protected
+    procedure HandleOffer(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_OFFER); virtual;
+  published
+    property OnOffer: TOfferEvent read FOnOfferPriv write FOnOfferPriv;
+  public
+    procedure Receive(aMimeType: String; aFd: Integer);
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPrimarySelectionOfferV1Listener;
+  public
+    function AddListener(AIntf: IWpPrimarySelectionOfferV1Listener): LongInt;
+  end;
+
+  IWpPrimarySelectionOfferV1Listener = interface
+  ['IWpPrimarySelectionOfferV1Listener']
+    procedure wp_primary_selection_offer_v1_offer(AWpPrimarySelectionOfferV1: TWpPrimarySelectionOfferV1; aMimeType: String);
+  end;
+
+  IWpPrimarySelectionSourceV1Listener = interface;
+
+  [TWLIntfAttribute('offer(s),destroy()', 'send(sh),cancelled()')]
+  { TWpPrimarySelectionSourceV1 }
+  TWpPrimarySelectionSourceV1 = class(TWaylandBase)
+  public type
+    TSendEvent = procedure(Sender: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: Integer) of object;
+    TCancelledEvent = procedure(Sender: TWpPrimarySelectionSourceV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_OFFER = 0, _DESTROY = 1);
+    TEvents = (EV_SEND = 0, EV_CANCELLED = 1);
+  private
+    FOnSendPriv: TSendEvent;
+    FOnCancelledPriv: TCancelledEvent;
+  protected
+    procedure HandleSend(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SEND); virtual;
+    procedure HandleCancelled(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CANCELLED); virtual;
+  published
+    property OnSend: TSendEvent read FOnSendPriv write FOnSendPriv;
+    property OnCancelled: TCancelledEvent read FOnCancelledPriv write FOnCancelledPriv;
+  public
+    procedure Offer(aMimeType: String);
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpPrimarySelectionSourceV1Listener;
+  public
+    function AddListener(AIntf: IWpPrimarySelectionSourceV1Listener): LongInt;
+  end;
+
+  IWpPrimarySelectionSourceV1Listener = interface
+  ['IWpPrimarySelectionSourceV1Listener']
+    procedure wp_primary_selection_source_v1_send(AWpPrimarySelectionSourceV1: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: Integer);
+    procedure wp_primary_selection_source_v1_cancelled(AWpPrimarySelectionSourceV1: TWpPrimarySelectionSourceV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpPrimarySelectionDeviceManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpPrimarySelectionDeviceManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_primary_selection_device_manager_v1';
+end;
+
+function TWpPrimarySelectionDeviceManagerV1.CreateSource(aClassType: TWpPrimarySelectionSourceV1Class = nil): TWpPrimarySelectionSourceV1;
+begin
+  if aClassType = nil then aClassType := TWpPrimarySelectionSourceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_SOURCE), [Result.GetObjectId]);
+end;
+
+function TWpPrimarySelectionDeviceManagerV1.GetDevice(aSeat: TWlSeat; aClassType: TWpPrimarySelectionDeviceV1Class = nil): TWpPrimarySelectionDeviceV1;
+begin
+  if aClassType = nil then aClassType := TWpPrimarySelectionDeviceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_DEVICE), [Result.GetObjectId,aSeat.GetObjectId]);
+end;
+
+destructor TWpPrimarySelectionDeviceManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPrimarySelectionDeviceManagerV1.AddListener(AIntf: IWpPrimarySelectionDeviceManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPrimarySelectionDeviceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpPrimarySelectionDeviceV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_primary_selection_device_v1';
+end;
+
+procedure TWpPrimarySelectionDeviceV1.HandleDataOffer(var AMsg: TWaylandEventMessage);
+var
+  lOffer: TWpPrimarySelectionOfferV1;
+  lListenerIdx: Integer;
+begin
+  lOffer := TWpPrimarySelectionOfferV1.Create(Connection, nil, AMsg.Args.ReadDWord);
+  if Assigned(OnDataOffer) then OnDataOffer(Self,lOffer);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_device_v1_data_offer(Self,lOffer);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPrimarySelectionDeviceV1.HandleSelection(var AMsg: TWaylandEventMessage);
+var
+  lId: TWpPrimarySelectionOfferV1;
+  lListenerIdx: Integer;
+begin
+  lId := (Connection.GetObject(AMsg.Args.ReadDWord) as TWpPrimarySelectionOfferV1);
+  if Assigned(OnSelection) then OnSelection(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_device_v1_selection(Self,lId);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPrimarySelectionDeviceV1.SetSelection(aSource: TWpPrimarySelectionSourceV1; aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SELECTION), [WlObjectId(aSource),aSerial]);
+end;
+
+destructor TWpPrimarySelectionDeviceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPrimarySelectionDeviceV1.AddListener(AIntf: IWpPrimarySelectionDeviceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPrimarySelectionOfferV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpPrimarySelectionOfferV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_primary_selection_offer_v1';
+end;
+
+procedure TWpPrimarySelectionOfferV1.HandleOffer(var AMsg: TWaylandEventMessage);
+var
+  lMimeType: String;
+  lListenerIdx: Integer;
+begin
+  lMimeType := AMsg.Args.ReadString;
+  if Assigned(OnOffer) then OnOffer(Self,lMimeType);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_offer_v1_offer(Self,lMimeType);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPrimarySelectionOfferV1.Receive(aMimeType: String; aFd: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RECEIVE), [aMimeType,aFd], 1);
+end;
+
+destructor TWpPrimarySelectionOfferV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPrimarySelectionOfferV1.AddListener(AIntf: IWpPrimarySelectionOfferV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPrimarySelectionSourceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpPrimarySelectionSourceV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_primary_selection_source_v1';
+end;
+
+procedure TWpPrimarySelectionSourceV1.HandleSend(var AMsg: TWaylandEventMessage);
+var
+  lMimeType: String;
+  lFd: Integer;
+  lListenerIdx: Integer;
+begin
+  lMimeType := AMsg.Args.ReadString;
+  lFd := AMsg.Args.ReadInteger;
+  if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_source_v1_send(Self,lMimeType,lFd);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPrimarySelectionSourceV1.HandleCancelled(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnCancelled) then OnCancelled(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_source_v1_cancelled(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPrimarySelectionSourceV1.Offer(aMimeType: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._OFFER), [aMimeType]);
+end;
+
+destructor TWpPrimarySelectionSourceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpPrimarySelectionSourceV1.AddListener(AIntf: IWpPrimarySelectionSourceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

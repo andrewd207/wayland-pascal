@@ -1,0 +1,125 @@
+unit xwayland_keyboard_grab_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpXwaylandKeyboardGrabV1Class = class of TWpXwaylandKeyboardGrabV1;
+  { TWpXwaylandKeyboardGrabV1 }
+  TWpXwaylandKeyboardGrabV1 = class;
+
+  TWpXwaylandKeyboardGrabManagerV1Class = class of TWpXwaylandKeyboardGrabManagerV1;
+  { TWpXwaylandKeyboardGrabManagerV1 }
+  TWpXwaylandKeyboardGrabManagerV1 = class;
+
+  IWpXwaylandKeyboardGrabManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),grab_keyboard(noo)', '')]
+  { TWpXwaylandKeyboardGrabManagerV1 }
+  TWpXwaylandKeyboardGrabManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GRAB_KEYBOARD = 1);
+  public
+    destructor Destroy; override;
+    function GrabKeyboard(aSurface: TWlSurface; aSeat: TWlSeat; aClassType: TWpXwaylandKeyboardGrabV1Class = nil): TWpXwaylandKeyboardGrabV1;
+  private
+    FListeners: array of IWpXwaylandKeyboardGrabManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpXwaylandKeyboardGrabManagerV1Listener): LongInt;
+  end;
+
+  IWpXwaylandKeyboardGrabManagerV1Listener = interface
+  ['IWpXwaylandKeyboardGrabManagerV1Listener']
+  end;
+
+  IWpXwaylandKeyboardGrabV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', '')]
+  { TWpXwaylandKeyboardGrabV1 }
+  TWpXwaylandKeyboardGrabV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpXwaylandKeyboardGrabV1Listener;
+  public
+    function AddListener(AIntf: IWpXwaylandKeyboardGrabV1Listener): LongInt;
+  end;
+
+  IWpXwaylandKeyboardGrabV1Listener = interface
+  ['IWpXwaylandKeyboardGrabV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpXwaylandKeyboardGrabManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpXwaylandKeyboardGrabManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_xwayland_keyboard_grab_manager_v1';
+end;
+
+destructor TWpXwaylandKeyboardGrabManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpXwaylandKeyboardGrabManagerV1.GrabKeyboard(aSurface: TWlSurface; aSeat: TWlSeat; aClassType: TWpXwaylandKeyboardGrabV1Class = nil): TWpXwaylandKeyboardGrabV1;
+begin
+  if aClassType = nil then aClassType := TWpXwaylandKeyboardGrabV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GRAB_KEYBOARD), [Result.GetObjectId,aSurface.GetObjectId,aSeat.GetObjectId]);
+end;
+
+function TWpXwaylandKeyboardGrabManagerV1.AddListener(AIntf: IWpXwaylandKeyboardGrabManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpXwaylandKeyboardGrabV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpXwaylandKeyboardGrabV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_xwayland_keyboard_grab_v1';
+end;
+
+destructor TWpXwaylandKeyboardGrabV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpXwaylandKeyboardGrabV1.AddListener(AIntf: IWpXwaylandKeyboardGrabV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

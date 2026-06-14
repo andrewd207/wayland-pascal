@@ -1,0 +1,672 @@
+unit tablet_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpTabletToolV1Class = class of TWpTabletToolV1;
+  { TWpTabletToolV1 }
+  TWpTabletToolV1 = class;
+
+  TWpTabletV1Class = class of TWpTabletV1;
+  { TWpTabletV1 }
+  TWpTabletV1 = class;
+
+  TWpTabletSeatV1Class = class of TWpTabletSeatV1;
+  { TWpTabletSeatV1 }
+  TWpTabletSeatV1 = class;
+
+  TWpTabletManagerV1Class = class of TWpTabletManagerV1;
+  { TWpTabletManagerV1 }
+  TWpTabletManagerV1 = class;
+
+  IWpTabletManagerV1Listener = interface;
+
+  [TWLIntfAttribute('get_tablet_seat(no),destroy()', '')]
+  { TWpTabletManagerV1 }
+  TWpTabletManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_GET_TABLET_SEAT = 0, _DESTROY = 1);
+  public
+    function GetTabletSeat(aSeat: TWlSeat; aClassType: TWpTabletSeatV1Class = nil): TWpTabletSeatV1;
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpTabletManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpTabletManagerV1Listener): LongInt;
+  end;
+
+  IWpTabletManagerV1Listener = interface
+  ['IWpTabletManagerV1Listener']
+  end;
+
+  IWpTabletSeatV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'tablet_added(n),tool_added(n)')]
+  { TWpTabletSeatV1 }
+  TWpTabletSeatV1 = class(TWaylandBase)
+  public type
+    TTabletAddedEvent = procedure(Sender: TWpTabletSeatV1; aId: TWpTabletV1) of object;
+    TToolAddedEvent = procedure(Sender: TWpTabletSeatV1; aId: TWpTabletToolV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_TABLET_ADDED = 0, EV_TOOL_ADDED = 1);
+  private
+    FOnTabletAddedPriv: TTabletAddedEvent;
+    FOnToolAddedPriv: TToolAddedEvent;
+  protected
+    procedure HandleTabletAdded(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TABLET_ADDED); virtual;
+    procedure HandleToolAdded(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TOOL_ADDED); virtual;
+  published
+    property OnTabletAdded: TTabletAddedEvent read FOnTabletAddedPriv write FOnTabletAddedPriv;
+    property OnToolAdded: TToolAddedEvent read FOnToolAddedPriv write FOnToolAddedPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpTabletSeatV1Listener;
+  public
+    function AddListener(AIntf: IWpTabletSeatV1Listener): LongInt;
+  end;
+
+  IWpTabletSeatV1Listener = interface
+  ['IWpTabletSeatV1Listener']
+    procedure wp_tablet_seat_v1_tablet_added(AWpTabletSeatV1: TWpTabletSeatV1; aId: TWpTabletV1);
+    procedure wp_tablet_seat_v1_tool_added(AWpTabletSeatV1: TWpTabletSeatV1; aId: TWpTabletToolV1);
+  end;
+
+  IWpTabletToolV1Listener = interface;
+
+  [TWLIntfAttribute('set_cursor(u?oii),destroy()', 'type(u),hardware_serial(uu),hardware_id_wacom(uu),capability(u),done(),removed(),proximity_in(uoo),proximity_out(),down(u),up(),motion(ff),pressure(u),distance(u),tilt(ii),rotation(i),slider(i),wheel(ii),button(uuu),frame(u)')]
+  { TWpTabletToolV1 }
+  TWpTabletToolV1 = class(TWaylandBase)
+  public type
+    TType = (tyPen = 320, tyEraser = 321, tyBrush = 322, tyPencil = 323, tyAirbrush = 324, tyFinger = 325, tyMouse = 326, tyLens = 327);
+    TCapability = (caTilt = 1, caPressure = 2, caDistance = 3, caRotation = 4, caSlider = 5, caWheel = 6);
+    TButtonState = (buReleased = 0, buPressed = 1);
+    TError = (erRole = 0);
+    TTypeEvent = procedure(Sender: TWpTabletToolV1; aToolType: TType) of object;
+    THardwareSerialEvent = procedure(Sender: TWpTabletToolV1; aHardwareSerialHi: DWord; aHardwareSerialLo: DWord) of object;
+    THardwareIdWacomEvent = procedure(Sender: TWpTabletToolV1; aHardwareIdHi: DWord; aHardwareIdLo: DWord) of object;
+    TCapabilityEvent = procedure(Sender: TWpTabletToolV1; aCapability: TCapability) of object;
+    TDoneEvent = procedure(Sender: TWpTabletToolV1) of object;
+    TRemovedEvent = procedure(Sender: TWpTabletToolV1) of object;
+    TProximityInEvent = procedure(Sender: TWpTabletToolV1; aSerial: DWord; aTablet: TWpTabletV1; aSurface: TWlSurface) of object;
+    TProximityOutEvent = procedure(Sender: TWpTabletToolV1) of object;
+    TDownEvent = procedure(Sender: TWpTabletToolV1; aSerial: DWord) of object;
+    TUpEvent = procedure(Sender: TWpTabletToolV1) of object;
+    TMotionEvent = procedure(Sender: TWpTabletToolV1; aX: TWaylandFixed; aY: TWaylandFixed) of object;
+    TPressureEvent = procedure(Sender: TWpTabletToolV1; aPressure: DWord) of object;
+    TDistanceEvent = procedure(Sender: TWpTabletToolV1; aDistance: DWord) of object;
+    TTiltEvent = procedure(Sender: TWpTabletToolV1; aTiltX: Integer; aTiltY: Integer) of object;
+    TRotationEvent = procedure(Sender: TWpTabletToolV1; aDegrees: Integer) of object;
+    TSliderEvent = procedure(Sender: TWpTabletToolV1; aPosition: Integer) of object;
+    TWheelEvent = procedure(Sender: TWpTabletToolV1; aDegrees: Integer; aClicks: Integer) of object;
+    TButtonEvent = procedure(Sender: TWpTabletToolV1; aSerial: DWord; aButton: DWord; aState: TButtonState) of object;
+    TFrameEvent = procedure(Sender: TWpTabletToolV1; aTime: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_CURSOR = 0, _DESTROY = 1);
+    TEvents = (EV_TYPE = 0, EV_HARDWARE_SERIAL = 1, EV_HARDWARE_ID_WACOM = 2, EV_CAPABILITY = 3, EV_DONE = 4, EV_REMOVED = 5, EV_PROXIMITY_IN = 6, EV_PROXIMITY_OUT = 7, EV_DOWN = 8, EV_UP = 9, EV_MOTION = 10, EV_PRESSURE = 11, EV_DISTANCE = 12, EV_TILT = 13, EV_ROTATION = 14, EV_SLIDER = 15, EV_WHEEL = 16, EV_BUTTON = 17, EV_FRAME = 18);
+  private
+    FOnTypePriv: TTypeEvent;
+    FOnHardwareSerialPriv: THardwareSerialEvent;
+    FOnHardwareIdWacomPriv: THardwareIdWacomEvent;
+    FOnCapabilityPriv: TCapabilityEvent;
+    FOnDonePriv: TDoneEvent;
+    FOnRemovedPriv: TRemovedEvent;
+    FOnProximityInPriv: TProximityInEvent;
+    FOnProximityOutPriv: TProximityOutEvent;
+    FOnDownPriv: TDownEvent;
+    FOnUpPriv: TUpEvent;
+    FOnMotionPriv: TMotionEvent;
+    FOnPressurePriv: TPressureEvent;
+    FOnDistancePriv: TDistanceEvent;
+    FOnTiltPriv: TTiltEvent;
+    FOnRotationPriv: TRotationEvent;
+    FOnSliderPriv: TSliderEvent;
+    FOnWheelPriv: TWheelEvent;
+    FOnButtonPriv: TButtonEvent;
+    FOnFramePriv: TFrameEvent;
+  protected
+    procedure HandleType(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TYPE); virtual;
+    procedure HandleHardwareSerial(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_HARDWARE_SERIAL); virtual;
+    procedure HandleHardwareIdWacom(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_HARDWARE_ID_WACOM); virtual;
+    procedure HandleCapability(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CAPABILITY); virtual;
+    procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
+    procedure HandleRemoved(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_REMOVED); virtual;
+    procedure HandleProximityIn(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PROXIMITY_IN); virtual;
+    procedure HandleProximityOut(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PROXIMITY_OUT); virtual;
+    procedure HandleDown(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DOWN); virtual;
+    procedure HandleUp(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_UP); virtual;
+    procedure HandleMotion(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_MOTION); virtual;
+    procedure HandlePressure(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PRESSURE); virtual;
+    procedure HandleDistance(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DISTANCE); virtual;
+    procedure HandleTilt(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TILT); virtual;
+    procedure HandleRotation(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_ROTATION); virtual;
+    procedure HandleSlider(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SLIDER); virtual;
+    procedure HandleWheel(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_WHEEL); virtual;
+    procedure HandleButton(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_BUTTON); virtual;
+    procedure HandleFrame(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_FRAME); virtual;
+  published
+    property OnType: TTypeEvent read FOnTypePriv write FOnTypePriv;
+    property OnHardwareSerial: THardwareSerialEvent read FOnHardwareSerialPriv write FOnHardwareSerialPriv;
+    property OnHardwareIdWacom: THardwareIdWacomEvent read FOnHardwareIdWacomPriv write FOnHardwareIdWacomPriv;
+    property OnCapability: TCapabilityEvent read FOnCapabilityPriv write FOnCapabilityPriv;
+    property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+    property OnRemoved: TRemovedEvent read FOnRemovedPriv write FOnRemovedPriv;
+    property OnProximityIn: TProximityInEvent read FOnProximityInPriv write FOnProximityInPriv;
+    property OnProximityOut: TProximityOutEvent read FOnProximityOutPriv write FOnProximityOutPriv;
+    property OnDown: TDownEvent read FOnDownPriv write FOnDownPriv;
+    property OnUp: TUpEvent read FOnUpPriv write FOnUpPriv;
+    property OnMotion: TMotionEvent read FOnMotionPriv write FOnMotionPriv;
+    property OnPressure: TPressureEvent read FOnPressurePriv write FOnPressurePriv;
+    property OnDistance: TDistanceEvent read FOnDistancePriv write FOnDistancePriv;
+    property OnTilt: TTiltEvent read FOnTiltPriv write FOnTiltPriv;
+    property OnRotation: TRotationEvent read FOnRotationPriv write FOnRotationPriv;
+    property OnSlider: TSliderEvent read FOnSliderPriv write FOnSliderPriv;
+    property OnWheel: TWheelEvent read FOnWheelPriv write FOnWheelPriv;
+    property OnButton: TButtonEvent read FOnButtonPriv write FOnButtonPriv;
+    property OnFrame: TFrameEvent read FOnFramePriv write FOnFramePriv;
+  public
+    procedure SetCursor(aSerial: DWord; aSurface: TWlSurface; aHotspotX: Integer; aHotspotY: Integer);
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpTabletToolV1Listener;
+  public
+    function AddListener(AIntf: IWpTabletToolV1Listener): LongInt;
+  end;
+
+  IWpTabletToolV1Listener = interface
+  ['IWpTabletToolV1Listener']
+    procedure wp_tablet_tool_v1_type(AWpTabletToolV1: TWpTabletToolV1; aToolType: TWpTabletToolV1.TType);
+    procedure wp_tablet_tool_v1_hardware_serial(AWpTabletToolV1: TWpTabletToolV1; aHardwareSerialHi: DWord; aHardwareSerialLo: DWord);
+    procedure wp_tablet_tool_v1_hardware_id_wacom(AWpTabletToolV1: TWpTabletToolV1; aHardwareIdHi: DWord; aHardwareIdLo: DWord);
+    procedure wp_tablet_tool_v1_capability(AWpTabletToolV1: TWpTabletToolV1; aCapability: TWpTabletToolV1.TCapability);
+    procedure wp_tablet_tool_v1_done(AWpTabletToolV1: TWpTabletToolV1);
+    procedure wp_tablet_tool_v1_removed(AWpTabletToolV1: TWpTabletToolV1);
+    procedure wp_tablet_tool_v1_proximity_in(AWpTabletToolV1: TWpTabletToolV1; aSerial: DWord; aTablet: TWpTabletV1; aSurface: TWlSurface);
+    procedure wp_tablet_tool_v1_proximity_out(AWpTabletToolV1: TWpTabletToolV1);
+    procedure wp_tablet_tool_v1_down(AWpTabletToolV1: TWpTabletToolV1; aSerial: DWord);
+    procedure wp_tablet_tool_v1_up(AWpTabletToolV1: TWpTabletToolV1);
+    procedure wp_tablet_tool_v1_motion(AWpTabletToolV1: TWpTabletToolV1; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wp_tablet_tool_v1_pressure(AWpTabletToolV1: TWpTabletToolV1; aPressure: DWord);
+    procedure wp_tablet_tool_v1_distance(AWpTabletToolV1: TWpTabletToolV1; aDistance: DWord);
+    procedure wp_tablet_tool_v1_tilt(AWpTabletToolV1: TWpTabletToolV1; aTiltX: Integer; aTiltY: Integer);
+    procedure wp_tablet_tool_v1_rotation(AWpTabletToolV1: TWpTabletToolV1; aDegrees: Integer);
+    procedure wp_tablet_tool_v1_slider(AWpTabletToolV1: TWpTabletToolV1; aPosition: Integer);
+    procedure wp_tablet_tool_v1_wheel(AWpTabletToolV1: TWpTabletToolV1; aDegrees: Integer; aClicks: Integer);
+    procedure wp_tablet_tool_v1_button(AWpTabletToolV1: TWpTabletToolV1; aSerial: DWord; aButton: DWord; aState: TWpTabletToolV1.TButtonState);
+    procedure wp_tablet_tool_v1_frame(AWpTabletToolV1: TWpTabletToolV1; aTime: DWord);
+  end;
+
+  IWpTabletV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'name(s),id(uu),path(s),done(),removed()')]
+  { TWpTabletV1 }
+  TWpTabletV1 = class(TWaylandBase)
+  public type
+    TNameEvent = procedure(Sender: TWpTabletV1; aName: String) of object;
+    TIdEvent = procedure(Sender: TWpTabletV1; aVid: DWord; aPid: DWord) of object;
+    TPathEvent = procedure(Sender: TWpTabletV1; aPath: String) of object;
+    TDoneEvent = procedure(Sender: TWpTabletV1) of object;
+    TRemovedEvent = procedure(Sender: TWpTabletV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_NAME = 0, EV_ID = 1, EV_PATH = 2, EV_DONE = 3, EV_REMOVED = 4);
+  private
+    FOnNamePriv: TNameEvent;
+    FOnIdPriv: TIdEvent;
+    FOnPathPriv: TPathEvent;
+    FOnDonePriv: TDoneEvent;
+    FOnRemovedPriv: TRemovedEvent;
+  protected
+    procedure HandleName(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_NAME); virtual;
+    procedure HandleId(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_ID); virtual;
+    procedure HandlePath(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PATH); virtual;
+    procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
+    procedure HandleRemoved(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_REMOVED); virtual;
+  published
+    property OnName: TNameEvent read FOnNamePriv write FOnNamePriv;
+    property OnId: TIdEvent read FOnIdPriv write FOnIdPriv;
+    property OnPath: TPathEvent read FOnPathPriv write FOnPathPriv;
+    property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+    property OnRemoved: TRemovedEvent read FOnRemovedPriv write FOnRemovedPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpTabletV1Listener;
+  public
+    function AddListener(AIntf: IWpTabletV1Listener): LongInt;
+  end;
+
+  IWpTabletV1Listener = interface
+  ['IWpTabletV1Listener']
+    procedure wp_tablet_v1_name(AWpTabletV1: TWpTabletV1; aName: String);
+    procedure wp_tablet_v1_id(AWpTabletV1: TWpTabletV1; aVid: DWord; aPid: DWord);
+    procedure wp_tablet_v1_path(AWpTabletV1: TWpTabletV1; aPath: String);
+    procedure wp_tablet_v1_done(AWpTabletV1: TWpTabletV1);
+    procedure wp_tablet_v1_removed(AWpTabletV1: TWpTabletV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpTabletManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTabletManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_tablet_manager_v1';
+end;
+
+function TWpTabletManagerV1.GetTabletSeat(aSeat: TWlSeat; aClassType: TWpTabletSeatV1Class = nil): TWpTabletSeatV1;
+begin
+  if aClassType = nil then aClassType := TWpTabletSeatV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_TABLET_SEAT), [Result.GetObjectId,aSeat.GetObjectId]);
+end;
+
+destructor TWpTabletManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpTabletManagerV1.AddListener(AIntf: IWpTabletManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpTabletSeatV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTabletSeatV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_tablet_seat_v1';
+end;
+
+procedure TWpTabletSeatV1.HandleTabletAdded(var AMsg: TWaylandEventMessage);
+var
+  lId: TWpTabletV1;
+  lListenerIdx: Integer;
+begin
+  lId := TWpTabletV1.Create(Connection, nil, AMsg.Args.ReadDWord);
+  if Assigned(OnTabletAdded) then OnTabletAdded(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_seat_v1_tablet_added(Self,lId);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletSeatV1.HandleToolAdded(var AMsg: TWaylandEventMessage);
+var
+  lId: TWpTabletToolV1;
+  lListenerIdx: Integer;
+begin
+  lId := TWpTabletToolV1.Create(Connection, nil, AMsg.Args.ReadDWord);
+  if Assigned(OnToolAdded) then OnToolAdded(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_seat_v1_tool_added(Self,lId);
+  AMsg.SetHandled;
+end;
+
+destructor TWpTabletSeatV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpTabletSeatV1.AddListener(AIntf: IWpTabletSeatV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpTabletToolV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTabletToolV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_tablet_tool_v1';
+end;
+
+procedure TWpTabletToolV1.HandleType(var AMsg: TWaylandEventMessage);
+var
+  lToolType: TType;
+  lListenerIdx: Integer;
+begin
+  lToolType := TType(AMsg.Args.ReadDWord);
+  if Assigned(OnType) then OnType(Self,lToolType);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_type(Self,lToolType);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleHardwareSerial(var AMsg: TWaylandEventMessage);
+var
+  lHardwareSerialHi: DWord;
+  lHardwareSerialLo: DWord;
+  lListenerIdx: Integer;
+begin
+  lHardwareSerialHi := AMsg.Args.ReadDWord;
+  lHardwareSerialLo := AMsg.Args.ReadDWord;
+  if Assigned(OnHardwareSerial) then OnHardwareSerial(Self,lHardwareSerialHi,lHardwareSerialLo);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_hardware_serial(Self,lHardwareSerialHi,lHardwareSerialLo);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleHardwareIdWacom(var AMsg: TWaylandEventMessage);
+var
+  lHardwareIdHi: DWord;
+  lHardwareIdLo: DWord;
+  lListenerIdx: Integer;
+begin
+  lHardwareIdHi := AMsg.Args.ReadDWord;
+  lHardwareIdLo := AMsg.Args.ReadDWord;
+  if Assigned(OnHardwareIdWacom) then OnHardwareIdWacom(Self,lHardwareIdHi,lHardwareIdLo);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_hardware_id_wacom(Self,lHardwareIdHi,lHardwareIdLo);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleCapability(var AMsg: TWaylandEventMessage);
+var
+  lCapability: TCapability;
+  lListenerIdx: Integer;
+begin
+  lCapability := TCapability(AMsg.Args.ReadDWord);
+  if Assigned(OnCapability) then OnCapability(Self,lCapability);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_capability(Self,lCapability);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_done(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleRemoved(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnRemoved) then OnRemoved(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_removed(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleProximityIn(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTablet: TWpTabletV1;
+  lSurface: TWlSurface;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTablet := (Connection.GetObject(AMsg.Args.ReadDWord) as TWpTabletV1);
+  lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
+  if Assigned(OnProximityIn) then OnProximityIn(Self,lSerial,lTablet,lSurface);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_proximity_in(Self,lSerial,lTablet,lSurface);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleProximityOut(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnProximityOut) then OnProximityOut(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_proximity_out(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleDown(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  if Assigned(OnDown) then OnDown(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_down(Self,lSerial);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleUp(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnUp) then OnUp(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_up(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleMotion(var AMsg: TWaylandEventMessage);
+var
+  lX: TWaylandFixed;
+  lY: TWaylandFixed;
+  lListenerIdx: Integer;
+begin
+  lX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  lY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
+  if Assigned(OnMotion) then OnMotion(Self,lX,lY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_motion(Self,lX,lY);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandlePressure(var AMsg: TWaylandEventMessage);
+var
+  lPressure: DWord;
+  lListenerIdx: Integer;
+begin
+  lPressure := AMsg.Args.ReadDWord;
+  if Assigned(OnPressure) then OnPressure(Self,lPressure);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_pressure(Self,lPressure);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleDistance(var AMsg: TWaylandEventMessage);
+var
+  lDistance: DWord;
+  lListenerIdx: Integer;
+begin
+  lDistance := AMsg.Args.ReadDWord;
+  if Assigned(OnDistance) then OnDistance(Self,lDistance);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_distance(Self,lDistance);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleTilt(var AMsg: TWaylandEventMessage);
+var
+  lTiltX: Integer;
+  lTiltY: Integer;
+  lListenerIdx: Integer;
+begin
+  lTiltX := AMsg.Args.ReadInteger;
+  lTiltY := AMsg.Args.ReadInteger;
+  if Assigned(OnTilt) then OnTilt(Self,lTiltX,lTiltY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_tilt(Self,lTiltX,lTiltY);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleRotation(var AMsg: TWaylandEventMessage);
+var
+  lDegrees: Integer;
+  lListenerIdx: Integer;
+begin
+  lDegrees := AMsg.Args.ReadInteger;
+  if Assigned(OnRotation) then OnRotation(Self,lDegrees);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_rotation(Self,lDegrees);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleSlider(var AMsg: TWaylandEventMessage);
+var
+  lPosition: Integer;
+  lListenerIdx: Integer;
+begin
+  lPosition := AMsg.Args.ReadInteger;
+  if Assigned(OnSlider) then OnSlider(Self,lPosition);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_slider(Self,lPosition);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleWheel(var AMsg: TWaylandEventMessage);
+var
+  lDegrees: Integer;
+  lClicks: Integer;
+  lListenerIdx: Integer;
+begin
+  lDegrees := AMsg.Args.ReadInteger;
+  lClicks := AMsg.Args.ReadInteger;
+  if Assigned(OnWheel) then OnWheel(Self,lDegrees,lClicks);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_wheel(Self,lDegrees,lClicks);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleButton(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lButton: DWord;
+  lState: TButtonState;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lButton := AMsg.Args.ReadDWord;
+  lState := TButtonState(AMsg.Args.ReadDWord);
+  if Assigned(OnButton) then OnButton(Self,lSerial,lButton,lState);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_button(Self,lSerial,lButton,lState);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.HandleFrame(var AMsg: TWaylandEventMessage);
+var
+  lTime: DWord;
+  lListenerIdx: Integer;
+begin
+  lTime := AMsg.Args.ReadDWord;
+  if Assigned(OnFrame) then OnFrame(Self,lTime);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_tool_v1_frame(Self,lTime);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletToolV1.SetCursor(aSerial: DWord; aSurface: TWlSurface; aHotspotX: Integer; aHotspotY: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CURSOR), [aSerial,WlObjectId(aSurface),aHotspotX,aHotspotY]);
+end;
+
+destructor TWpTabletToolV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpTabletToolV1.AddListener(AIntf: IWpTabletToolV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpTabletV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTabletV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_tablet_v1';
+end;
+
+procedure TWpTabletV1.HandleName(var AMsg: TWaylandEventMessage);
+var
+  lName: String;
+  lListenerIdx: Integer;
+begin
+  lName := AMsg.Args.ReadString;
+  if Assigned(OnName) then OnName(Self,lName);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_v1_name(Self,lName);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletV1.HandleId(var AMsg: TWaylandEventMessage);
+var
+  lVid: DWord;
+  lPid: DWord;
+  lListenerIdx: Integer;
+begin
+  lVid := AMsg.Args.ReadDWord;
+  lPid := AMsg.Args.ReadDWord;
+  if Assigned(OnId) then OnId(Self,lVid,lPid);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_v1_id(Self,lVid,lPid);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletV1.HandlePath(var AMsg: TWaylandEventMessage);
+var
+  lPath: String;
+  lListenerIdx: Integer;
+begin
+  lPath := AMsg.Args.ReadString;
+  if Assigned(OnPath) then OnPath(Self,lPath);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_v1_path(Self,lPath);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_v1_done(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTabletV1.HandleRemoved(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnRemoved) then OnRemoved(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_tablet_v1_removed(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TWpTabletV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpTabletV1.AddListener(AIntf: IWpTabletV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

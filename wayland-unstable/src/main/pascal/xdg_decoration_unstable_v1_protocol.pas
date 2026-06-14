@@ -1,0 +1,160 @@
+unit xdg_decoration_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland, xdg_shell_protocol;
+
+type
+  TXdgToplevelDecorationV1Class = class of TXdgToplevelDecorationV1;
+  { TXdgToplevelDecorationV1 }
+  TXdgToplevelDecorationV1 = class;
+
+  TXdgDecorationManagerV1Class = class of TXdgDecorationManagerV1;
+  { TXdgDecorationManagerV1 }
+  TXdgDecorationManagerV1 = class;
+
+  IXdgDecorationManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_toplevel_decoration(no)', '')]
+  { TXdgDecorationManagerV1 }
+  TXdgDecorationManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_TOPLEVEL_DECORATION = 1);
+  public
+    destructor Destroy; override;
+    function GetToplevelDecoration(aToplevel: TXdgToplevel; aClassType: TXdgToplevelDecorationV1Class = nil): TXdgToplevelDecorationV1;
+  private
+    FListeners: array of IXdgDecorationManagerV1Listener;
+  public
+    function AddListener(AIntf: IXdgDecorationManagerV1Listener): LongInt;
+  end;
+
+  IXdgDecorationManagerV1Listener = interface
+  ['IXdgDecorationManagerV1Listener']
+  end;
+
+  IXdgToplevelDecorationV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_mode(u),unset_mode()', 'configure(u)')]
+  { TXdgToplevelDecorationV1 }
+  TXdgToplevelDecorationV1 = class(TWaylandBase)
+  public type
+    TError = (erUnconfiguredbuffer = 0, erAlreadyconstructed = 1, erOrphaned = 2, erInvalidmode = 3);
+    TMode = (moClientside = 1, moServerside = 2);
+    TConfigureEvent = procedure(Sender: TXdgToplevelDecorationV1; aMode: TMode) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_MODE = 1, _UNSET_MODE = 2);
+    TEvents = (EV_CONFIGURE = 0);
+  private
+    FOnConfigurePriv: TConfigureEvent;
+  protected
+    procedure HandleConfigure(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CONFIGURE); virtual;
+  published
+    property OnConfigure: TConfigureEvent read FOnConfigurePriv write FOnConfigurePriv;
+  public
+    destructor Destroy; override;
+    procedure SetMode(aMode: TMode);
+    procedure UnsetMode;
+  private
+    FListeners: array of IXdgToplevelDecorationV1Listener;
+  public
+    function AddListener(AIntf: IXdgToplevelDecorationV1Listener): LongInt;
+  end;
+
+  IXdgToplevelDecorationV1Listener = interface
+  ['IXdgToplevelDecorationV1Listener']
+    procedure xdg_toplevel_decoration_v1_configure(AXdgToplevelDecorationV1: TXdgToplevelDecorationV1; aMode: TXdgToplevelDecorationV1.TMode);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgDecorationManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgDecorationManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zxdg_decoration_manager_v1';
+end;
+
+destructor TXdgDecorationManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgDecorationManagerV1.GetToplevelDecoration(aToplevel: TXdgToplevel; aClassType: TXdgToplevelDecorationV1Class = nil): TXdgToplevelDecorationV1;
+begin
+  if aClassType = nil then aClassType := TXdgToplevelDecorationV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_TOPLEVEL_DECORATION), [Result.GetObjectId,aToplevel.GetObjectId]);
+end;
+
+function TXdgDecorationManagerV1.AddListener(AIntf: IXdgDecorationManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgToplevelDecorationV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgToplevelDecorationV1.GetInterfaceName: String;
+begin
+  Result := 'zxdg_toplevel_decoration_v1';
+end;
+
+procedure TXdgToplevelDecorationV1.HandleConfigure(var AMsg: TWaylandEventMessage);
+var
+  lMode: TMode;
+  lListenerIdx: Integer;
+begin
+  lMode := TMode(AMsg.Args.ReadDWord);
+  if Assigned(OnConfigure) then OnConfigure(Self,lMode);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_decoration_v1_configure(Self,lMode);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgToplevelDecorationV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgToplevelDecorationV1.SetMode(aMode: TMode);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MODE), [DWord(aMode)]);
+end;
+
+procedure TXdgToplevelDecorationV1.UnsetMode;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._UNSET_MODE), []);
+end;
+
+function TXdgToplevelDecorationV1.AddListener(AIntf: IXdgToplevelDecorationV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

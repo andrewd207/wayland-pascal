@@ -1,0 +1,148 @@
+unit fractional_scale_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpFractionalScaleV1Class = class of TWpFractionalScaleV1;
+  { TWpFractionalScaleV1 }
+  TWpFractionalScaleV1 = class;
+
+  TWpFractionalScaleManagerV1Class = class of TWpFractionalScaleManagerV1;
+  { TWpFractionalScaleManagerV1 }
+  TWpFractionalScaleManagerV1 = class;
+
+  IWpFractionalScaleManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_fractional_scale(no)', '')]
+  { TWpFractionalScaleManagerV1 }
+  TWpFractionalScaleManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erFractionalscaleexists = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_FRACTIONAL_SCALE = 1);
+  public
+    destructor Destroy; override;
+    function GetFractionalScale(aSurface: TWlSurface; aClassType: TWpFractionalScaleV1Class = nil): TWpFractionalScaleV1;
+  private
+    FListeners: array of IWpFractionalScaleManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpFractionalScaleManagerV1Listener): LongInt;
+  end;
+
+  IWpFractionalScaleManagerV1Listener = interface
+  ['IWpFractionalScaleManagerV1Listener']
+  end;
+
+  IWpFractionalScaleV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'preferred_scale(u)')]
+  { TWpFractionalScaleV1 }
+  TWpFractionalScaleV1 = class(TWaylandBase)
+  public type
+    TPreferredScaleEvent = procedure(Sender: TWpFractionalScaleV1; aScale: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_PREFERRED_SCALE = 0);
+  private
+    FOnPreferredScalePriv: TPreferredScaleEvent;
+  protected
+    procedure HandlePreferredScale(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PREFERRED_SCALE); virtual;
+  published
+    property OnPreferredScale: TPreferredScaleEvent read FOnPreferredScalePriv write FOnPreferredScalePriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpFractionalScaleV1Listener;
+  public
+    function AddListener(AIntf: IWpFractionalScaleV1Listener): LongInt;
+  end;
+
+  IWpFractionalScaleV1Listener = interface
+  ['IWpFractionalScaleV1Listener']
+    procedure wp_fractional_scale_v1_preferred_scale(AWpFractionalScaleV1: TWpFractionalScaleV1; aScale: DWord);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpFractionalScaleManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpFractionalScaleManagerV1.GetInterfaceName: String;
+begin
+  Result := 'wp_fractional_scale_manager_v1';
+end;
+
+destructor TWpFractionalScaleManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpFractionalScaleManagerV1.GetFractionalScale(aSurface: TWlSurface; aClassType: TWpFractionalScaleV1Class = nil): TWpFractionalScaleV1;
+begin
+  if aClassType = nil then aClassType := TWpFractionalScaleV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_FRACTIONAL_SCALE), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TWpFractionalScaleManagerV1.AddListener(AIntf: IWpFractionalScaleManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpFractionalScaleV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpFractionalScaleV1.GetInterfaceName: String;
+begin
+  Result := 'wp_fractional_scale_v1';
+end;
+
+procedure TWpFractionalScaleV1.HandlePreferredScale(var AMsg: TWaylandEventMessage);
+var
+  lScale: DWord;
+  lListenerIdx: Integer;
+begin
+  lScale := AMsg.Args.ReadDWord;
+  if Assigned(OnPreferredScale) then OnPreferredScale(Self,lScale);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_fractional_scale_v1_preferred_scale(Self,lScale);
+  AMsg.SetHandled;
+end;
+
+destructor TWpFractionalScaleV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpFractionalScaleV1.AddListener(AIntf: IWpFractionalScaleV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

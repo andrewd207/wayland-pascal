@@ -1,0 +1,135 @@
+unit xwayland_shell_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TXwaylandSurfaceV1Class = class of TXwaylandSurfaceV1;
+  { TXwaylandSurfaceV1 }
+  TXwaylandSurfaceV1 = class;
+
+  TXwaylandShellV1Class = class of TXwaylandShellV1;
+  { TXwaylandShellV1 }
+  TXwaylandShellV1 = class;
+
+  IXwaylandShellV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_xwayland_surface(no)', '')]
+  { TXwaylandShellV1 }
+  TXwaylandShellV1 = class(TWaylandBase)
+  public type
+    TError = (erRole = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_XWAYLAND_SURFACE = 1);
+  public
+    destructor Destroy; override;
+    function GetXwaylandSurface(aSurface: TWlSurface; aClassType: TXwaylandSurfaceV1Class = nil): TXwaylandSurfaceV1;
+  private
+    FListeners: array of IXwaylandShellV1Listener;
+  public
+    function AddListener(AIntf: IXwaylandShellV1Listener): LongInt;
+  end;
+
+  IXwaylandShellV1Listener = interface
+  ['IXwaylandShellV1Listener']
+  end;
+
+  IXwaylandSurfaceV1Listener = interface;
+
+  [TWLIntfAttribute('set_serial(uu),destroy()', '')]
+  { TXwaylandSurfaceV1 }
+  TXwaylandSurfaceV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyassociated = 0, erInvalidserial = 1);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_SERIAL = 0, _DESTROY = 1);
+  public
+    procedure SetSerial(aSerialLo: DWord; aSerialHi: DWord);
+    destructor Destroy; override;
+  private
+    FListeners: array of IXwaylandSurfaceV1Listener;
+  public
+    function AddListener(AIntf: IXwaylandSurfaceV1Listener): LongInt;
+  end;
+
+  IXwaylandSurfaceV1Listener = interface
+  ['IXwaylandSurfaceV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXwaylandShellV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXwaylandShellV1.GetInterfaceName: String;
+begin
+  Result := 'xwayland_shell_v1';
+end;
+
+destructor TXwaylandShellV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXwaylandShellV1.GetXwaylandSurface(aSurface: TWlSurface; aClassType: TXwaylandSurfaceV1Class = nil): TXwaylandSurfaceV1;
+begin
+  if aClassType = nil then aClassType := TXwaylandSurfaceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_XWAYLAND_SURFACE), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TXwaylandShellV1.AddListener(AIntf: IXwaylandShellV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXwaylandSurfaceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXwaylandSurfaceV1.GetInterfaceName: String;
+begin
+  Result := 'xwayland_surface_v1';
+end;
+
+procedure TXwaylandSurfaceV1.SetSerial(aSerialLo: DWord; aSerialHi: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SERIAL), [aSerialLo,aSerialHi]);
+end;
+
+destructor TXwaylandSurfaceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXwaylandSurfaceV1.AddListener(AIntf: IXwaylandSurfaceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

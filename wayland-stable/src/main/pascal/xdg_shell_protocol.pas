@@ -1,4 +1,4 @@
-unit xdg_shell;
+unit xdg_shell_protocol;
 
 {$mode ObjFPC}{$H+}
 {$ScopedEnums on}

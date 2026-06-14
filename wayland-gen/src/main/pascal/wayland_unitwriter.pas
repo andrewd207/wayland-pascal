@@ -24,6 +24,8 @@ type
     FWritingInterfaces: TStringList;
     FForwardList: TStringList;
     FListenerNodes: TStringList; // class name -> full TInterfaceTypeNode, placed after its class
+    FDestructorMapped: Boolean;  // a destructor request already became Pascal Destroy for the current interface
+    procedure CollectExternalUnits(AOut: TStringList);
     function GetFullEnumName(AName: String): String;
     function GetArgTypeName(AArg: TWIArgNode; out AKind: TTypeVariety): String;
     function LookupIsBitfield(AThisInterface: TWInterfaceNode; AName: String): Boolean;
@@ -35,7 +37,12 @@ type
     procedure WriteEvent(AInterface: TWInterfaceNode; aEvent: TWIEventNode; AClass: TClassNode; AProtected, APublished: TVisibilityNode; AListener: TInterfaceTypeNode; const AListenerPrefix: String);
     procedure WriteRequest(AInterface: TWInterfaceNode; ARequest: TWIRequestNode; AClass: TClassNode; AProtected, APublished: TVisibilityNode);
   public
-    procedure WriteUnit(AProtocol: TWIProtocolNode; AStream: TStream; ASenderUsesBase: Boolean = False);
+    // raw interface name (e.g. 'xdg_toplevel') -> defining unit name (e.g.
+    // 'xdg_shell_protocol'). Core wl_* interfaces map to 'wayland'. Set by the
+    // caller before WriteUnit so cross-protocol references emit a uses clause.
+    FInterfaceUnitMap: TStringList;
+    // overrides the generated unit name; '' falls back to the protocol name.
+    procedure WriteUnit(AProtocol: TWIProtocolNode; AStream: TStream; ASenderUsesBase: Boolean = False; const AUnitName: String = '');
   end;
 
 implementation
@@ -50,6 +57,63 @@ begin
   Result := AInterfaceName;
   if (Length(Result) > 1) and ((Result[1] = 'z') or (Result[1] = 'Z')) then
     Delete(Result, 1, 1);
+end;
+
+// Walk every request/event arg of this protocol. Any interface or qualified-
+// enum reference that resolves to a DIFFERENT unit than the one being written
+// is collected so WriteUnit can emit the corresponding uses clause. 'wayland'
+// is added by WriteUnit unconditionally and skipped here.
+procedure TWaylandUnitWriter.CollectExternalUnits(AOut: TStringList);
+var
+  lLocal: TStringList;
+  i, j, k: Integer;
+  lIface: TWInterfaceNode;
+
+  procedure ConsiderRef(const ARawIface: String);
+  var
+    lUnit: String;
+  begin
+    if (ARawIface = '') or (FInterfaceUnitMap = nil) then Exit;
+    if lLocal.IndexOf(ARawIface) <> -1 then Exit; // defined in this protocol
+    lUnit := FInterfaceUnitMap.Values[ARawIface];
+    if (lUnit = '') or (lUnit = 'wayland') or (lUnit = FUnit.Name) then Exit;
+    if AOut.IndexOf(lUnit) = -1 then AOut.Add(lUnit);
+  end;
+
+  procedure ConsiderArgs(AArgs: TWIArgList);
+  var
+    a: Integer;
+    lArg: TWIArgNode;
+    lDot: TAnsiStringArray;
+  begin
+    for a := 0 to AArgs.Count-1 do
+    begin
+      lArg := AArgs.Items[a];
+      ConsiderRef(lArg.Interface_);
+      if lArg.Enum <> '' then
+      begin
+        lDot := lArg.Enum.Split(['.']);
+        if Length(lDot) > 1 then ConsiderRef(lDot[0]);
+      end;
+    end;
+  end;
+
+begin
+  lLocal := TStringList.Create;
+  try
+    for i := 0 to FProtocol.Interfaces.Count-1 do
+      lLocal.Add(FProtocol.Interfaces.Items[i].Name);
+    for i := 0 to FProtocol.Interfaces.Count-1 do
+    begin
+      lIface := FProtocol.Interfaces.Items[i];
+      for j := 0 to lIface.Requests.Count-1 do
+        ConsiderArgs(lIface.Requests.Items[j].Args);
+      for k := 0 to lIface.Events.Count-1 do
+        ConsiderArgs(lIface.Events.Items[k].Args);
+    end;
+  finally
+    lLocal.Free;
+  end;
 end;
 
 function TWaylandUnitWriter.GetFullEnumName(AName: String): String;
@@ -375,6 +439,7 @@ begin
   end;
 
   // Create "requests"
+  FDestructorMapped := False; // only one destructor request may become Pascal Destroy
   for i := 0 to AInterface.Requests.Count-1 do
   begin
     WriteRequest(AInterface, AInterface.Requests.Items[i], lClass, lProtected, lPublished);
@@ -600,6 +665,7 @@ var
   lPublic: TVisibilityNode;
   i, x: Integer;
   lIntfProcType: TRoutineType = rtProc;
+  lMapToDestructor: Boolean;
   lArg, lReturnArg: TWIArgNode;
   lIntfProc: TRoutineNode;
   lType: TTypeVariety;
@@ -614,19 +680,31 @@ begin
     lIntfProcType := rtFunc;
   end;
 
+  // Map a request to the Pascal destructor ONLY when it has no args -- the
+  // classic parameterless destructor (wl_surface.destroy etc.), so obj.Free
+  // sends the destroy request. A destructor-type request that also returns a
+  // new_id or carries args (e.g. color-management's "create", which consumes
+  // the creator AND produces an image description) cannot be a Pascal
+  // destructor (those take no params / return nothing); emit it as a normal
+  // method instead.
+  lMapToDestructor := (ARequest.Type_ = 'destructor') and (ARequest.Args.Count = 0)
+                      and (not FDestructorMapped);
+  if lMapToDestructor then
+    FDestructorMapped := True;
+
   lPublic := AClass.WantVisibiltySection(vcPublic, True);
   lName := TClassNode.Pascalify(ARequest.Name, True, '');
   // A request whose Pascal name collides with a TObject / constructor identifier
   // (e.g. a protocol request literally named "create", as in
   // zwp_linux_buffer_params_v1) would shadow the constructor and break
-  // aClass.Create(...) calls. Suffix such names with '_'. (destructor requests
-  // are intentionally mapped to Destroy below and are exempt.)
-  if (ARequest.Type_ <> 'destructor')
+  // aClass.Create(...) calls. Suffix such names with '_'. (requests mapped to
+  // the Pascal destructor are intentionally named Destroy below and exempt.)
+  if (not lMapToDestructor)
      and (SameText(lName, 'Create') or SameText(lName, 'Destroy')
           or SameText(lName, 'Free') or SameText(lName, 'Dispatch')) then
     lName := lName + '_';
   lIntfProc := lPublic.AddRoutine(lIntfProcType, lName, '');
-  if ARequest.Type_ = 'destructor' then
+  if lMapToDestructor then
   begin
     lIntfProc.RoutineType:=rtDestructor;
     lIntfProc.Name:='Destroy'; // some are release etc.
@@ -740,7 +818,7 @@ begin
                         lParams+= TClassNode.Pascalify(lArg.Name, True, 'a')+','
                       else
                         lParams+='Result.GetObjectId,';
-        tvArray     : lParams+= TClassNode.Pascalify(lArg.Name, True, 'a')+',';
+        tvArray     : lParams+= 'Length('+TClassNode.Pascalify(lArg.Name, True, 'a')+'),Pointer('+TClassNode.Pascalify(lArg.Name, True, 'a')+'),';
         tvObject    : if lArg.Allow_Null then
                         // nullable object: send 0 (null id) when nil instead of
                         // dereferencing nil via .GetObjectId
@@ -771,9 +849,10 @@ begin
 end;
 
 procedure TWaylandUnitWriter.WriteUnit(AProtocol: TWIProtocolNode;
-  AStream: TStream; ASenderUsesBase: Boolean);
+  AStream: TStream; ASenderUsesBase: Boolean; const AUnitName: String);
 var
   i: Integer;
+  lExtUnits: TStringList;
 begin
   FWrittenInterfaces := TStringList.Create;
   FWrittenInterfaces.Sorted:=True;
@@ -788,7 +867,10 @@ begin
 
   FProtocol := AProtocol;
   FUnit := TUnitNode.CreateNew(Self);
-  FUnit.Name:= FProtocol.Name;
+  if AUnitName <> '' then
+    FUnit.Name:= AUnitName
+  else
+    FUnit.Name:= FProtocol.Name;
   FUnit.ModeSwitches.AddModeSwitch('{$mode ObjFPC}{$H+}');
   FUnit.ModeSwitches.AddModeSwitch('{$ScopedEnums on}');
   FUnit.ModeSwitches.AddModeSwitch('{$modeswitch advancedrecords}');
@@ -808,6 +890,17 @@ begin
 
 
   FUnit.ImplentationNode.UsesNode.AddUnit(['wayland_stream', 'wayland_interfaces']);
+
+  // cross-protocol references (e.g. xdg_decoration -> xdg_shell) need the
+  // defining unit in the interface uses clause.
+  lExtUnits := TStringList.Create;
+  try
+    CollectExternalUnits(lExtUnits);
+    for i := 0 to lExtUnits.Count-1 do
+      FUnit.InterfaceNode.UsesNode.AddUnit(lExtUnits[i]);
+  finally
+    lExtUnits.Free;
+  end;
 
   for i := 0 to FProtocol.Interfaces.Count-1 do
   begin

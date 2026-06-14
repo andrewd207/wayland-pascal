@@ -1,0 +1,239 @@
+unit ext_foreign_toplevel_list_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TExtForeignToplevelHandleV1Class = class of TExtForeignToplevelHandleV1;
+  { TExtForeignToplevelHandleV1 }
+  TExtForeignToplevelHandleV1 = class;
+
+  TExtForeignToplevelListV1Class = class of TExtForeignToplevelListV1;
+  { TExtForeignToplevelListV1 }
+  TExtForeignToplevelListV1 = class;
+
+  IExtForeignToplevelListV1Listener = interface;
+
+  [TWLIntfAttribute('stop(),destroy()', 'toplevel(n),finished()')]
+  { TExtForeignToplevelListV1 }
+  TExtForeignToplevelListV1 = class(TWaylandBase)
+  public type
+    TToplevelEvent = procedure(Sender: TExtForeignToplevelListV1; aToplevel: TExtForeignToplevelHandleV1) of object;
+    TFinishedEvent = procedure(Sender: TExtForeignToplevelListV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_STOP = 0, _DESTROY = 1);
+    TEvents = (EV_TOPLEVEL = 0, EV_FINISHED = 1);
+  private
+    FOnToplevelPriv: TToplevelEvent;
+    FOnFinishedPriv: TFinishedEvent;
+  protected
+    procedure HandleToplevel(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TOPLEVEL); virtual;
+    procedure HandleFinished(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_FINISHED); virtual;
+  published
+    property OnToplevel: TToplevelEvent read FOnToplevelPriv write FOnToplevelPriv;
+    property OnFinished: TFinishedEvent read FOnFinishedPriv write FOnFinishedPriv;
+  public
+    procedure Stop;
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtForeignToplevelListV1Listener;
+  public
+    function AddListener(AIntf: IExtForeignToplevelListV1Listener): LongInt;
+  end;
+
+  IExtForeignToplevelListV1Listener = interface
+  ['IExtForeignToplevelListV1Listener']
+    procedure ext_foreign_toplevel_list_v1_toplevel(AExtForeignToplevelListV1: TExtForeignToplevelListV1; aToplevel: TExtForeignToplevelHandleV1);
+    procedure ext_foreign_toplevel_list_v1_finished(AExtForeignToplevelListV1: TExtForeignToplevelListV1);
+  end;
+
+  IExtForeignToplevelHandleV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'closed(),done(),title(s),app_id(s),identifier(s)')]
+  { TExtForeignToplevelHandleV1 }
+  TExtForeignToplevelHandleV1 = class(TWaylandBase)
+  public type
+    TClosedEvent = procedure(Sender: TExtForeignToplevelHandleV1) of object;
+    TDoneEvent = procedure(Sender: TExtForeignToplevelHandleV1) of object;
+    TTitleEvent = procedure(Sender: TExtForeignToplevelHandleV1; aTitle: String) of object;
+    TAppIdEvent = procedure(Sender: TExtForeignToplevelHandleV1; aAppId: String) of object;
+    TIdentifierEvent = procedure(Sender: TExtForeignToplevelHandleV1; aIdentifier: String) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_CLOSED = 0, EV_DONE = 1, EV_TITLE = 2, EV_APP_ID = 3, EV_IDENTIFIER = 4);
+  private
+    FOnClosedPriv: TClosedEvent;
+    FOnDonePriv: TDoneEvent;
+    FOnTitlePriv: TTitleEvent;
+    FOnAppIdPriv: TAppIdEvent;
+    FOnIdentifierPriv: TIdentifierEvent;
+  protected
+    procedure HandleClosed(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CLOSED); virtual;
+    procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
+    procedure HandleTitle(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TITLE); virtual;
+    procedure HandleAppId(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_APP_ID); virtual;
+    procedure HandleIdentifier(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_IDENTIFIER); virtual;
+  published
+    property OnClosed: TClosedEvent read FOnClosedPriv write FOnClosedPriv;
+    property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+    property OnTitle: TTitleEvent read FOnTitlePriv write FOnTitlePriv;
+    property OnAppId: TAppIdEvent read FOnAppIdPriv write FOnAppIdPriv;
+    property OnIdentifier: TIdentifierEvent read FOnIdentifierPriv write FOnIdentifierPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtForeignToplevelHandleV1Listener;
+  public
+    function AddListener(AIntf: IExtForeignToplevelHandleV1Listener): LongInt;
+  end;
+
+  IExtForeignToplevelHandleV1Listener = interface
+  ['IExtForeignToplevelHandleV1Listener']
+    procedure ext_foreign_toplevel_handle_v1_closed(AExtForeignToplevelHandleV1: TExtForeignToplevelHandleV1);
+    procedure ext_foreign_toplevel_handle_v1_done(AExtForeignToplevelHandleV1: TExtForeignToplevelHandleV1);
+    procedure ext_foreign_toplevel_handle_v1_title(AExtForeignToplevelHandleV1: TExtForeignToplevelHandleV1; aTitle: String);
+    procedure ext_foreign_toplevel_handle_v1_app_id(AExtForeignToplevelHandleV1: TExtForeignToplevelHandleV1; aAppId: String);
+    procedure ext_foreign_toplevel_handle_v1_identifier(AExtForeignToplevelHandleV1: TExtForeignToplevelHandleV1; aIdentifier: String);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TExtForeignToplevelListV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtForeignToplevelListV1.GetInterfaceName: String;
+begin
+  Result := 'ext_foreign_toplevel_list_v1';
+end;
+
+procedure TExtForeignToplevelListV1.HandleToplevel(var AMsg: TWaylandEventMessage);
+var
+  lToplevel: TExtForeignToplevelHandleV1;
+  lListenerIdx: Integer;
+begin
+  lToplevel := TExtForeignToplevelHandleV1.Create(Connection, nil, AMsg.Args.ReadDWord);
+  if Assigned(OnToplevel) then OnToplevel(Self,lToplevel);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_list_v1_toplevel(Self,lToplevel);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelListV1.HandleFinished(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnFinished) then OnFinished(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_list_v1_finished(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelListV1.Stop;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._STOP), []);
+end;
+
+destructor TExtForeignToplevelListV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtForeignToplevelListV1.AddListener(AIntf: IExtForeignToplevelListV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtForeignToplevelHandleV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtForeignToplevelHandleV1.GetInterfaceName: String;
+begin
+  Result := 'ext_foreign_toplevel_handle_v1';
+end;
+
+procedure TExtForeignToplevelHandleV1.HandleClosed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnClosed) then OnClosed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_handle_v1_closed(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelHandleV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_handle_v1_done(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelHandleV1.HandleTitle(var AMsg: TWaylandEventMessage);
+var
+  lTitle: String;
+  lListenerIdx: Integer;
+begin
+  lTitle := AMsg.Args.ReadString;
+  if Assigned(OnTitle) then OnTitle(Self,lTitle);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_handle_v1_title(Self,lTitle);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelHandleV1.HandleAppId(var AMsg: TWaylandEventMessage);
+var
+  lAppId: String;
+  lListenerIdx: Integer;
+begin
+  lAppId := AMsg.Args.ReadString;
+  if Assigned(OnAppId) then OnAppId(Self,lAppId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_handle_v1_app_id(Self,lAppId);
+  AMsg.SetHandled;
+end;
+
+procedure TExtForeignToplevelHandleV1.HandleIdentifier(var AMsg: TWaylandEventMessage);
+var
+  lIdentifier: String;
+  lListenerIdx: Integer;
+begin
+  lIdentifier := AMsg.Args.ReadString;
+  if Assigned(OnIdentifier) then OnIdentifier(Self,lIdentifier);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_foreign_toplevel_handle_v1_identifier(Self,lIdentifier);
+  AMsg.SetHandled;
+end;
+
+destructor TExtForeignToplevelHandleV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtForeignToplevelHandleV1.AddListener(AIntf: IExtForeignToplevelHandleV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

@@ -1,0 +1,161 @@
+unit ext_background_effect_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TExtBackgroundEffectSurfaceV1Class = class of TExtBackgroundEffectSurfaceV1;
+  { TExtBackgroundEffectSurfaceV1 }
+  TExtBackgroundEffectSurfaceV1 = class;
+
+  TExtBackgroundEffectManagerV1Class = class of TExtBackgroundEffectManagerV1;
+  { TExtBackgroundEffectManagerV1 }
+  TExtBackgroundEffectManagerV1 = class;
+
+  IExtBackgroundEffectManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_background_effect(no)', 'capabilities(u)')]
+  { TExtBackgroundEffectManagerV1 }
+  TExtBackgroundEffectManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erBackgroundeffectexists = 0);
+    { TExtBackgroundEffectManagerV1.TCapability }
+    TCapability = object(TBitfield)
+    public
+      property Blur: Boolean  index 0 read GetValue write SetValue;
+    end;
+
+    TCapabilitiesEvent = procedure(Sender: TExtBackgroundEffectManagerV1; aFlags: TCapability) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_BACKGROUND_EFFECT = 1);
+    TEvents = (EV_CAPABILITIES = 0);
+  private
+    FOnCapabilitiesPriv: TCapabilitiesEvent;
+  protected
+    procedure HandleCapabilities(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CAPABILITIES); virtual;
+  published
+    property OnCapabilities: TCapabilitiesEvent read FOnCapabilitiesPriv write FOnCapabilitiesPriv;
+  public
+    destructor Destroy; override;
+    function GetBackgroundEffect(aSurface: TWlSurface; aClassType: TExtBackgroundEffectSurfaceV1Class = nil): TExtBackgroundEffectSurfaceV1;
+  private
+    FListeners: array of IExtBackgroundEffectManagerV1Listener;
+  public
+    function AddListener(AIntf: IExtBackgroundEffectManagerV1Listener): LongInt;
+  end;
+
+  IExtBackgroundEffectManagerV1Listener = interface
+  ['IExtBackgroundEffectManagerV1Listener']
+    procedure ext_background_effect_manager_v1_capabilities(AExtBackgroundEffectManagerV1: TExtBackgroundEffectManagerV1; aFlags: TExtBackgroundEffectManagerV1.TCapability);
+  end;
+
+  IExtBackgroundEffectSurfaceV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_blur_region(?o)', '')]
+  { TExtBackgroundEffectSurfaceV1 }
+  TExtBackgroundEffectSurfaceV1 = class(TWaylandBase)
+  public type
+    TError = (erSurfacedestroyed = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_BLUR_REGION = 1);
+  public
+    destructor Destroy; override;
+    procedure SetBlurRegion(aRegion: TWlRegion);
+  private
+    FListeners: array of IExtBackgroundEffectSurfaceV1Listener;
+  public
+    function AddListener(AIntf: IExtBackgroundEffectSurfaceV1Listener): LongInt;
+  end;
+
+  IExtBackgroundEffectSurfaceV1Listener = interface
+  ['IExtBackgroundEffectSurfaceV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TExtBackgroundEffectManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtBackgroundEffectManagerV1.GetInterfaceName: String;
+begin
+  Result := 'ext_background_effect_manager_v1';
+end;
+
+procedure TExtBackgroundEffectManagerV1.HandleCapabilities(var AMsg: TWaylandEventMessage);
+var
+  lFlags: TCapability;
+  lListenerIdx: Integer;
+begin
+  lFlags := TCapability(AMsg.Args.ReadDWord);
+  if Assigned(OnCapabilities) then OnCapabilities(Self,lFlags);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_background_effect_manager_v1_capabilities(Self,lFlags);
+  AMsg.SetHandled;
+end;
+
+destructor TExtBackgroundEffectManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtBackgroundEffectManagerV1.GetBackgroundEffect(aSurface: TWlSurface; aClassType: TExtBackgroundEffectSurfaceV1Class = nil): TExtBackgroundEffectSurfaceV1;
+begin
+  if aClassType = nil then aClassType := TExtBackgroundEffectSurfaceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_BACKGROUND_EFFECT), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TExtBackgroundEffectManagerV1.AddListener(AIntf: IExtBackgroundEffectManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtBackgroundEffectSurfaceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtBackgroundEffectSurfaceV1.GetInterfaceName: String;
+begin
+  Result := 'ext_background_effect_surface_v1';
+end;
+
+destructor TExtBackgroundEffectSurfaceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TExtBackgroundEffectSurfaceV1.SetBlurRegion(aRegion: TWlRegion);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_BLUR_REGION), [WlObjectId(aRegion)]);
+end;
+
+function TExtBackgroundEffectSurfaceV1.AddListener(AIntf: IExtBackgroundEffectSurfaceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

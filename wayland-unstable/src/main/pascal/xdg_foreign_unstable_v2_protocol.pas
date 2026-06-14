@@ -1,0 +1,280 @@
+unit xdg_foreign_unstable_v2_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TXdgImportedV2Class = class of TXdgImportedV2;
+  { TXdgImportedV2 }
+  TXdgImportedV2 = class;
+
+  TXdgImporterV2Class = class of TXdgImporterV2;
+  { TXdgImporterV2 }
+  TXdgImporterV2 = class;
+
+  TXdgExportedV2Class = class of TXdgExportedV2;
+  { TXdgExportedV2 }
+  TXdgExportedV2 = class;
+
+  TXdgExporterV2Class = class of TXdgExporterV2;
+  { TXdgExporterV2 }
+  TXdgExporterV2 = class;
+
+  IXdgExporterV2Listener = interface;
+
+  [TWLIntfAttribute('destroy(),export_toplevel(no)', '')]
+  { TXdgExporterV2 }
+  TXdgExporterV2 = class(TWaylandBase)
+  public type
+    TError = (erInvalidsurface = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _EXPORT_TOPLEVEL = 1);
+  public
+    destructor Destroy; override;
+    function ExportToplevel(aSurface: TWlSurface; aClassType: TXdgExportedV2Class = nil): TXdgExportedV2;
+  private
+    FListeners: array of IXdgExporterV2Listener;
+  public
+    function AddListener(AIntf: IXdgExporterV2Listener): LongInt;
+  end;
+
+  IXdgExporterV2Listener = interface
+  ['IXdgExporterV2Listener']
+  end;
+
+  IXdgImporterV2Listener = interface;
+
+  [TWLIntfAttribute('destroy(),import_toplevel(ns)', '')]
+  { TXdgImporterV2 }
+  TXdgImporterV2 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _IMPORT_TOPLEVEL = 1);
+  public
+    destructor Destroy; override;
+    function ImportToplevel(aHandle: String; aClassType: TXdgImportedV2Class = nil): TXdgImportedV2;
+  private
+    FListeners: array of IXdgImporterV2Listener;
+  public
+    function AddListener(AIntf: IXdgImporterV2Listener): LongInt;
+  end;
+
+  IXdgImporterV2Listener = interface
+  ['IXdgImporterV2Listener']
+  end;
+
+  IXdgExportedV2Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'handle(s)')]
+  { TXdgExportedV2 }
+  TXdgExportedV2 = class(TWaylandBase)
+  public type
+    THandleEvent = procedure(Sender: TXdgExportedV2; aHandle: String) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_HANDLE = 0);
+  private
+    FOnHandlePriv: THandleEvent;
+  protected
+    procedure HandleHandle(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_HANDLE); virtual;
+  published
+    property OnHandle: THandleEvent read FOnHandlePriv write FOnHandlePriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IXdgExportedV2Listener;
+  public
+    function AddListener(AIntf: IXdgExportedV2Listener): LongInt;
+  end;
+
+  IXdgExportedV2Listener = interface
+  ['IXdgExportedV2Listener']
+    procedure xdg_exported_v2_handle(AXdgExportedV2: TXdgExportedV2; aHandle: String);
+  end;
+
+  IXdgImportedV2Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_parent_of(o)', 'destroyed()')]
+  { TXdgImportedV2 }
+  TXdgImportedV2 = class(TWaylandBase)
+  public type
+    TError = (erInvalidsurface = 0);
+    TDestroyedEvent = procedure(Sender: TXdgImportedV2) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_PARENT_OF = 1);
+    TEvents = (EV_DESTROYED = 0);
+  private
+    FOnDestroyedPriv: TDestroyedEvent;
+  protected
+    procedure HandleDestroyed(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DESTROYED); virtual;
+  published
+    property OnDestroyed: TDestroyedEvent read FOnDestroyedPriv write FOnDestroyedPriv;
+  public
+    destructor Destroy; override;
+    procedure SetParentOf(aSurface: TWlSurface);
+  private
+    FListeners: array of IXdgImportedV2Listener;
+  public
+    function AddListener(AIntf: IXdgImportedV2Listener): LongInt;
+  end;
+
+  IXdgImportedV2Listener = interface
+  ['IXdgImportedV2Listener']
+    procedure xdg_imported_v2_destroyed(AXdgImportedV2: TXdgImportedV2);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgExporterV2.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgExporterV2.GetInterfaceName: String;
+begin
+  Result := 'zxdg_exporter_v2';
+end;
+
+destructor TXdgExporterV2.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgExporterV2.ExportToplevel(aSurface: TWlSurface; aClassType: TXdgExportedV2Class = nil): TXdgExportedV2;
+begin
+  if aClassType = nil then aClassType := TXdgExportedV2;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._EXPORT_TOPLEVEL), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TXdgExporterV2.AddListener(AIntf: IXdgExporterV2Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgImporterV2.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgImporterV2.GetInterfaceName: String;
+begin
+  Result := 'zxdg_importer_v2';
+end;
+
+destructor TXdgImporterV2.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgImporterV2.ImportToplevel(aHandle: String; aClassType: TXdgImportedV2Class = nil): TXdgImportedV2;
+begin
+  if aClassType = nil then aClassType := TXdgImportedV2;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._IMPORT_TOPLEVEL), [Result.GetObjectId,aHandle]);
+end;
+
+function TXdgImporterV2.AddListener(AIntf: IXdgImporterV2Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgExportedV2.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgExportedV2.GetInterfaceName: String;
+begin
+  Result := 'zxdg_exported_v2';
+end;
+
+procedure TXdgExportedV2.HandleHandle(var AMsg: TWaylandEventMessage);
+var
+  lHandle: String;
+  lListenerIdx: Integer;
+begin
+  lHandle := AMsg.Args.ReadString;
+  if Assigned(OnHandle) then OnHandle(Self,lHandle);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_exported_v2_handle(Self,lHandle);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgExportedV2.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgExportedV2.AddListener(AIntf: IXdgExportedV2Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgImportedV2.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgImportedV2.GetInterfaceName: String;
+begin
+  Result := 'zxdg_imported_v2';
+end;
+
+procedure TXdgImportedV2.HandleDestroyed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDestroyed) then OnDestroyed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_imported_v2_destroyed(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgImportedV2.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgImportedV2.SetParentOf(aSurface: TWlSurface);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PARENT_OF), [aSurface.GetObjectId]);
+end;
+
+function TXdgImportedV2.AddListener(AIntf: IXdgImportedV2Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

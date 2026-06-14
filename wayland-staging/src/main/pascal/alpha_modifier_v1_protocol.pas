@@ -1,0 +1,135 @@
+unit alpha_modifier_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpAlphaModifierSurfaceV1Class = class of TWpAlphaModifierSurfaceV1;
+  { TWpAlphaModifierSurfaceV1 }
+  TWpAlphaModifierSurfaceV1 = class;
+
+  TWpAlphaModifierV1Class = class of TWpAlphaModifierV1;
+  { TWpAlphaModifierV1 }
+  TWpAlphaModifierV1 = class;
+
+  IWpAlphaModifierV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_surface(no)', '')]
+  { TWpAlphaModifierV1 }
+  TWpAlphaModifierV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyconstructed = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_SURFACE = 1);
+  public
+    destructor Destroy; override;
+    function GetSurface(aSurface: TWlSurface; aClassType: TWpAlphaModifierSurfaceV1Class = nil): TWpAlphaModifierSurfaceV1;
+  private
+    FListeners: array of IWpAlphaModifierV1Listener;
+  public
+    function AddListener(AIntf: IWpAlphaModifierV1Listener): LongInt;
+  end;
+
+  IWpAlphaModifierV1Listener = interface
+  ['IWpAlphaModifierV1Listener']
+  end;
+
+  IWpAlphaModifierSurfaceV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_multiplier(u)', '')]
+  { TWpAlphaModifierSurfaceV1 }
+  TWpAlphaModifierSurfaceV1 = class(TWaylandBase)
+  public type
+    TError = (erNosurface = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_MULTIPLIER = 1);
+  public
+    destructor Destroy; override;
+    procedure SetMultiplier(aFactor: DWord);
+  private
+    FListeners: array of IWpAlphaModifierSurfaceV1Listener;
+  public
+    function AddListener(AIntf: IWpAlphaModifierSurfaceV1Listener): LongInt;
+  end;
+
+  IWpAlphaModifierSurfaceV1Listener = interface
+  ['IWpAlphaModifierSurfaceV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpAlphaModifierV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpAlphaModifierV1.GetInterfaceName: String;
+begin
+  Result := 'wp_alpha_modifier_v1';
+end;
+
+destructor TWpAlphaModifierV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpAlphaModifierV1.GetSurface(aSurface: TWlSurface; aClassType: TWpAlphaModifierSurfaceV1Class = nil): TWpAlphaModifierSurfaceV1;
+begin
+  if aClassType = nil then aClassType := TWpAlphaModifierSurfaceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SURFACE), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TWpAlphaModifierV1.AddListener(AIntf: IWpAlphaModifierV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpAlphaModifierSurfaceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpAlphaModifierSurfaceV1.GetInterfaceName: String;
+begin
+  Result := 'wp_alpha_modifier_surface_v1';
+end;
+
+destructor TWpAlphaModifierSurfaceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpAlphaModifierSurfaceV1.SetMultiplier(aFactor: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MULTIPLIER), [aFactor]);
+end;
+
+function TWpAlphaModifierSurfaceV1.AddListener(AIntf: IWpAlphaModifierSurfaceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

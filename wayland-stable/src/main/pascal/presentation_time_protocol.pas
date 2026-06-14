@@ -1,0 +1,208 @@
+unit presentation_time_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpPresentationFeedbackClass = class of TWpPresentationFeedback;
+  { TWpPresentationFeedback }
+  TWpPresentationFeedback = class;
+
+  TWpPresentationClass = class of TWpPresentation;
+  { TWpPresentation }
+  TWpPresentation = class;
+
+  IWpPresentationListener = interface;
+
+  [TWLIntfAttribute('destroy(),feedback(on)', 'clock_id(u)')]
+  { TWpPresentation }
+  TWpPresentation = class(TWaylandBase)
+  public type
+    TError = (erInvalidtimestamp = 0, erInvalidflag = 1);
+    TClockIdEvent = procedure(Sender: TWpPresentation; aClkId: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _FEEDBACK = 1);
+    TEvents = (EV_CLOCK_ID = 0);
+  private
+    FOnClockIdPriv: TClockIdEvent;
+  protected
+    procedure HandleClockId(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CLOCK_ID); virtual;
+  published
+    property OnClockId: TClockIdEvent read FOnClockIdPriv write FOnClockIdPriv;
+  public
+    destructor Destroy; override;
+    procedure Feedback(aSurface: TWlSurface; aCallback: TWpPresentationFeedback);
+  private
+    FListeners: array of IWpPresentationListener;
+  public
+    function AddListener(AIntf: IWpPresentationListener): LongInt;
+  end;
+
+  IWpPresentationListener = interface
+  ['IWpPresentationListener']
+    procedure wp_presentation_clock_id(AWpPresentation: TWpPresentation; aClkId: DWord);
+  end;
+
+  IWpPresentationFeedbackListener = interface;
+
+  [TWLIntfAttribute('', 'sync_output(o),presented(uuuuuuu),discarded()')]
+  { TWpPresentationFeedback }
+  TWpPresentationFeedback = class(TWaylandBase)
+  public type
+    { TWpPresentationFeedback.TKind }
+    TKind = object(TBitfield)
+    public
+      property Vsync: Boolean  index 1 read GetValue write SetValue;
+      property HwClock: Boolean  index 2 read GetValue write SetValue;
+      property HwCompletion: Boolean  index 4 read GetValue write SetValue;
+      property ZeroCopy: Boolean  index 8 read GetValue write SetValue;
+    end;
+
+    TSyncOutputEvent = procedure(Sender: TWpPresentationFeedback; aOutput: TWlOutput) of object;
+    TPresentedEvent = procedure(Sender: TWpPresentationFeedback; aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord; aRefresh: DWord; aSeqHi: DWord; aSeqLo: DWord; aFlags: TKind) of object;
+    TDiscardedEvent = procedure(Sender: TWpPresentationFeedback) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TEvents = (EV_SYNC_OUTPUT = 0, EV_PRESENTED = 1, EV_DISCARDED = 2);
+  private
+    FOnSyncOutputPriv: TSyncOutputEvent;
+    FOnPresentedPriv: TPresentedEvent;
+    FOnDiscardedPriv: TDiscardedEvent;
+  protected
+    procedure HandleSyncOutput(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SYNC_OUTPUT); virtual;
+    procedure HandlePresented(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PRESENTED); virtual;
+    procedure HandleDiscarded(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DISCARDED); virtual;
+  published
+    property OnSyncOutput: TSyncOutputEvent read FOnSyncOutputPriv write FOnSyncOutputPriv;
+    property OnPresented: TPresentedEvent read FOnPresentedPriv write FOnPresentedPriv;
+    property OnDiscarded: TDiscardedEvent read FOnDiscardedPriv write FOnDiscardedPriv;
+  private
+    FListeners: array of IWpPresentationFeedbackListener;
+  public
+    function AddListener(AIntf: IWpPresentationFeedbackListener): LongInt;
+  end;
+
+  IWpPresentationFeedbackListener = interface
+  ['IWpPresentationFeedbackListener']
+    procedure wp_presentation_feedback_sync_output(AWpPresentationFeedback: TWpPresentationFeedback; aOutput: TWlOutput);
+    procedure wp_presentation_feedback_presented(AWpPresentationFeedback: TWpPresentationFeedback; aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord; aRefresh: DWord; aSeqHi: DWord; aSeqLo: DWord; aFlags: TWpPresentationFeedback.TKind);
+    procedure wp_presentation_feedback_discarded(AWpPresentationFeedback: TWpPresentationFeedback);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpPresentation.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TWpPresentation.GetInterfaceName: String;
+begin
+  Result := 'wp_presentation';
+end;
+
+procedure TWpPresentation.HandleClockId(var AMsg: TWaylandEventMessage);
+var
+  lClkId: DWord;
+  lListenerIdx: Integer;
+begin
+  lClkId := AMsg.Args.ReadDWord;
+  if Assigned(OnClockId) then OnClockId(Self,lClkId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_presentation_clock_id(Self,lClkId);
+  AMsg.SetHandled;
+end;
+
+destructor TWpPresentation.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpPresentation.Feedback(aSurface: TWlSurface; aCallback: TWpPresentationFeedback);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._FEEDBACK), [aSurface.GetObjectId,aCallback]);
+end;
+
+function TWpPresentation.AddListener(AIntf: IWpPresentationListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpPresentationFeedback.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TWpPresentationFeedback.GetInterfaceName: String;
+begin
+  Result := 'wp_presentation_feedback';
+end;
+
+procedure TWpPresentationFeedback.HandleSyncOutput(var AMsg: TWaylandEventMessage);
+var
+  lOutput: TWlOutput;
+  lListenerIdx: Integer;
+begin
+  lOutput := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlOutput);
+  if Assigned(OnSyncOutput) then OnSyncOutput(Self,lOutput);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_presentation_feedback_sync_output(Self,lOutput);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPresentationFeedback.HandlePresented(var AMsg: TWaylandEventMessage);
+var
+  lTvSecHi: DWord;
+  lTvSecLo: DWord;
+  lTvNsec: DWord;
+  lRefresh: DWord;
+  lSeqHi: DWord;
+  lSeqLo: DWord;
+  lFlags: TKind;
+  lListenerIdx: Integer;
+begin
+  lTvSecHi := AMsg.Args.ReadDWord;
+  lTvSecLo := AMsg.Args.ReadDWord;
+  lTvNsec := AMsg.Args.ReadDWord;
+  lRefresh := AMsg.Args.ReadDWord;
+  lSeqHi := AMsg.Args.ReadDWord;
+  lSeqLo := AMsg.Args.ReadDWord;
+  lFlags := TKind(AMsg.Args.ReadDWord);
+  if Assigned(OnPresented) then OnPresented(Self,lTvSecHi,lTvSecLo,lTvNsec,lRefresh,lSeqHi,lSeqLo,lFlags);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_presentation_feedback_presented(Self,lTvSecHi,lTvSecLo,lTvNsec,lRefresh,lSeqHi,lSeqLo,lFlags);
+  AMsg.SetHandled;
+end;
+
+procedure TWpPresentationFeedback.HandleDiscarded(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDiscarded) then OnDiscarded(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_presentation_feedback_discarded(Self);
+  AMsg.SetHandled;
+end;
+
+function TWpPresentationFeedback.AddListener(AIntf: IWpPresentationFeedbackListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
-  <name>wayland-demo</name>
+  <name>wayland-staging</name>
   <!-- version inherited from aggregator -->
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Demo / dogfood app. Depends only on the runtime library, so it builds
-       under pasbuild with no tiOPF. Connects to a live Wayland compositor. -->
+  <!-- Staging wayland-protocols (ext_/wp_ v1), generated as
+       <protocol>_protocol units. Some reference stable and unstable protocols
+       (e.g. cursor_shape -> tablet_unstable_v2, xdg_dialog -> xdg_shell), so it
+       depends on both. -->
   <build>
-    <projectType>application</projectType>
-    <mainSource>Main.pas</mainSource>
-    <executableName>wayland-demo</executableName>
+    <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
   </build>
 
   <moduleDependencies>
     <module>../wayland-rt</module>
     <module>../wayland-stable</module>
+    <module>../wayland-unstable</module>
   </moduleDependencies>
 
   <profiles>

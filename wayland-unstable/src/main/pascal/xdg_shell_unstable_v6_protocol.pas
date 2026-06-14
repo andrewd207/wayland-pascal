@@ -1,0 +1,595 @@
+unit xdg_shell_unstable_v6_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TXdgPopupV6Class = class of TXdgPopupV6;
+  { TXdgPopupV6 }
+  TXdgPopupV6 = class;
+
+  TXdgToplevelV6Class = class of TXdgToplevelV6;
+  { TXdgToplevelV6 }
+  TXdgToplevelV6 = class;
+
+  TXdgSurfaceV6Class = class of TXdgSurfaceV6;
+  { TXdgSurfaceV6 }
+  TXdgSurfaceV6 = class;
+
+  TXdgPositionerV6Class = class of TXdgPositionerV6;
+  { TXdgPositionerV6 }
+  TXdgPositionerV6 = class;
+
+  TXdgShellV6Class = class of TXdgShellV6;
+  { TXdgShellV6 }
+  TXdgShellV6 = class;
+
+  IXdgShellV6Listener = interface;
+
+  [TWLIntfAttribute('destroy(),create_positioner(n),get_xdg_surface(no),pong(u)', 'ping(u)')]
+  { TXdgShellV6 }
+  TXdgShellV6 = class(TWaylandBase)
+  public type
+    TError = (erRole = 0, erDefunctsurfaces = 1, erNotthetopmostpopup = 2, erInvalidpopupparent = 3, erInvalidsurfacestate = 4, erInvalidpositioner = 5);
+    TPingEvent = procedure(Sender: TXdgShellV6; aSerial: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _CREATE_POSITIONER = 1, _GET_XDG_SURFACE = 2, _PONG = 3);
+    TEvents = (EV_PING = 0);
+  private
+    FOnPingPriv: TPingEvent;
+  protected
+    procedure HandlePing(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PING); virtual;
+  published
+    property OnPing: TPingEvent read FOnPingPriv write FOnPingPriv;
+  public
+    destructor Destroy; override;
+    function CreatePositioner(aClassType: TXdgPositionerV6Class = nil): TXdgPositionerV6;
+    function GetXdgSurface(aSurface: TWlSurface; aClassType: TXdgSurfaceV6Class = nil): TXdgSurfaceV6;
+    procedure Pong(aSerial: DWord);
+  private
+    FListeners: array of IXdgShellV6Listener;
+  public
+    function AddListener(AIntf: IXdgShellV6Listener): LongInt;
+  end;
+
+  IXdgShellV6Listener = interface
+  ['IXdgShellV6Listener']
+    procedure xdg_shell_v6_ping(AXdgShellV6: TXdgShellV6; aSerial: DWord);
+  end;
+
+  IXdgPositionerV6Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_size(ii),set_anchor_rect(iiii),set_anchor(u),set_gravity(u),set_constraint_adjustment(u),set_offset(ii)', '')]
+  { TXdgPositionerV6 }
+  TXdgPositionerV6 = class(TWaylandBase)
+  public type
+    TError = (erInvalidinput = 0);
+    { TXdgPositionerV6.TAnchor }
+    TAnchor = object(TBitfield)
+    public
+      property None: Boolean  index 0 read GetValue write SetValue;
+      property Top: Boolean  index 1 read GetValue write SetValue;
+      property Bottom: Boolean  index 2 read GetValue write SetValue;
+      property Left: Boolean  index 4 read GetValue write SetValue;
+      property Right: Boolean  index 8 read GetValue write SetValue;
+    end;
+
+    { TXdgPositionerV6.TGravity }
+    TGravity = object(TBitfield)
+    public
+      property None: Boolean  index 0 read GetValue write SetValue;
+      property Top: Boolean  index 1 read GetValue write SetValue;
+      property Bottom: Boolean  index 2 read GetValue write SetValue;
+      property Left: Boolean  index 4 read GetValue write SetValue;
+      property Right: Boolean  index 8 read GetValue write SetValue;
+    end;
+
+    { TXdgPositionerV6.TConstraintAdjustment }
+    TConstraintAdjustment = object(TBitfield)
+    public
+      property None: Boolean  index 0 read GetValue write SetValue;
+      property SlideX: Boolean  index 1 read GetValue write SetValue;
+      property SlideY: Boolean  index 2 read GetValue write SetValue;
+      property FlipX: Boolean  index 4 read GetValue write SetValue;
+      property FlipY: Boolean  index 8 read GetValue write SetValue;
+      property ResizeX: Boolean  index 16 read GetValue write SetValue;
+      property ResizeY: Boolean  index 32 read GetValue write SetValue;
+    end;
+
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_SIZE = 1, _SET_ANCHOR_RECT = 2, _SET_ANCHOR = 3, _SET_GRAVITY = 4, _SET_CONSTRAINT_ADJUSTMENT = 5, _SET_OFFSET = 6);
+  public
+    destructor Destroy; override;
+    procedure SetSize(aWidth: Integer; aHeight: Integer);
+    procedure SetAnchorRect(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+    procedure SetAnchor(aAnchor: TAnchor);
+    procedure SetGravity(aGravity: TGravity);
+    procedure SetConstraintAdjustment(aConstraintAdjustment: DWord);
+    procedure SetOffset(aX: Integer; aY: Integer);
+  private
+    FListeners: array of IXdgPositionerV6Listener;
+  public
+    function AddListener(AIntf: IXdgPositionerV6Listener): LongInt;
+  end;
+
+  IXdgPositionerV6Listener = interface
+  ['IXdgPositionerV6Listener']
+  end;
+
+  IXdgSurfaceV6Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_toplevel(n),get_popup(noo),set_window_geometry(iiii),ack_configure(u)', 'configure(u)')]
+  { TXdgSurfaceV6 }
+  TXdgSurfaceV6 = class(TWaylandBase)
+  public type
+    TError = (erNotconstructed = 1, erAlreadyconstructed = 2, erUnconfiguredbuffer = 3);
+    TConfigureEvent = procedure(Sender: TXdgSurfaceV6; aSerial: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_TOPLEVEL = 1, _GET_POPUP = 2, _SET_WINDOW_GEOMETRY = 3, _ACK_CONFIGURE = 4);
+    TEvents = (EV_CONFIGURE = 0);
+  private
+    FOnConfigurePriv: TConfigureEvent;
+  protected
+    procedure HandleConfigure(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CONFIGURE); virtual;
+  published
+    property OnConfigure: TConfigureEvent read FOnConfigurePriv write FOnConfigurePriv;
+  public
+    destructor Destroy; override;
+    function GetToplevel(aClassType: TXdgToplevelV6Class = nil): TXdgToplevelV6;
+    function GetPopup(aParent: TXdgSurfaceV6; aPositioner: TXdgPositionerV6; aClassType: TXdgPopupV6Class = nil): TXdgPopupV6;
+    procedure SetWindowGeometry(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+    procedure AckConfigure(aSerial: DWord);
+  private
+    FListeners: array of IXdgSurfaceV6Listener;
+  public
+    function AddListener(AIntf: IXdgSurfaceV6Listener): LongInt;
+  end;
+
+  IXdgSurfaceV6Listener = interface
+  ['IXdgSurfaceV6Listener']
+    procedure xdg_surface_v6_configure(AXdgSurfaceV6: TXdgSurfaceV6; aSerial: DWord);
+  end;
+
+  IXdgToplevelV6Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_parent(?o),set_title(s),set_app_id(s),show_window_menu(ouii),move(ou),resize(ouu),set_max_size(ii),set_min_size(ii),set_maximized(),unset_maximized(),set_fullscreen(?o),unset_fullscreen(),set_minimized()', 'configure(iia),close()')]
+  { TXdgToplevelV6 }
+  TXdgToplevelV6 = class(TWaylandBase)
+  public type
+    TResizeEdge = (reNone = 0, reTop = 1, reBottom = 2, reLeft = 4, reTopleft = 5, reBottomleft = 6, reRight = 8, reTopright = 9, reBottomright = 10);
+    TState = (stMaximized = 1, stFullscreen = 2, stResizing = 3, stActivated = 4);
+    TConfigureEvent = procedure(Sender: TXdgToplevelV6; aWidth: Integer; aHeight: Integer; aStates: TBytes) of object;
+    TCloseEvent = procedure(Sender: TXdgToplevelV6) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_PARENT = 1, _SET_TITLE = 2, _SET_APP_ID = 3, _SHOW_WINDOW_MENU = 4, _MOVE = 5, _RESIZE = 6, _SET_MAX_SIZE = 7, _SET_MIN_SIZE = 8, _SET_MAXIMIZED = 9, _UNSET_MAXIMIZED = 10, _SET_FULLSCREEN = 11, _UNSET_FULLSCREEN = 12, _SET_MINIMIZED = 13);
+    TEvents = (EV_CONFIGURE = 0, EV_CLOSE = 1);
+  private
+    FOnConfigurePriv: TConfigureEvent;
+    FOnClosePriv: TCloseEvent;
+  protected
+    procedure HandleConfigure(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CONFIGURE); virtual;
+    procedure HandleClose(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CLOSE); virtual;
+  published
+    property OnConfigure: TConfigureEvent read FOnConfigurePriv write FOnConfigurePriv;
+    property OnClose: TCloseEvent read FOnClosePriv write FOnClosePriv;
+  public
+    destructor Destroy; override;
+    procedure SetParent(aParent: TXdgToplevelV6);
+    procedure SetTitle(aTitle: String);
+    procedure SetAppId(aAppId: String);
+    procedure ShowWindowMenu(aSeat: TWlSeat; aSerial: DWord; aX: Integer; aY: Integer);
+    procedure Move(aSeat: TWlSeat; aSerial: DWord);
+    procedure Resize(aSeat: TWlSeat; aSerial: DWord; aEdges: DWord);
+    procedure SetMaxSize(aWidth: Integer; aHeight: Integer);
+    procedure SetMinSize(aWidth: Integer; aHeight: Integer);
+    procedure SetMaximized;
+    procedure UnsetMaximized;
+    procedure SetFullscreen(aOutput: TWlOutput);
+    procedure UnsetFullscreen;
+    procedure SetMinimized;
+  private
+    FListeners: array of IXdgToplevelV6Listener;
+  public
+    function AddListener(AIntf: IXdgToplevelV6Listener): LongInt;
+  end;
+
+  IXdgToplevelV6Listener = interface
+  ['IXdgToplevelV6Listener']
+    procedure xdg_toplevel_v6_configure(AXdgToplevelV6: TXdgToplevelV6; aWidth: Integer; aHeight: Integer; aStates: TBytes);
+    procedure xdg_toplevel_v6_close(AXdgToplevelV6: TXdgToplevelV6);
+  end;
+
+  IXdgPopupV6Listener = interface;
+
+  [TWLIntfAttribute('destroy(),grab(ou)', 'configure(iiii),popup_done()')]
+  { TXdgPopupV6 }
+  TXdgPopupV6 = class(TWaylandBase)
+  public type
+    TError = (erInvalidgrab = 0);
+    TConfigureEvent = procedure(Sender: TXdgPopupV6; aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer) of object;
+    TPopupDoneEvent = procedure(Sender: TXdgPopupV6) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GRAB = 1);
+    TEvents = (EV_CONFIGURE = 0, EV_POPUP_DONE = 1);
+  private
+    FOnConfigurePriv: TConfigureEvent;
+    FOnPopupDonePriv: TPopupDoneEvent;
+  protected
+    procedure HandleConfigure(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CONFIGURE); virtual;
+    procedure HandlePopupDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_POPUP_DONE); virtual;
+  published
+    property OnConfigure: TConfigureEvent read FOnConfigurePriv write FOnConfigurePriv;
+    property OnPopupDone: TPopupDoneEvent read FOnPopupDonePriv write FOnPopupDonePriv;
+  public
+    destructor Destroy; override;
+    procedure Grab(aSeat: TWlSeat; aSerial: DWord);
+  private
+    FListeners: array of IXdgPopupV6Listener;
+  public
+    function AddListener(AIntf: IXdgPopupV6Listener): LongInt;
+  end;
+
+  IXdgPopupV6Listener = interface
+  ['IXdgPopupV6Listener']
+    procedure xdg_popup_v6_configure(AXdgPopupV6: TXdgPopupV6; aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+    procedure xdg_popup_v6_popup_done(AXdgPopupV6: TXdgPopupV6);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgShellV6.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgShellV6.GetInterfaceName: String;
+begin
+  Result := 'zxdg_shell_v6';
+end;
+
+procedure TXdgShellV6.HandlePing(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  if Assigned(OnPing) then OnPing(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_shell_v6_ping(Self,lSerial);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgShellV6.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgShellV6.CreatePositioner(aClassType: TXdgPositionerV6Class = nil): TXdgPositionerV6;
+begin
+  if aClassType = nil then aClassType := TXdgPositionerV6;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_POSITIONER), [Result.GetObjectId]);
+end;
+
+function TXdgShellV6.GetXdgSurface(aSurface: TWlSurface; aClassType: TXdgSurfaceV6Class = nil): TXdgSurfaceV6;
+begin
+  if aClassType = nil then aClassType := TXdgSurfaceV6;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_XDG_SURFACE), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+procedure TXdgShellV6.Pong(aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._PONG), [aSerial]);
+end;
+
+function TXdgShellV6.AddListener(AIntf: IXdgShellV6Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgPositionerV6.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgPositionerV6.GetInterfaceName: String;
+begin
+  Result := 'zxdg_positioner_v6';
+end;
+
+destructor TXdgPositionerV6.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgPositionerV6.SetSize(aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SIZE), [aWidth,aHeight]);
+end;
+
+procedure TXdgPositionerV6.SetAnchorRect(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_ANCHOR_RECT), [aX,aY,aWidth,aHeight]);
+end;
+
+procedure TXdgPositionerV6.SetAnchor(aAnchor: TAnchor);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_ANCHOR), [DWord(aAnchor)]);
+end;
+
+procedure TXdgPositionerV6.SetGravity(aGravity: TGravity);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_GRAVITY), [DWord(aGravity)]);
+end;
+
+procedure TXdgPositionerV6.SetConstraintAdjustment(aConstraintAdjustment: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CONSTRAINT_ADJUSTMENT), [aConstraintAdjustment]);
+end;
+
+procedure TXdgPositionerV6.SetOffset(aX: Integer; aY: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_OFFSET), [aX,aY]);
+end;
+
+function TXdgPositionerV6.AddListener(AIntf: IXdgPositionerV6Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgSurfaceV6.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgSurfaceV6.GetInterfaceName: String;
+begin
+  Result := 'zxdg_surface_v6';
+end;
+
+procedure TXdgSurfaceV6.HandleConfigure(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  if Assigned(OnConfigure) then OnConfigure(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_surface_v6_configure(Self,lSerial);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgSurfaceV6.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgSurfaceV6.GetToplevel(aClassType: TXdgToplevelV6Class = nil): TXdgToplevelV6;
+begin
+  if aClassType = nil then aClassType := TXdgToplevelV6;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_TOPLEVEL), [Result.GetObjectId]);
+end;
+
+function TXdgSurfaceV6.GetPopup(aParent: TXdgSurfaceV6; aPositioner: TXdgPositionerV6; aClassType: TXdgPopupV6Class = nil): TXdgPopupV6;
+begin
+  if aClassType = nil then aClassType := TXdgPopupV6;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_POPUP), [Result.GetObjectId,aParent.GetObjectId,aPositioner.GetObjectId]);
+end;
+
+procedure TXdgSurfaceV6.SetWindowGeometry(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_WINDOW_GEOMETRY), [aX,aY,aWidth,aHeight]);
+end;
+
+procedure TXdgSurfaceV6.AckConfigure(aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._ACK_CONFIGURE), [aSerial]);
+end;
+
+function TXdgSurfaceV6.AddListener(AIntf: IXdgSurfaceV6Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgToplevelV6.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgToplevelV6.GetInterfaceName: String;
+begin
+  Result := 'zxdg_toplevel_v6';
+end;
+
+procedure TXdgToplevelV6.HandleConfigure(var AMsg: TWaylandEventMessage);
+var
+  lWidth: Integer;
+  lHeight: Integer;
+  lStates: TBytes;
+  lListenerIdx: Integer;
+begin
+  lWidth := AMsg.Args.ReadInteger;
+  lHeight := AMsg.Args.ReadInteger;
+  lStates := AMsg.Args.ReadBlob;
+  if Assigned(OnConfigure) then OnConfigure(Self,lWidth,lHeight,lStates);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_v6_configure(Self,lWidth,lHeight,lStates);
+  AMsg.SetHandled;
+end;
+
+procedure TXdgToplevelV6.HandleClose(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnClose) then OnClose(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_v6_close(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgToplevelV6.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgToplevelV6.SetParent(aParent: TXdgToplevelV6);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PARENT), [WlObjectId(aParent)]);
+end;
+
+procedure TXdgToplevelV6.SetTitle(aTitle: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_TITLE), [aTitle]);
+end;
+
+procedure TXdgToplevelV6.SetAppId(aAppId: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_APP_ID), [aAppId]);
+end;
+
+procedure TXdgToplevelV6.ShowWindowMenu(aSeat: TWlSeat; aSerial: DWord; aX: Integer; aY: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SHOW_WINDOW_MENU), [aSeat.GetObjectId,aSerial,aX,aY]);
+end;
+
+procedure TXdgToplevelV6.Move(aSeat: TWlSeat; aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._MOVE), [aSeat.GetObjectId,aSerial]);
+end;
+
+procedure TXdgToplevelV6.Resize(aSeat: TWlSeat; aSerial: DWord; aEdges: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RESIZE), [aSeat.GetObjectId,aSerial,aEdges]);
+end;
+
+procedure TXdgToplevelV6.SetMaxSize(aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MAX_SIZE), [aWidth,aHeight]);
+end;
+
+procedure TXdgToplevelV6.SetMinSize(aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MIN_SIZE), [aWidth,aHeight]);
+end;
+
+procedure TXdgToplevelV6.SetMaximized;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MAXIMIZED), []);
+end;
+
+procedure TXdgToplevelV6.UnsetMaximized;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._UNSET_MAXIMIZED), []);
+end;
+
+procedure TXdgToplevelV6.SetFullscreen(aOutput: TWlOutput);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_FULLSCREEN), [WlObjectId(aOutput)]);
+end;
+
+procedure TXdgToplevelV6.UnsetFullscreen;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._UNSET_FULLSCREEN), []);
+end;
+
+procedure TXdgToplevelV6.SetMinimized;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MINIMIZED), []);
+end;
+
+function TXdgToplevelV6.AddListener(AIntf: IXdgToplevelV6Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgPopupV6.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgPopupV6.GetInterfaceName: String;
+begin
+  Result := 'zxdg_popup_v6';
+end;
+
+procedure TXdgPopupV6.HandleConfigure(var AMsg: TWaylandEventMessage);
+var
+  lX: Integer;
+  lY: Integer;
+  lWidth: Integer;
+  lHeight: Integer;
+  lListenerIdx: Integer;
+begin
+  lX := AMsg.Args.ReadInteger;
+  lY := AMsg.Args.ReadInteger;
+  lWidth := AMsg.Args.ReadInteger;
+  lHeight := AMsg.Args.ReadInteger;
+  if Assigned(OnConfigure) then OnConfigure(Self,lX,lY,lWidth,lHeight);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_popup_v6_configure(Self,lX,lY,lWidth,lHeight);
+  AMsg.SetHandled;
+end;
+
+procedure TXdgPopupV6.HandlePopupDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnPopupDone) then OnPopupDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_popup_v6_popup_done(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TXdgPopupV6.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TXdgPopupV6.Grab(aSeat: TWlSeat; aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GRAB), [aSeat.GetObjectId,aSerial]);
+end;
+
+function TXdgPopupV6.AddListener(AIntf: IXdgPopupV6Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

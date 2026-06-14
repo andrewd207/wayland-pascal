@@ -1,0 +1,160 @@
+unit keyboard_shortcuts_inhibit_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpKeyboardShortcutsInhibitorV1Class = class of TWpKeyboardShortcutsInhibitorV1;
+  { TWpKeyboardShortcutsInhibitorV1 }
+  TWpKeyboardShortcutsInhibitorV1 = class;
+
+  TWpKeyboardShortcutsInhibitManagerV1Class = class of TWpKeyboardShortcutsInhibitManagerV1;
+  { TWpKeyboardShortcutsInhibitManagerV1 }
+  TWpKeyboardShortcutsInhibitManagerV1 = class;
+
+  IWpKeyboardShortcutsInhibitManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),inhibit_shortcuts(noo)', '')]
+  { TWpKeyboardShortcutsInhibitManagerV1 }
+  TWpKeyboardShortcutsInhibitManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyinhibited = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _INHIBIT_SHORTCUTS = 1);
+  public
+    destructor Destroy; override;
+    function InhibitShortcuts(aSurface: TWlSurface; aSeat: TWlSeat; aClassType: TWpKeyboardShortcutsInhibitorV1Class = nil): TWpKeyboardShortcutsInhibitorV1;
+  private
+    FListeners: array of IWpKeyboardShortcutsInhibitManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpKeyboardShortcutsInhibitManagerV1Listener): LongInt;
+  end;
+
+  IWpKeyboardShortcutsInhibitManagerV1Listener = interface
+  ['IWpKeyboardShortcutsInhibitManagerV1Listener']
+  end;
+
+  IWpKeyboardShortcutsInhibitorV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'active(),inactive()')]
+  { TWpKeyboardShortcutsInhibitorV1 }
+  TWpKeyboardShortcutsInhibitorV1 = class(TWaylandBase)
+  public type
+    TActiveEvent = procedure(Sender: TWpKeyboardShortcutsInhibitorV1) of object;
+    TInactiveEvent = procedure(Sender: TWpKeyboardShortcutsInhibitorV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_ACTIVE = 0, EV_INACTIVE = 1);
+  private
+    FOnActivePriv: TActiveEvent;
+    FOnInactivePriv: TInactiveEvent;
+  protected
+    procedure HandleActive(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_ACTIVE); virtual;
+    procedure HandleInactive(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_INACTIVE); virtual;
+  published
+    property OnActive: TActiveEvent read FOnActivePriv write FOnActivePriv;
+    property OnInactive: TInactiveEvent read FOnInactivePriv write FOnInactivePriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpKeyboardShortcutsInhibitorV1Listener;
+  public
+    function AddListener(AIntf: IWpKeyboardShortcutsInhibitorV1Listener): LongInt;
+  end;
+
+  IWpKeyboardShortcutsInhibitorV1Listener = interface
+  ['IWpKeyboardShortcutsInhibitorV1Listener']
+    procedure wp_keyboard_shortcuts_inhibitor_v1_active(AWpKeyboardShortcutsInhibitorV1: TWpKeyboardShortcutsInhibitorV1);
+    procedure wp_keyboard_shortcuts_inhibitor_v1_inactive(AWpKeyboardShortcutsInhibitorV1: TWpKeyboardShortcutsInhibitorV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpKeyboardShortcutsInhibitManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpKeyboardShortcutsInhibitManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_keyboard_shortcuts_inhibit_manager_v1';
+end;
+
+destructor TWpKeyboardShortcutsInhibitManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpKeyboardShortcutsInhibitManagerV1.InhibitShortcuts(aSurface: TWlSurface; aSeat: TWlSeat; aClassType: TWpKeyboardShortcutsInhibitorV1Class = nil): TWpKeyboardShortcutsInhibitorV1;
+begin
+  if aClassType = nil then aClassType := TWpKeyboardShortcutsInhibitorV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._INHIBIT_SHORTCUTS), [Result.GetObjectId,aSurface.GetObjectId,aSeat.GetObjectId]);
+end;
+
+function TWpKeyboardShortcutsInhibitManagerV1.AddListener(AIntf: IWpKeyboardShortcutsInhibitManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpKeyboardShortcutsInhibitorV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpKeyboardShortcutsInhibitorV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_keyboard_shortcuts_inhibitor_v1';
+end;
+
+procedure TWpKeyboardShortcutsInhibitorV1.HandleActive(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnActive) then OnActive(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_keyboard_shortcuts_inhibitor_v1_active(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpKeyboardShortcutsInhibitorV1.HandleInactive(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnInactive) then OnInactive(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_keyboard_shortcuts_inhibitor_v1_inactive(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TWpKeyboardShortcutsInhibitorV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpKeyboardShortcutsInhibitorV1.AddListener(AIntf: IWpKeyboardShortcutsInhibitorV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

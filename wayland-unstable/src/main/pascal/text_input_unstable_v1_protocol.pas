@@ -1,0 +1,435 @@
+unit text_input_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpTextInputManagerV1Class = class of TWpTextInputManagerV1;
+  { TWpTextInputManagerV1 }
+  TWpTextInputManagerV1 = class;
+
+  TWpTextInputV1Class = class of TWpTextInputV1;
+  { TWpTextInputV1 }
+  TWpTextInputV1 = class;
+
+  IWpTextInputV1Listener = interface;
+
+  [TWLIntfAttribute('activate(oo),deactivate(o),show_input_panel(),hide_input_panel(),reset(),set_surrounding_text(suu),set_content_type(uu),set_cursor_rectangle(iiii),set_preferred_language(s),commit_state(u),invoke_action(uu)', 'enter(o),leave(),modifiers_map(a),input_panel_state(u),preedit_string(uss),preedit_styling(uuu),preedit_cursor(i),commit_string(us),cursor_position(ii),delete_surrounding_text(iu),keysym(uuuuu),language(us),text_direction(uu)')]
+  { TWpTextInputV1 }
+  TWpTextInputV1 = class(TWaylandBase)
+  public type
+    { TWpTextInputV1.TContentHint }
+    TContentHint = object(TBitfield)
+    public
+      property None: Boolean  index 0 read GetValue write SetValue;
+      property Default: Boolean  index 7 read GetValue write SetValue;
+      property Password: Boolean  index 192 read GetValue write SetValue;
+      property AutoCompletion: Boolean  index 1 read GetValue write SetValue;
+      property AutoCorrection: Boolean  index 2 read GetValue write SetValue;
+      property AutoCapitalization: Boolean  index 4 read GetValue write SetValue;
+      property Lowercase: Boolean  index 8 read GetValue write SetValue;
+      property Uppercase: Boolean  index 16 read GetValue write SetValue;
+      property Titlecase: Boolean  index 32 read GetValue write SetValue;
+      property HiddenText: Boolean  index 64 read GetValue write SetValue;
+      property SensitiveData: Boolean  index 128 read GetValue write SetValue;
+      property Latin: Boolean  index 256 read GetValue write SetValue;
+      property Multiline: Boolean  index 512 read GetValue write SetValue;
+    end;
+
+    TContentPurpose = (coNormal = 0, coAlpha = 1, coDigits = 2, coNumber = 3, coPhone = 4, coUrl = 5, coEmail = 6, coName = 7, coPassword = 8, coDate = 9, coTime = 10, coDatetime = 11, coTerminal = 12);
+    TPreeditStyle = (prDefault = 0, prNone = 1, prActive = 2, prInactive = 3, prHighlight = 4, prUnderline = 5, prSelection = 6, prIncorrect = 7);
+    TTextDirection = (teAuto = 0, teLtr = 1, teRtl = 2);
+    TEnterEvent = procedure(Sender: TWpTextInputV1; aSurface: TWlSurface) of object;
+    TLeaveEvent = procedure(Sender: TWpTextInputV1) of object;
+    TModifiersMapEvent = procedure(Sender: TWpTextInputV1; aMap: TBytes) of object;
+    TInputPanelStateEvent = procedure(Sender: TWpTextInputV1; aState: DWord) of object;
+    TPreeditStringEvent = procedure(Sender: TWpTextInputV1; aSerial: DWord; aText: String; aCommit: String) of object;
+    TPreeditStylingEvent = procedure(Sender: TWpTextInputV1; aIndex: DWord; aLength: DWord; aStyle: TPreeditStyle) of object;
+    TPreeditCursorEvent = procedure(Sender: TWpTextInputV1; aIndex: Integer) of object;
+    TCommitStringEvent = procedure(Sender: TWpTextInputV1; aSerial: DWord; aText: String) of object;
+    TCursorPositionEvent = procedure(Sender: TWpTextInputV1; aIndex: Integer; aAnchor: Integer) of object;
+    TDeleteSurroundingTextEvent = procedure(Sender: TWpTextInputV1; aIndex: Integer; aLength: DWord) of object;
+    TKeysymEvent = procedure(Sender: TWpTextInputV1; aSerial: DWord; aTime: DWord; aSym: DWord; aState: DWord; aModifiers: DWord) of object;
+    TLanguageEvent = procedure(Sender: TWpTextInputV1; aSerial: DWord; aLanguage: String) of object;
+    TTextDirectionEvent = procedure(Sender: TWpTextInputV1; aSerial: DWord; aDirection: TTextDirection) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_ACTIVATE = 0, _DEACTIVATE = 1, _SHOW_INPUT_PANEL = 2, _HIDE_INPUT_PANEL = 3, _RESET = 4, _SET_SURROUNDING_TEXT = 5, _SET_CONTENT_TYPE = 6, _SET_CURSOR_RECTANGLE = 7, _SET_PREFERRED_LANGUAGE = 8, _COMMIT_STATE = 9, _INVOKE_ACTION = 10);
+    TEvents = (EV_ENTER = 0, EV_LEAVE = 1, EV_MODIFIERS_MAP = 2, EV_INPUT_PANEL_STATE = 3, EV_PREEDIT_STRING = 4, EV_PREEDIT_STYLING = 5, EV_PREEDIT_CURSOR = 6, EV_COMMIT_STRING = 7, EV_CURSOR_POSITION = 8, EV_DELETE_SURROUNDING_TEXT = 9, EV_KEYSYM = 10, EV_LANGUAGE = 11, EV_TEXT_DIRECTION = 12);
+  private
+    FOnEnterPriv: TEnterEvent;
+    FOnLeavePriv: TLeaveEvent;
+    FOnModifiersMapPriv: TModifiersMapEvent;
+    FOnInputPanelStatePriv: TInputPanelStateEvent;
+    FOnPreeditStringPriv: TPreeditStringEvent;
+    FOnPreeditStylingPriv: TPreeditStylingEvent;
+    FOnPreeditCursorPriv: TPreeditCursorEvent;
+    FOnCommitStringPriv: TCommitStringEvent;
+    FOnCursorPositionPriv: TCursorPositionEvent;
+    FOnDeleteSurroundingTextPriv: TDeleteSurroundingTextEvent;
+    FOnKeysymPriv: TKeysymEvent;
+    FOnLanguagePriv: TLanguageEvent;
+    FOnTextDirectionPriv: TTextDirectionEvent;
+  protected
+    procedure HandleEnter(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_ENTER); virtual;
+    procedure HandleLeave(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_LEAVE); virtual;
+    procedure HandleModifiersMap(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_MODIFIERS_MAP); virtual;
+    procedure HandleInputPanelState(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_INPUT_PANEL_STATE); virtual;
+    procedure HandlePreeditString(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PREEDIT_STRING); virtual;
+    procedure HandlePreeditStyling(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PREEDIT_STYLING); virtual;
+    procedure HandlePreeditCursor(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_PREEDIT_CURSOR); virtual;
+    procedure HandleCommitString(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_COMMIT_STRING); virtual;
+    procedure HandleCursorPosition(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_CURSOR_POSITION); virtual;
+    procedure HandleDeleteSurroundingText(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DELETE_SURROUNDING_TEXT); virtual;
+    procedure HandleKeysym(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_KEYSYM); virtual;
+    procedure HandleLanguage(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_LANGUAGE); virtual;
+    procedure HandleTextDirection(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TEXT_DIRECTION); virtual;
+  published
+    property OnEnter: TEnterEvent read FOnEnterPriv write FOnEnterPriv;
+    property OnLeave: TLeaveEvent read FOnLeavePriv write FOnLeavePriv;
+    property OnModifiersMap: TModifiersMapEvent read FOnModifiersMapPriv write FOnModifiersMapPriv;
+    property OnInputPanelState: TInputPanelStateEvent read FOnInputPanelStatePriv write FOnInputPanelStatePriv;
+    property OnPreeditString: TPreeditStringEvent read FOnPreeditStringPriv write FOnPreeditStringPriv;
+    property OnPreeditStyling: TPreeditStylingEvent read FOnPreeditStylingPriv write FOnPreeditStylingPriv;
+    property OnPreeditCursor: TPreeditCursorEvent read FOnPreeditCursorPriv write FOnPreeditCursorPriv;
+    property OnCommitString: TCommitStringEvent read FOnCommitStringPriv write FOnCommitStringPriv;
+    property OnCursorPosition: TCursorPositionEvent read FOnCursorPositionPriv write FOnCursorPositionPriv;
+    property OnDeleteSurroundingText: TDeleteSurroundingTextEvent read FOnDeleteSurroundingTextPriv write FOnDeleteSurroundingTextPriv;
+    property OnKeysym: TKeysymEvent read FOnKeysymPriv write FOnKeysymPriv;
+    property OnLanguage: TLanguageEvent read FOnLanguagePriv write FOnLanguagePriv;
+    property OnTextDirection: TTextDirectionEvent read FOnTextDirectionPriv write FOnTextDirectionPriv;
+  public
+    procedure Activate(aSeat: TWlSeat; aSurface: TWlSurface);
+    procedure Deactivate(aSeat: TWlSeat);
+    procedure ShowInputPanel;
+    procedure HideInputPanel;
+    procedure Reset;
+    procedure SetSurroundingText(aText: String; aCursor: DWord; aAnchor: DWord);
+    procedure SetContentType(aHint: TContentHint; aPurpose: TContentPurpose);
+    procedure SetCursorRectangle(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+    procedure SetPreferredLanguage(aLanguage: String);
+    procedure CommitState(aSerial: DWord);
+    procedure InvokeAction(aButton: DWord; aIndex: DWord);
+  private
+    FListeners: array of IWpTextInputV1Listener;
+  public
+    function AddListener(AIntf: IWpTextInputV1Listener): LongInt;
+  end;
+
+  IWpTextInputV1Listener = interface
+  ['IWpTextInputV1Listener']
+    procedure wp_text_input_v1_enter(AWpTextInputV1: TWpTextInputV1; aSurface: TWlSurface);
+    procedure wp_text_input_v1_leave(AWpTextInputV1: TWpTextInputV1);
+    procedure wp_text_input_v1_modifiers_map(AWpTextInputV1: TWpTextInputV1; aMap: TBytes);
+    procedure wp_text_input_v1_input_panel_state(AWpTextInputV1: TWpTextInputV1; aState: DWord);
+    procedure wp_text_input_v1_preedit_string(AWpTextInputV1: TWpTextInputV1; aSerial: DWord; aText: String; aCommit: String);
+    procedure wp_text_input_v1_preedit_styling(AWpTextInputV1: TWpTextInputV1; aIndex: DWord; aLength: DWord; aStyle: TWpTextInputV1.TPreeditStyle);
+    procedure wp_text_input_v1_preedit_cursor(AWpTextInputV1: TWpTextInputV1; aIndex: Integer);
+    procedure wp_text_input_v1_commit_string(AWpTextInputV1: TWpTextInputV1; aSerial: DWord; aText: String);
+    procedure wp_text_input_v1_cursor_position(AWpTextInputV1: TWpTextInputV1; aIndex: Integer; aAnchor: Integer);
+    procedure wp_text_input_v1_delete_surrounding_text(AWpTextInputV1: TWpTextInputV1; aIndex: Integer; aLength: DWord);
+    procedure wp_text_input_v1_keysym(AWpTextInputV1: TWpTextInputV1; aSerial: DWord; aTime: DWord; aSym: DWord; aState: DWord; aModifiers: DWord);
+    procedure wp_text_input_v1_language(AWpTextInputV1: TWpTextInputV1; aSerial: DWord; aLanguage: String);
+    procedure wp_text_input_v1_text_direction(AWpTextInputV1: TWpTextInputV1; aSerial: DWord; aDirection: TWpTextInputV1.TTextDirection);
+  end;
+
+  IWpTextInputManagerV1Listener = interface;
+
+  [TWLIntfAttribute('create_text_input(n)', '')]
+  { TWpTextInputManagerV1 }
+  TWpTextInputManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_CREATE_TEXT_INPUT = 0);
+  public
+    function CreateTextInput(aClassType: TWpTextInputV1Class = nil): TWpTextInputV1;
+  private
+    FListeners: array of IWpTextInputManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpTextInputManagerV1Listener): LongInt;
+  end;
+
+  IWpTextInputManagerV1Listener = interface
+  ['IWpTextInputManagerV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpTextInputV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTextInputV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_text_input_v1';
+end;
+
+procedure TWpTextInputV1.HandleEnter(var AMsg: TWaylandEventMessage);
+var
+  lSurface: TWlSurface;
+  lListenerIdx: Integer;
+begin
+  lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
+  if Assigned(OnEnter) then OnEnter(Self,lSurface);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_enter(Self,lSurface);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleLeave(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnLeave) then OnLeave(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_leave(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleModifiersMap(var AMsg: TWaylandEventMessage);
+var
+  lMap: TBytes;
+  lListenerIdx: Integer;
+begin
+  lMap := AMsg.Args.ReadBlob;
+  if Assigned(OnModifiersMap) then OnModifiersMap(Self,lMap);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_modifiers_map(Self,lMap);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleInputPanelState(var AMsg: TWaylandEventMessage);
+var
+  lState: DWord;
+  lListenerIdx: Integer;
+begin
+  lState := AMsg.Args.ReadDWord;
+  if Assigned(OnInputPanelState) then OnInputPanelState(Self,lState);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_input_panel_state(Self,lState);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandlePreeditString(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lText: String;
+  lCommit: String;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lText := AMsg.Args.ReadString;
+  lCommit := AMsg.Args.ReadString;
+  if Assigned(OnPreeditString) then OnPreeditString(Self,lSerial,lText,lCommit);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_preedit_string(Self,lSerial,lText,lCommit);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandlePreeditStyling(var AMsg: TWaylandEventMessage);
+var
+  lIndex: DWord;
+  lLength: DWord;
+  lStyle: TPreeditStyle;
+  lListenerIdx: Integer;
+begin
+  lIndex := AMsg.Args.ReadDWord;
+  lLength := AMsg.Args.ReadDWord;
+  lStyle := TPreeditStyle(AMsg.Args.ReadDWord);
+  if Assigned(OnPreeditStyling) then OnPreeditStyling(Self,lIndex,lLength,lStyle);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_preedit_styling(Self,lIndex,lLength,lStyle);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandlePreeditCursor(var AMsg: TWaylandEventMessage);
+var
+  lIndex: Integer;
+  lListenerIdx: Integer;
+begin
+  lIndex := AMsg.Args.ReadInteger;
+  if Assigned(OnPreeditCursor) then OnPreeditCursor(Self,lIndex);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_preedit_cursor(Self,lIndex);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleCommitString(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lText: String;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lText := AMsg.Args.ReadString;
+  if Assigned(OnCommitString) then OnCommitString(Self,lSerial,lText);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_commit_string(Self,lSerial,lText);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleCursorPosition(var AMsg: TWaylandEventMessage);
+var
+  lIndex: Integer;
+  lAnchor: Integer;
+  lListenerIdx: Integer;
+begin
+  lIndex := AMsg.Args.ReadInteger;
+  lAnchor := AMsg.Args.ReadInteger;
+  if Assigned(OnCursorPosition) then OnCursorPosition(Self,lIndex,lAnchor);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_cursor_position(Self,lIndex,lAnchor);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleDeleteSurroundingText(var AMsg: TWaylandEventMessage);
+var
+  lIndex: Integer;
+  lLength: DWord;
+  lListenerIdx: Integer;
+begin
+  lIndex := AMsg.Args.ReadInteger;
+  lLength := AMsg.Args.ReadDWord;
+  if Assigned(OnDeleteSurroundingText) then OnDeleteSurroundingText(Self,lIndex,lLength);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_delete_surrounding_text(Self,lIndex,lLength);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleKeysym(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lTime: DWord;
+  lSym: DWord;
+  lState: DWord;
+  lModifiers: DWord;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lTime := AMsg.Args.ReadDWord;
+  lSym := AMsg.Args.ReadDWord;
+  lState := AMsg.Args.ReadDWord;
+  lModifiers := AMsg.Args.ReadDWord;
+  if Assigned(OnKeysym) then OnKeysym(Self,lSerial,lTime,lSym,lState,lModifiers);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_keysym(Self,lSerial,lTime,lSym,lState,lModifiers);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleLanguage(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lLanguage: String;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lLanguage := AMsg.Args.ReadString;
+  if Assigned(OnLanguage) then OnLanguage(Self,lSerial,lLanguage);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_language(Self,lSerial,lLanguage);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.HandleTextDirection(var AMsg: TWaylandEventMessage);
+var
+  lSerial: DWord;
+  lDirection: TTextDirection;
+  lListenerIdx: Integer;
+begin
+  lSerial := AMsg.Args.ReadDWord;
+  lDirection := TTextDirection(AMsg.Args.ReadDWord);
+  if Assigned(OnTextDirection) then OnTextDirection(Self,lSerial,lDirection);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_text_input_v1_text_direction(Self,lSerial,lDirection);
+  AMsg.SetHandled;
+end;
+
+procedure TWpTextInputV1.Activate(aSeat: TWlSeat; aSurface: TWlSurface);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._ACTIVATE), [aSeat.GetObjectId,aSurface.GetObjectId]);
+end;
+
+procedure TWpTextInputV1.Deactivate(aSeat: TWlSeat);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DEACTIVATE), [aSeat.GetObjectId]);
+end;
+
+procedure TWpTextInputV1.ShowInputPanel;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SHOW_INPUT_PANEL), []);
+end;
+
+procedure TWpTextInputV1.HideInputPanel;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._HIDE_INPUT_PANEL), []);
+end;
+
+procedure TWpTextInputV1.Reset;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._RESET), []);
+end;
+
+procedure TWpTextInputV1.SetSurroundingText(aText: String; aCursor: DWord; aAnchor: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SURROUNDING_TEXT), [aText,aCursor,aAnchor]);
+end;
+
+procedure TWpTextInputV1.SetContentType(aHint: TContentHint; aPurpose: TContentPurpose);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CONTENT_TYPE), [DWord(aHint),DWord(aPurpose)]);
+end;
+
+procedure TWpTextInputV1.SetCursorRectangle(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CURSOR_RECTANGLE), [aX,aY,aWidth,aHeight]);
+end;
+
+procedure TWpTextInputV1.SetPreferredLanguage(aLanguage: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PREFERRED_LANGUAGE), [aLanguage]);
+end;
+
+procedure TWpTextInputV1.CommitState(aSerial: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._COMMIT_STATE), [aSerial]);
+end;
+
+procedure TWpTextInputV1.InvokeAction(aButton: DWord; aIndex: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._INVOKE_ACTION), [aButton,aIndex]);
+end;
+
+function TWpTextInputV1.AddListener(AIntf: IWpTextInputV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpTextInputManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpTextInputManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_text_input_manager_v1';
+end;
+
+function TWpTextInputManagerV1.CreateTextInput(aClassType: TWpTextInputV1Class = nil): TWpTextInputV1;
+begin
+  if aClassType = nil then aClassType := TWpTextInputV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_TEXT_INPUT), [Result.GetObjectId]);
+end;
+
+function TWpTextInputManagerV1.AddListener(AIntf: IWpTextInputManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

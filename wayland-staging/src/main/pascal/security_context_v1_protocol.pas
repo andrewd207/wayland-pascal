@@ -1,0 +1,153 @@
+unit security_context_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpSecurityContextV1Class = class of TWpSecurityContextV1;
+  { TWpSecurityContextV1 }
+  TWpSecurityContextV1 = class;
+
+  TWpSecurityContextManagerV1Class = class of TWpSecurityContextManagerV1;
+  { TWpSecurityContextManagerV1 }
+  TWpSecurityContextManagerV1 = class;
+
+  IWpSecurityContextManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),create_listener(nhh)', '')]
+  { TWpSecurityContextManagerV1 }
+  TWpSecurityContextManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erInvalidlistenfd = 1, erNested = 2);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _CREATE_LISTENER = 1);
+  public
+    destructor Destroy; override;
+    function CreateListener(aListenFd: Integer; aCloseFd: Integer; aClassType: TWpSecurityContextV1Class = nil): TWpSecurityContextV1;
+  private
+    FListeners: array of IWpSecurityContextManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpSecurityContextManagerV1Listener): LongInt;
+  end;
+
+  IWpSecurityContextManagerV1Listener = interface
+  ['IWpSecurityContextManagerV1Listener']
+  end;
+
+  IWpSecurityContextV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_sandbox_engine(s),set_app_id(s),set_instance_id(s),commit()', '')]
+  { TWpSecurityContextV1 }
+  TWpSecurityContextV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyused = 1, erAlreadyset = 2, erInvalidmetadata = 3);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_SANDBOX_ENGINE = 1, _SET_APP_ID = 2, _SET_INSTANCE_ID = 3, _COMMIT = 4);
+  public
+    destructor Destroy; override;
+    procedure SetSandboxEngine(aName: String);
+    procedure SetAppId(aAppId: String);
+    procedure SetInstanceId(aInstanceId: String);
+    procedure Commit;
+  private
+    FListeners: array of IWpSecurityContextV1Listener;
+  public
+    function AddListener(AIntf: IWpSecurityContextV1Listener): LongInt;
+  end;
+
+  IWpSecurityContextV1Listener = interface
+  ['IWpSecurityContextV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpSecurityContextManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpSecurityContextManagerV1.GetInterfaceName: String;
+begin
+  Result := 'wp_security_context_manager_v1';
+end;
+
+destructor TWpSecurityContextManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpSecurityContextManagerV1.CreateListener(aListenFd: Integer; aCloseFd: Integer; aClassType: TWpSecurityContextV1Class = nil): TWpSecurityContextV1;
+begin
+  if aClassType = nil then aClassType := TWpSecurityContextV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_LISTENER), [Result.GetObjectId,aListenFd,aCloseFd], 2);
+end;
+
+function TWpSecurityContextManagerV1.AddListener(AIntf: IWpSecurityContextManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpSecurityContextV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpSecurityContextV1.GetInterfaceName: String;
+begin
+  Result := 'wp_security_context_v1';
+end;
+
+destructor TWpSecurityContextV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpSecurityContextV1.SetSandboxEngine(aName: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SANDBOX_ENGINE), [aName]);
+end;
+
+procedure TWpSecurityContextV1.SetAppId(aAppId: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_APP_ID), [aAppId]);
+end;
+
+procedure TWpSecurityContextV1.SetInstanceId(aInstanceId: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_INSTANCE_ID), [aInstanceId]);
+end;
+
+procedure TWpSecurityContextV1.Commit;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._COMMIT), []);
+end;
+
+function TWpSecurityContextV1.AddListener(AIntf: IWpSecurityContextV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

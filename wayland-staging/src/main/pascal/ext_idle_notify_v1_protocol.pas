@@ -1,0 +1,166 @@
+unit ext_idle_notify_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TExtIdleNotificationV1Class = class of TExtIdleNotificationV1;
+  { TExtIdleNotificationV1 }
+  TExtIdleNotificationV1 = class;
+
+  TExtIdleNotifierV1Class = class of TExtIdleNotifierV1;
+  { TExtIdleNotifierV1 }
+  TExtIdleNotifierV1 = class;
+
+  IExtIdleNotifierV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_idle_notification(nuo),get_input_idle_notification(nuo)', '')]
+  { TExtIdleNotifierV1 }
+  TExtIdleNotifierV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_IDLE_NOTIFICATION = 1, _GET_INPUT_IDLE_NOTIFICATION = 2);
+  public
+    destructor Destroy; override;
+    function GetIdleNotification(aTimeout: DWord; aSeat: TWlSeat; aClassType: TExtIdleNotificationV1Class = nil): TExtIdleNotificationV1;
+    function GetInputIdleNotification(aTimeout: DWord; aSeat: TWlSeat; aClassType: TExtIdleNotificationV1Class = nil): TExtIdleNotificationV1;
+  private
+    FListeners: array of IExtIdleNotifierV1Listener;
+  public
+    function AddListener(AIntf: IExtIdleNotifierV1Listener): LongInt;
+  end;
+
+  IExtIdleNotifierV1Listener = interface
+  ['IExtIdleNotifierV1Listener']
+  end;
+
+  IExtIdleNotificationV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'idled(),resumed()')]
+  { TExtIdleNotificationV1 }
+  TExtIdleNotificationV1 = class(TWaylandBase)
+  public type
+    TIdledEvent = procedure(Sender: TExtIdleNotificationV1) of object;
+    TResumedEvent = procedure(Sender: TExtIdleNotificationV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_IDLED = 0, EV_RESUMED = 1);
+  private
+    FOnIdledPriv: TIdledEvent;
+    FOnResumedPriv: TResumedEvent;
+  protected
+    procedure HandleIdled(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_IDLED); virtual;
+    procedure HandleResumed(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_RESUMED); virtual;
+  published
+    property OnIdled: TIdledEvent read FOnIdledPriv write FOnIdledPriv;
+    property OnResumed: TResumedEvent read FOnResumedPriv write FOnResumedPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtIdleNotificationV1Listener;
+  public
+    function AddListener(AIntf: IExtIdleNotificationV1Listener): LongInt;
+  end;
+
+  IExtIdleNotificationV1Listener = interface
+  ['IExtIdleNotificationV1Listener']
+    procedure ext_idle_notification_v1_idled(AExtIdleNotificationV1: TExtIdleNotificationV1);
+    procedure ext_idle_notification_v1_resumed(AExtIdleNotificationV1: TExtIdleNotificationV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TExtIdleNotifierV1.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TExtIdleNotifierV1.GetInterfaceName: String;
+begin
+  Result := 'ext_idle_notifier_v1';
+end;
+
+destructor TExtIdleNotifierV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtIdleNotifierV1.GetIdleNotification(aTimeout: DWord; aSeat: TWlSeat; aClassType: TExtIdleNotificationV1Class = nil): TExtIdleNotificationV1;
+begin
+  if aClassType = nil then aClassType := TExtIdleNotificationV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_IDLE_NOTIFICATION), [Result.GetObjectId,aTimeout,aSeat.GetObjectId]);
+end;
+
+function TExtIdleNotifierV1.GetInputIdleNotification(aTimeout: DWord; aSeat: TWlSeat; aClassType: TExtIdleNotificationV1Class = nil): TExtIdleNotificationV1;
+begin
+  if aClassType = nil then aClassType := TExtIdleNotificationV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_INPUT_IDLE_NOTIFICATION), [Result.GetObjectId,aTimeout,aSeat.GetObjectId]);
+end;
+
+function TExtIdleNotifierV1.AddListener(AIntf: IExtIdleNotifierV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtIdleNotificationV1.GetInterfaceVersion: Integer;
+begin
+  Result := 2;
+end;
+
+class function TExtIdleNotificationV1.GetInterfaceName: String;
+begin
+  Result := 'ext_idle_notification_v1';
+end;
+
+procedure TExtIdleNotificationV1.HandleIdled(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnIdled) then OnIdled(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_idle_notification_v1_idled(Self);
+  AMsg.SetHandled;
+end;
+
+procedure TExtIdleNotificationV1.HandleResumed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnResumed) then OnResumed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_idle_notification_v1_resumed(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TExtIdleNotificationV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtIdleNotificationV1.AddListener(AIntf: IExtIdleNotificationV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

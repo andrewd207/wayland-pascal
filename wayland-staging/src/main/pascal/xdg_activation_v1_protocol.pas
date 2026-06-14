@@ -1,0 +1,177 @@
+unit xdg_activation_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TXdgActivationTokenV1Class = class of TXdgActivationTokenV1;
+  { TXdgActivationTokenV1 }
+  TXdgActivationTokenV1 = class;
+
+  TXdgActivationV1Class = class of TXdgActivationV1;
+  { TXdgActivationV1 }
+  TXdgActivationV1 = class;
+
+  IXdgActivationV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_activation_token(n),activate(so)', '')]
+  { TXdgActivationV1 }
+  TXdgActivationV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_ACTIVATION_TOKEN = 1, _ACTIVATE = 2);
+  public
+    destructor Destroy; override;
+    function GetActivationToken(aClassType: TXdgActivationTokenV1Class = nil): TXdgActivationTokenV1;
+    procedure Activate(aToken: String; aSurface: TWlSurface);
+  private
+    FListeners: array of IXdgActivationV1Listener;
+  public
+    function AddListener(AIntf: IXdgActivationV1Listener): LongInt;
+  end;
+
+  IXdgActivationV1Listener = interface
+  ['IXdgActivationV1Listener']
+  end;
+
+  IXdgActivationTokenV1Listener = interface;
+
+  [TWLIntfAttribute('set_serial(uo),set_app_id(s),set_surface(o),commit(),destroy()', 'done(s)')]
+  { TXdgActivationTokenV1 }
+  TXdgActivationTokenV1 = class(TWaylandBase)
+  public type
+    TError = (erAlreadyused = 0);
+    TDoneEvent = procedure(Sender: TXdgActivationTokenV1; aToken: String) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_SERIAL = 0, _SET_APP_ID = 1, _SET_SURFACE = 2, _COMMIT = 3, _DESTROY = 4);
+    TEvents = (EV_DONE = 0);
+  private
+    FOnDonePriv: TDoneEvent;
+  protected
+    procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
+  published
+    property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+  public
+    procedure SetSerial(aSerial: DWord; aSeat: TWlSeat);
+    procedure SetAppId(aAppId: String);
+    procedure SetSurface(aSurface: TWlSurface);
+    procedure Commit;
+    destructor Destroy; override;
+  private
+    FListeners: array of IXdgActivationTokenV1Listener;
+  public
+    function AddListener(AIntf: IXdgActivationTokenV1Listener): LongInt;
+  end;
+
+  IXdgActivationTokenV1Listener = interface
+  ['IXdgActivationTokenV1Listener']
+    procedure xdg_activation_token_v1_done(AXdgActivationTokenV1: TXdgActivationTokenV1; aToken: String);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TXdgActivationV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgActivationV1.GetInterfaceName: String;
+begin
+  Result := 'xdg_activation_v1';
+end;
+
+destructor TXdgActivationV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgActivationV1.GetActivationToken(aClassType: TXdgActivationTokenV1Class = nil): TXdgActivationTokenV1;
+begin
+  if aClassType = nil then aClassType := TXdgActivationTokenV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_ACTIVATION_TOKEN), [Result.GetObjectId]);
+end;
+
+procedure TXdgActivationV1.Activate(aToken: String; aSurface: TWlSurface);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._ACTIVATE), [aToken,aSurface.GetObjectId]);
+end;
+
+function TXdgActivationV1.AddListener(AIntf: IXdgActivationV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TXdgActivationTokenV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TXdgActivationTokenV1.GetInterfaceName: String;
+begin
+  Result := 'xdg_activation_token_v1';
+end;
+
+procedure TXdgActivationTokenV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lToken: String;
+  lListenerIdx: Integer;
+begin
+  lToken := AMsg.Args.ReadString;
+  if Assigned(OnDone) then OnDone(Self,lToken);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_activation_token_v1_done(Self,lToken);
+  AMsg.SetHandled;
+end;
+
+procedure TXdgActivationTokenV1.SetSerial(aSerial: DWord; aSeat: TWlSeat);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SERIAL), [aSerial,aSeat.GetObjectId]);
+end;
+
+procedure TXdgActivationTokenV1.SetAppId(aAppId: String);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_APP_ID), [aAppId]);
+end;
+
+procedure TXdgActivationTokenV1.SetSurface(aSurface: TWlSurface);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SURFACE), [aSurface.GetObjectId]);
+end;
+
+procedure TXdgActivationTokenV1.Commit;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._COMMIT), []);
+end;
+
+destructor TXdgActivationTokenV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TXdgActivationTokenV1.AddListener(AIntf: IXdgActivationTokenV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

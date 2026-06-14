@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
-  <name>wayland-demo</name>
+  <name>wayland-unstable</name>
   <!-- version inherited from aggregator -->
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Demo / dogfood app. Depends only on the runtime library, so it builds
-       under pasbuild with no tiOPF. Connects to a live Wayland compositor. -->
+  <!-- Unstable wayland-protocols (zwp_/zxdg_ etc.), generated as
+       <protocol>_protocol units. Some reference stable protocols (e.g.
+       xdg_decoration -> xdg_shell), so it depends on wayland-stable too. -->
   <build>
-    <projectType>application</projectType>
-    <mainSource>Main.pas</mainSource>
-    <executableName>wayland-demo</executableName>
+    <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
   </build>
 

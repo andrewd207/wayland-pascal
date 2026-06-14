@@ -1,0 +1,135 @@
+unit commit_timing_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpCommitTimerV1Class = class of TWpCommitTimerV1;
+  { TWpCommitTimerV1 }
+  TWpCommitTimerV1 = class;
+
+  TWpCommitTimingManagerV1Class = class of TWpCommitTimingManagerV1;
+  { TWpCommitTimingManagerV1 }
+  TWpCommitTimingManagerV1 = class;
+
+  IWpCommitTimingManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_timer(no)', '')]
+  { TWpCommitTimingManagerV1 }
+  TWpCommitTimingManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erCommittimerexists = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_TIMER = 1);
+  public
+    destructor Destroy; override;
+    function GetTimer(aSurface: TWlSurface; aClassType: TWpCommitTimerV1Class = nil): TWpCommitTimerV1;
+  private
+    FListeners: array of IWpCommitTimingManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpCommitTimingManagerV1Listener): LongInt;
+  end;
+
+  IWpCommitTimingManagerV1Listener = interface
+  ['IWpCommitTimingManagerV1Listener']
+  end;
+
+  IWpCommitTimerV1Listener = interface;
+
+  [TWLIntfAttribute('set_timestamp(uuu),destroy()', '')]
+  { TWpCommitTimerV1 }
+  TWpCommitTimerV1 = class(TWaylandBase)
+  public type
+    TError = (erInvalidtimestamp = 0, erTimestampexists = 1, erSurfacedestroyed = 2);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_SET_TIMESTAMP = 0, _DESTROY = 1);
+  public
+    procedure SetTimestamp(aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord);
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpCommitTimerV1Listener;
+  public
+    function AddListener(AIntf: IWpCommitTimerV1Listener): LongInt;
+  end;
+
+  IWpCommitTimerV1Listener = interface
+  ['IWpCommitTimerV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpCommitTimingManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpCommitTimingManagerV1.GetInterfaceName: String;
+begin
+  Result := 'wp_commit_timing_manager_v1';
+end;
+
+destructor TWpCommitTimingManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpCommitTimingManagerV1.GetTimer(aSurface: TWlSurface; aClassType: TWpCommitTimerV1Class = nil): TWpCommitTimerV1;
+begin
+  if aClassType = nil then aClassType := TWpCommitTimerV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_TIMER), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TWpCommitTimingManagerV1.AddListener(AIntf: IWpCommitTimingManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpCommitTimerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpCommitTimerV1.GetInterfaceName: String;
+begin
+  Result := 'wp_commit_timer_v1';
+end;
+
+procedure TWpCommitTimerV1.SetTimestamp(aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_TIMESTAMP), [aTvSecHi,aTvSecLo,aTvNsec]);
+end;
+
+destructor TWpCommitTimerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpCommitTimerV1.AddListener(AIntf: IWpCommitTimerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

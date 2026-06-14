@@ -1,0 +1,182 @@
+unit ext_image_capture_source_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland, ext_foreign_toplevel_list_v1_protocol;
+
+type
+  TExtForeignToplevelImageCaptureSourceManagerV1Class = class of TExtForeignToplevelImageCaptureSourceManagerV1;
+  { TExtForeignToplevelImageCaptureSourceManagerV1 }
+  TExtForeignToplevelImageCaptureSourceManagerV1 = class;
+
+  TExtOutputImageCaptureSourceManagerV1Class = class of TExtOutputImageCaptureSourceManagerV1;
+  { TExtOutputImageCaptureSourceManagerV1 }
+  TExtOutputImageCaptureSourceManagerV1 = class;
+
+  TExtImageCaptureSourceV1Class = class of TExtImageCaptureSourceV1;
+  { TExtImageCaptureSourceV1 }
+  TExtImageCaptureSourceV1 = class;
+
+  IExtImageCaptureSourceV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', '')]
+  { TExtImageCaptureSourceV1 }
+  TExtImageCaptureSourceV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtImageCaptureSourceV1Listener;
+  public
+    function AddListener(AIntf: IExtImageCaptureSourceV1Listener): LongInt;
+  end;
+
+  IExtImageCaptureSourceV1Listener = interface
+  ['IExtImageCaptureSourceV1Listener']
+  end;
+
+  IExtOutputImageCaptureSourceManagerV1Listener = interface;
+
+  [TWLIntfAttribute('create_source(no),destroy()', '')]
+  { TExtOutputImageCaptureSourceManagerV1 }
+  TExtOutputImageCaptureSourceManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_CREATE_SOURCE = 0, _DESTROY = 1);
+  public
+    function CreateSource(aOutput: TWlOutput; aClassType: TExtImageCaptureSourceV1Class = nil): TExtImageCaptureSourceV1;
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtOutputImageCaptureSourceManagerV1Listener;
+  public
+    function AddListener(AIntf: IExtOutputImageCaptureSourceManagerV1Listener): LongInt;
+  end;
+
+  IExtOutputImageCaptureSourceManagerV1Listener = interface
+  ['IExtOutputImageCaptureSourceManagerV1Listener']
+  end;
+
+  IExtForeignToplevelImageCaptureSourceManagerV1Listener = interface;
+
+  [TWLIntfAttribute('create_source(no),destroy()', '')]
+  { TExtForeignToplevelImageCaptureSourceManagerV1 }
+  TExtForeignToplevelImageCaptureSourceManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_CREATE_SOURCE = 0, _DESTROY = 1);
+  public
+    function CreateSource(aToplevelHandle: TExtForeignToplevelHandleV1; aClassType: TExtImageCaptureSourceV1Class = nil): TExtImageCaptureSourceV1;
+    destructor Destroy; override;
+  private
+    FListeners: array of IExtForeignToplevelImageCaptureSourceManagerV1Listener;
+  public
+    function AddListener(AIntf: IExtForeignToplevelImageCaptureSourceManagerV1Listener): LongInt;
+  end;
+
+  IExtForeignToplevelImageCaptureSourceManagerV1Listener = interface
+  ['IExtForeignToplevelImageCaptureSourceManagerV1Listener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TExtImageCaptureSourceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtImageCaptureSourceV1.GetInterfaceName: String;
+begin
+  Result := 'ext_image_capture_source_v1';
+end;
+
+destructor TExtImageCaptureSourceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtImageCaptureSourceV1.AddListener(AIntf: IExtImageCaptureSourceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtOutputImageCaptureSourceManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtOutputImageCaptureSourceManagerV1.GetInterfaceName: String;
+begin
+  Result := 'ext_output_image_capture_source_manager_v1';
+end;
+
+function TExtOutputImageCaptureSourceManagerV1.CreateSource(aOutput: TWlOutput; aClassType: TExtImageCaptureSourceV1Class = nil): TExtImageCaptureSourceV1;
+begin
+  if aClassType = nil then aClassType := TExtImageCaptureSourceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_SOURCE), [Result.GetObjectId,aOutput.GetObjectId]);
+end;
+
+destructor TExtOutputImageCaptureSourceManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtOutputImageCaptureSourceManagerV1.AddListener(AIntf: IExtOutputImageCaptureSourceManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TExtForeignToplevelImageCaptureSourceManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TExtForeignToplevelImageCaptureSourceManagerV1.GetInterfaceName: String;
+begin
+  Result := 'ext_foreign_toplevel_image_capture_source_manager_v1';
+end;
+
+function TExtForeignToplevelImageCaptureSourceManagerV1.CreateSource(aToplevelHandle: TExtForeignToplevelHandleV1; aClassType: TExtImageCaptureSourceV1Class = nil): TExtImageCaptureSourceV1;
+begin
+  if aClassType = nil then aClassType := TExtImageCaptureSourceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_SOURCE), [Result.GetObjectId,aToplevelHandle.GetObjectId]);
+end;
+
+destructor TExtForeignToplevelImageCaptureSourceManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TExtForeignToplevelImageCaptureSourceManagerV1.AddListener(AIntf: IExtForeignToplevelImageCaptureSourceManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

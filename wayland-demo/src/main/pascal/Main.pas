@@ -9,7 +9,7 @@ uses
   Classes, sysutils,
   wayland_strings, wayland_stream, Wayland_Core,
   wayland_errors, wayland_queue, wayland_internal_interfaces,
-  wayland, xdg_shell, wayland_shm_impl, unix_fd_socket;
+  wayland, xdg_shell_protocol, wayland_shm_impl, unix_fd_socket;
 
 type
 

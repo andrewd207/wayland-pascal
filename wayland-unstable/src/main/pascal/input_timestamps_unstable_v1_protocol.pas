@@ -1,0 +1,166 @@
+unit input_timestamps_unstable_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpInputTimestampsV1Class = class of TWpInputTimestampsV1;
+  { TWpInputTimestampsV1 }
+  TWpInputTimestampsV1 = class;
+
+  TWpInputTimestampsManagerV1Class = class of TWpInputTimestampsManagerV1;
+  { TWpInputTimestampsManagerV1 }
+  TWpInputTimestampsManagerV1 = class;
+
+  IWpInputTimestampsManagerV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),get_keyboard_timestamps(no),get_pointer_timestamps(no),get_touch_timestamps(no)', '')]
+  { TWpInputTimestampsManagerV1 }
+  TWpInputTimestampsManagerV1 = class(TWaylandBase)
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_KEYBOARD_TIMESTAMPS = 1, _GET_POINTER_TIMESTAMPS = 2, _GET_TOUCH_TIMESTAMPS = 3);
+  public
+    destructor Destroy; override;
+    function GetKeyboardTimestamps(aKeyboard: TWlKeyboard; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+    function GetPointerTimestamps(aPointer: TWlPointer; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+    function GetTouchTimestamps(aTouch: TWlTouch; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+  private
+    FListeners: array of IWpInputTimestampsManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpInputTimestampsManagerV1Listener): LongInt;
+  end;
+
+  IWpInputTimestampsManagerV1Listener = interface
+  ['IWpInputTimestampsManagerV1Listener']
+  end;
+
+  IWpInputTimestampsV1Listener = interface;
+
+  [TWLIntfAttribute('destroy()', 'timestamp(uuu)')]
+  { TWpInputTimestampsV1 }
+  TWpInputTimestampsV1 = class(TWaylandBase)
+  public type
+    TTimestampEvent = procedure(Sender: TWpInputTimestampsV1; aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0);
+    TEvents = (EV_TIMESTAMP = 0);
+  private
+    FOnTimestampPriv: TTimestampEvent;
+  protected
+    procedure HandleTimestamp(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_TIMESTAMP); virtual;
+  published
+    property OnTimestamp: TTimestampEvent read FOnTimestampPriv write FOnTimestampPriv;
+  public
+    destructor Destroy; override;
+  private
+    FListeners: array of IWpInputTimestampsV1Listener;
+  public
+    function AddListener(AIntf: IWpInputTimestampsV1Listener): LongInt;
+  end;
+
+  IWpInputTimestampsV1Listener = interface
+  ['IWpInputTimestampsV1Listener']
+    procedure wp_input_timestamps_v1_timestamp(AWpInputTimestampsV1: TWpInputTimestampsV1; aTvSecHi: DWord; aTvSecLo: DWord; aTvNsec: DWord);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpInputTimestampsManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpInputTimestampsManagerV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_input_timestamps_manager_v1';
+end;
+
+destructor TWpInputTimestampsManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpInputTimestampsManagerV1.GetKeyboardTimestamps(aKeyboard: TWlKeyboard; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+begin
+  if aClassType = nil then aClassType := TWpInputTimestampsV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_KEYBOARD_TIMESTAMPS), [Result.GetObjectId,aKeyboard.GetObjectId]);
+end;
+
+function TWpInputTimestampsManagerV1.GetPointerTimestamps(aPointer: TWlPointer; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+begin
+  if aClassType = nil then aClassType := TWpInputTimestampsV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_POINTER_TIMESTAMPS), [Result.GetObjectId,aPointer.GetObjectId]);
+end;
+
+function TWpInputTimestampsManagerV1.GetTouchTimestamps(aTouch: TWlTouch; aClassType: TWpInputTimestampsV1Class = nil): TWpInputTimestampsV1;
+begin
+  if aClassType = nil then aClassType := TWpInputTimestampsV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_TOUCH_TIMESTAMPS), [Result.GetObjectId,aTouch.GetObjectId]);
+end;
+
+function TWpInputTimestampsManagerV1.AddListener(AIntf: IWpInputTimestampsManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpInputTimestampsV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpInputTimestampsV1.GetInterfaceName: String;
+begin
+  Result := 'zwp_input_timestamps_v1';
+end;
+
+procedure TWpInputTimestampsV1.HandleTimestamp(var AMsg: TWaylandEventMessage);
+var
+  lTvSecHi: DWord;
+  lTvSecLo: DWord;
+  lTvNsec: DWord;
+  lListenerIdx: Integer;
+begin
+  lTvSecHi := AMsg.Args.ReadDWord;
+  lTvSecLo := AMsg.Args.ReadDWord;
+  lTvNsec := AMsg.Args.ReadDWord;
+  if Assigned(OnTimestamp) then OnTimestamp(Self,lTvSecHi,lTvSecLo,lTvNsec);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_input_timestamps_v1_timestamp(Self,lTvSecHi,lTvSecLo,lTvNsec);
+  AMsg.SetHandled;
+end;
+
+destructor TWpInputTimestampsV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpInputTimestampsV1.AddListener(AIntf: IWpInputTimestampsV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

@@ -1,0 +1,141 @@
+unit viewporter_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpViewportClass = class of TWpViewport;
+  { TWpViewport }
+  TWpViewport = class;
+
+  TWpViewporterClass = class of TWpViewporter;
+  { TWpViewporter }
+  TWpViewporter = class;
+
+  IWpViewporterListener = interface;
+
+  [TWLIntfAttribute('destroy(),get_viewport(no)', '')]
+  { TWpViewporter }
+  TWpViewporter = class(TWaylandBase)
+  public type
+    TError = (erViewportexists = 0);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_VIEWPORT = 1);
+  public
+    destructor Destroy; override;
+    function GetViewport(aSurface: TWlSurface; aClassType: TWpViewportClass = nil): TWpViewport;
+  private
+    FListeners: array of IWpViewporterListener;
+  public
+    function AddListener(AIntf: IWpViewporterListener): LongInt;
+  end;
+
+  IWpViewporterListener = interface
+  ['IWpViewporterListener']
+  end;
+
+  IWpViewportListener = interface;
+
+  [TWLIntfAttribute('destroy(),set_source(ffff),set_destination(ii)', '')]
+  { TWpViewport }
+  TWpViewport = class(TWaylandBase)
+  public type
+    TError = (erBadvalue = 0, erBadsize = 1, erOutofbuffer = 2, erNosurface = 3);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_SOURCE = 1, _SET_DESTINATION = 2);
+  public
+    destructor Destroy; override;
+    procedure SetSource(aX: TWaylandFixed; aY: TWaylandFixed; aWidth: TWaylandFixed; aHeight: TWaylandFixed);
+    procedure SetDestination(aWidth: Integer; aHeight: Integer);
+  private
+    FListeners: array of IWpViewportListener;
+  public
+    function AddListener(AIntf: IWpViewportListener): LongInt;
+  end;
+
+  IWpViewportListener = interface
+  ['IWpViewportListener']
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpViewporter.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpViewporter.GetInterfaceName: String;
+begin
+  Result := 'wp_viewporter';
+end;
+
+destructor TWpViewporter.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpViewporter.GetViewport(aSurface: TWlSurface; aClassType: TWpViewportClass = nil): TWpViewport;
+begin
+  if aClassType = nil then aClassType := TWpViewport;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_VIEWPORT), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TWpViewporter.AddListener(AIntf: IWpViewporterListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+class function TWpViewport.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpViewport.GetInterfaceName: String;
+begin
+  Result := 'wp_viewport';
+end;
+
+destructor TWpViewport.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpViewport.SetSource(aX: TWaylandFixed; aY: TWaylandFixed; aWidth: TWaylandFixed; aHeight: TWaylandFixed);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SOURCE), [aX.AsFixed,aY.AsFixed,aWidth.AsFixed,aHeight.AsFixed]);
+end;
+
+procedure TWpViewport.SetDestination(aWidth: Integer; aHeight: Integer);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_DESTINATION), [aWidth,aHeight]);
+end;
+
+function TWpViewport.AddListener(AIntf: IWpViewportListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.

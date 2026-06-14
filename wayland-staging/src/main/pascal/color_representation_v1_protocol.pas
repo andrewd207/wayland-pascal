@@ -1,0 +1,203 @@
+unit color_representation_v1_protocol;
+
+{$mode ObjFPC}{$H+}
+{$ScopedEnums on}
+{$modeswitch advancedrecords}
+{$modeswitch prefixedattributes}
+{$interfaces corba}
+
+interface
+uses
+  Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
+
+type
+  TWpColorRepresentationSurfaceV1Class = class of TWpColorRepresentationSurfaceV1;
+  { TWpColorRepresentationSurfaceV1 }
+  TWpColorRepresentationSurfaceV1 = class;
+
+  TWpColorRepresentationManagerV1Class = class of TWpColorRepresentationManagerV1;
+  { TWpColorRepresentationManagerV1 }
+  TWpColorRepresentationManagerV1 = class;
+
+  IWpColorRepresentationManagerV1Listener = interface;
+
+  IWpColorRepresentationSurfaceV1Listener = interface;
+
+  [TWLIntfAttribute('destroy(),set_alpha_mode(u),set_coefficients_and_range(uu),set_chroma_location(u)', '')]
+  { TWpColorRepresentationSurfaceV1 }
+  TWpColorRepresentationSurfaceV1 = class(TWaylandBase)
+  public type
+    TError = (erAlphamode = 1, erCoefficients = 2, erPixelformat = 3, erInert = 4);
+    TAlphaMode = (alPremultipliedelectrical = 0, alPremultipliedoptical = 1, alStraight = 2);
+    TCoefficients = (coIdentity = 1, coBt709 = 2, coFcc = 3, coBt601 = 4, coSmpte240 = 5, coBt2020 = 6, coBt2020cl = 7, coIctcp = 8);
+    TRange = (raFull = 1, raLimited = 2);
+    TChromaLocation = (chType0 = 1, chType1 = 2, chType2 = 3, chType3 = 4, chType4 = 5, chType5 = 6);
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _SET_ALPHA_MODE = 1, _SET_COEFFICIENTS_AND_RANGE = 2, _SET_CHROMA_LOCATION = 3);
+  public
+    destructor Destroy; override;
+    procedure SetAlphaMode(aAlphaMode: TAlphaMode);
+    procedure SetCoefficientsAndRange(aCoefficients: TCoefficients; aRange: TRange);
+    procedure SetChromaLocation(aChromaLocation: TChromaLocation);
+  private
+    FListeners: array of IWpColorRepresentationSurfaceV1Listener;
+  public
+    function AddListener(AIntf: IWpColorRepresentationSurfaceV1Listener): LongInt;
+  end;
+
+  IWpColorRepresentationSurfaceV1Listener = interface
+  ['IWpColorRepresentationSurfaceV1Listener']
+  end;
+
+  [TWLIntfAttribute('destroy(),get_surface(no)', 'supported_alpha_mode(u),supported_coefficients_and_ranges(uu),done()')]
+  { TWpColorRepresentationManagerV1 }
+  TWpColorRepresentationManagerV1 = class(TWaylandBase)
+  public type
+    TError = (erSurfaceexists = 1);
+    TSupportedAlphaModeEvent = procedure(Sender: TWpColorRepresentationManagerV1; aAlphaMode: TWpColorRepresentationSurfaceV1.TAlphaMode) of object;
+    TSupportedCoefficientsAndRangesEvent = procedure(Sender: TWpColorRepresentationManagerV1; aCoefficients: TWpColorRepresentationSurfaceV1.TCoefficients; aRange: TWpColorRepresentationSurfaceV1.TRange) of object;
+    TDoneEvent = procedure(Sender: TWpColorRepresentationManagerV1) of object;
+  protected
+    class function GetInterfaceVersion: Integer; override;
+    class function GetInterfaceName: String; override;
+  protected type
+    TRequests = (_DESTROY = 0, _GET_SURFACE = 1);
+    TEvents = (EV_SUPPORTED_ALPHA_MODE = 0, EV_SUPPORTED_COEFFICIENTS_AND_RANGES = 1, EV_DONE = 2);
+  private
+    FOnSupportedAlphaModePriv: TSupportedAlphaModeEvent;
+    FOnSupportedCoefficientsAndRangesPriv: TSupportedCoefficientsAndRangesEvent;
+    FOnDonePriv: TDoneEvent;
+  protected
+    procedure HandleSupportedAlphaMode(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SUPPORTED_ALPHA_MODE); virtual;
+    procedure HandleSupportedCoefficientsAndRanges(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_SUPPORTED_COEFFICIENTS_AND_RANGES); virtual;
+    procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
+  published
+    property OnSupportedAlphaMode: TSupportedAlphaModeEvent read FOnSupportedAlphaModePriv write FOnSupportedAlphaModePriv;
+    property OnSupportedCoefficientsAndRanges: TSupportedCoefficientsAndRangesEvent read FOnSupportedCoefficientsAndRangesPriv write FOnSupportedCoefficientsAndRangesPriv;
+    property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+  public
+    destructor Destroy; override;
+    function GetSurface(aSurface: TWlSurface; aClassType: TWpColorRepresentationSurfaceV1Class = nil): TWpColorRepresentationSurfaceV1;
+  private
+    FListeners: array of IWpColorRepresentationManagerV1Listener;
+  public
+    function AddListener(AIntf: IWpColorRepresentationManagerV1Listener): LongInt;
+  end;
+
+  IWpColorRepresentationManagerV1Listener = interface
+  ['IWpColorRepresentationManagerV1Listener']
+    procedure wp_color_representation_manager_v1_supported_alpha_mode(AWpColorRepresentationManagerV1: TWpColorRepresentationManagerV1; aAlphaMode: TWpColorRepresentationSurfaceV1.TAlphaMode);
+    procedure wp_color_representation_manager_v1_supported_coefficients_and_ranges(AWpColorRepresentationManagerV1: TWpColorRepresentationManagerV1; aCoefficients: TWpColorRepresentationSurfaceV1.TCoefficients; aRange: TWpColorRepresentationSurfaceV1.TRange);
+    procedure wp_color_representation_manager_v1_done(AWpColorRepresentationManagerV1: TWpColorRepresentationManagerV1);
+  end;
+
+implementation
+uses
+  wayland_stream, wayland_interfaces;
+
+class function TWpColorRepresentationManagerV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpColorRepresentationManagerV1.GetInterfaceName: String;
+begin
+  Result := 'wp_color_representation_manager_v1';
+end;
+
+class function TWpColorRepresentationSurfaceV1.GetInterfaceVersion: Integer;
+begin
+  Result := 1;
+end;
+
+class function TWpColorRepresentationSurfaceV1.GetInterfaceName: String;
+begin
+  Result := 'wp_color_representation_surface_v1';
+end;
+
+destructor TWpColorRepresentationSurfaceV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+procedure TWpColorRepresentationSurfaceV1.SetAlphaMode(aAlphaMode: TAlphaMode);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_ALPHA_MODE), [DWord(aAlphaMode)]);
+end;
+
+procedure TWpColorRepresentationSurfaceV1.SetCoefficientsAndRange(aCoefficients: TCoefficients; aRange: TRange);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_COEFFICIENTS_AND_RANGE), [DWord(aCoefficients),DWord(aRange)]);
+end;
+
+procedure TWpColorRepresentationSurfaceV1.SetChromaLocation(aChromaLocation: TChromaLocation);
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CHROMA_LOCATION), [DWord(aChromaLocation)]);
+end;
+
+function TWpColorRepresentationSurfaceV1.AddListener(AIntf: IWpColorRepresentationSurfaceV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+procedure TWpColorRepresentationManagerV1.HandleSupportedAlphaMode(var AMsg: TWaylandEventMessage);
+var
+  lAlphaMode: TWpColorRepresentationSurfaceV1.TAlphaMode;
+  lListenerIdx: Integer;
+begin
+  lAlphaMode := TWpColorRepresentationSurfaceV1.TAlphaMode(AMsg.Args.ReadDWord);
+  if Assigned(OnSupportedAlphaMode) then OnSupportedAlphaMode(Self,lAlphaMode);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_color_representation_manager_v1_supported_alpha_mode(Self,lAlphaMode);
+  AMsg.SetHandled;
+end;
+
+procedure TWpColorRepresentationManagerV1.HandleSupportedCoefficientsAndRanges(var AMsg: TWaylandEventMessage);
+var
+  lCoefficients: TWpColorRepresentationSurfaceV1.TCoefficients;
+  lRange: TWpColorRepresentationSurfaceV1.TRange;
+  lListenerIdx: Integer;
+begin
+  lCoefficients := TWpColorRepresentationSurfaceV1.TCoefficients(AMsg.Args.ReadDWord);
+  lRange := TWpColorRepresentationSurfaceV1.TRange(AMsg.Args.ReadDWord);
+  if Assigned(OnSupportedCoefficientsAndRanges) then OnSupportedCoefficientsAndRanges(Self,lCoefficients,lRange);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_color_representation_manager_v1_supported_coefficients_and_ranges(Self,lCoefficients,lRange);
+  AMsg.SetHandled;
+end;
+
+procedure TWpColorRepresentationManagerV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
+begin
+  if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_color_representation_manager_v1_done(Self);
+  AMsg.SetHandled;
+end;
+
+destructor TWpColorRepresentationManagerV1.Destroy;
+begin
+  Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
+  inherited Destroy;
+end;
+
+function TWpColorRepresentationManagerV1.GetSurface(aSurface: TWlSurface; aClassType: TWpColorRepresentationSurfaceV1Class = nil): TWpColorRepresentationSurfaceV1;
+begin
+  if aClassType = nil then aClassType := TWpColorRepresentationSurfaceV1;
+  Result := aClassType.Create(Connection);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SURFACE), [Result.GetObjectId,aSurface.GetObjectId]);
+end;
+
+function TWpColorRepresentationManagerV1.AddListener(AIntf: IWpColorRepresentationManagerV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
+
+end.
