@@ -43,7 +43,7 @@ type
   TVulkanWaylandPresenter = class
   private
     // --- Wayland side (all via the binding, no libwayland) ---
-    FDmabuf:  TZwpLinuxDmabufV1;   // bound from registry global
+    FDmabuf:  TWpLinuxDmabufV1;   // bound from registry global
     FSurface: TWlSurface;
     // negotiated DRM format + modifier (from dmabuf format/modifier events or
     // the v4 feedback tranches). foXrgb8888 == DRM_FORMAT_XRGB8888.
@@ -58,7 +58,7 @@ type
     function  AcquireFreeImage: Integer; // index, or -1 if all busy
     procedure BuildWlBuffer(var AImg: TFrameImage);
   public
-    constructor Create(ADmabuf: TZwpLinuxDmabufV1; ASurface: TWlSurface;
+    constructor Create(ADmabuf: TWpLinuxDmabufV1; ASurface: TWlSurface;
       AWidth, AHeight: Integer);
     procedure RenderAndPresent;
   end;
@@ -115,7 +115,7 @@ end;
   Wayland side -- entirely via the binding.
   =========================================================================== }
 
-constructor TVulkanWaylandPresenter.Create(ADmabuf: TZwpLinuxDmabufV1;
+constructor TVulkanWaylandPresenter.Create(ADmabuf: TWpLinuxDmabufV1;
   ASurface: TWlSurface; AWidth, AHeight: Integer);
 var
   i: Integer;
@@ -149,8 +149,8 @@ end;
 // passing, so the connection sends it out-of-band automatically.
 procedure TVulkanWaylandPresenter.BuildWlBuffer(var AImg: TFrameImage);
 var
-  lParams: TZwpLinuxBufferParamsV1;
-  lFlags: TZwpLinuxBufferParamsV1.TFlags;
+  lParams: TWpLinuxBufferParamsV1;
+  lFlags: TWpLinuxBufferParamsV1.TFlags;
 begin
   lParams := FDmabuf.CreateParams;
   // plane 0 only for a single-plane format like XRGB8888

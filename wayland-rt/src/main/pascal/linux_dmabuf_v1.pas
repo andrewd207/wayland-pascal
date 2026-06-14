@@ -10,21 +10,21 @@ uses
   Classes, Sysutils, Wayland_Core, wayland_queue, wayland_internal_interfaces, wayland;
 
 type
-  TZwpLinuxDmabufFeedbackV1Class = class of TZwpLinuxDmabufFeedbackV1;
-  { TZwpLinuxDmabufFeedbackV1 }
-  TZwpLinuxDmabufFeedbackV1 = class;
+  TWpLinuxDmabufFeedbackV1Class = class of TWpLinuxDmabufFeedbackV1;
+  { TWpLinuxDmabufFeedbackV1 }
+  TWpLinuxDmabufFeedbackV1 = class;
 
-  TZwpLinuxBufferParamsV1Class = class of TZwpLinuxBufferParamsV1;
-  { TZwpLinuxBufferParamsV1 }
-  TZwpLinuxBufferParamsV1 = class;
+  TWpLinuxBufferParamsV1Class = class of TWpLinuxBufferParamsV1;
+  { TWpLinuxBufferParamsV1 }
+  TWpLinuxBufferParamsV1 = class;
 
-  TZwpLinuxDmabufV1Class = class of TZwpLinuxDmabufV1;
+  TWpLinuxDmabufV1Class = class of TWpLinuxDmabufV1;
   [TWLIntfAttribute('destroy(),create_params(n),get_default_feedback(n),get_surface_feedback(no)', 'format(u),modifier(uuu)')]
-  { TZwpLinuxDmabufV1 }
-  TZwpLinuxDmabufV1 = class(TWaylandBase)
+  { TWpLinuxDmabufV1 }
+  TWpLinuxDmabufV1 = class(TWaylandBase)
   public type
-    TFormatEvent = procedure(Sender: TZwpLinuxDmabufV1; aFormat: DWord) of object;
-    TModifierEvent = procedure(Sender: TZwpLinuxDmabufV1; aFormat: DWord; aModifierHi: DWord; aModifierLo: DWord) of object;
+    TFormatEvent = procedure(Sender: TWpLinuxDmabufV1; aFormat: DWord) of object;
+    TModifierEvent = procedure(Sender: TWpLinuxDmabufV1; aFormat: DWord; aModifierHi: DWord; aModifierLo: DWord) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
     class function GetInterfaceName: String; override;
@@ -42,17 +42,17 @@ type
     property OnModifier: TModifierEvent read FOnModifierPriv write FOnModifierPriv;
   public
     destructor Destroy; override;
-    function CreateParams(aClassType: TZwpLinuxBufferParamsV1Class = nil): TZwpLinuxBufferParamsV1;
-    function GetDefaultFeedback(aClassType: TZwpLinuxDmabufFeedbackV1Class = nil): TZwpLinuxDmabufFeedbackV1;
-    function GetSurfaceFeedback(aSurface: TWlSurface; aClassType: TZwpLinuxDmabufFeedbackV1Class = nil): TZwpLinuxDmabufFeedbackV1;
+    function CreateParams(aClassType: TWpLinuxBufferParamsV1Class = nil): TWpLinuxBufferParamsV1;
+    function GetDefaultFeedback(aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
+    function GetSurfaceFeedback(aSurface: TWlSurface; aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
   end;
 
   [TWLIntfAttribute('destroy(),add(huuuuu),create(iiuu),create_immed(niiuu)', 'created(n),failed()')]
-  { TZwpLinuxBufferParamsV1 }
-  TZwpLinuxBufferParamsV1 = class(TWaylandBase)
+  { TWpLinuxBufferParamsV1 }
+  TWpLinuxBufferParamsV1 = class(TWaylandBase)
   public type
     TError = (erAlreadyused = 0, erPlaneidx = 1, erPlaneset = 2, erIncomplete = 3, erInvalidformat = 4, erInvaliddimensions = 5, erOutofbounds = 6, erInvalidwlbuffer = 7);
-    { TZwpLinuxBufferParamsV1.TFlags }
+    { TWpLinuxBufferParamsV1.TFlags }
     TFlags = object(TBitfield)
     public
       property YInvert: Boolean  index 1 read GetValue write SetValue;
@@ -60,8 +60,8 @@ type
       property BottomFirst: Boolean  index 4 read GetValue write SetValue;
     end;
 
-    TCreatedEvent = procedure(Sender: TZwpLinuxBufferParamsV1; aBuffer: TWlBuffer) of object;
-    TFailedEvent = procedure(Sender: TZwpLinuxBufferParamsV1) of object;
+    TCreatedEvent = procedure(Sender: TWpLinuxBufferParamsV1; aBuffer: TWlBuffer) of object;
+    TFailedEvent = procedure(Sender: TWpLinuxBufferParamsV1) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
     class function GetInterfaceName: String; override;
@@ -85,22 +85,22 @@ type
   end;
 
   [TWLIntfAttribute('destroy()', 'done(),format_table(hu),main_device(a),tranche_done(),tranche_target_device(a),tranche_formats(a),tranche_flags(u)')]
-  { TZwpLinuxDmabufFeedbackV1 }
-  TZwpLinuxDmabufFeedbackV1 = class(TWaylandBase)
+  { TWpLinuxDmabufFeedbackV1 }
+  TWpLinuxDmabufFeedbackV1 = class(TWaylandBase)
   public type
-    { TZwpLinuxDmabufFeedbackV1.TTrancheFlags }
+    { TWpLinuxDmabufFeedbackV1.TTrancheFlags }
     TTrancheFlags = object(TBitfield)
     public
       property Scanout: Boolean  index 1 read GetValue write SetValue;
     end;
 
-    TDoneEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1) of object;
-    TFormatTableEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1; aFd: Integer; aSize: DWord) of object;
-    TMainDeviceEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
-    TTrancheDoneEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1) of object;
-    TTrancheTargetDeviceEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
-    TTrancheFormatsEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1; aIndices: TBytes) of object;
-    TTrancheFlagsEvent = procedure(Sender: TZwpLinuxDmabufFeedbackV1; aFlags: TTrancheFlags) of object;
+    TDoneEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1) of object;
+    TFormatTableEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aFd: Integer; aSize: DWord) of object;
+    TMainDeviceEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
+    TTrancheDoneEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1) of object;
+    TTrancheTargetDeviceEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
+    TTrancheFormatsEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aIndices: TBytes) of object;
+    TTrancheFlagsEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aFlags: TTrancheFlags) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
     class function GetInterfaceName: String; override;
@@ -139,17 +139,17 @@ implementation
 uses
   wayland_stream, wayland_interfaces;
 
-class function TZwpLinuxDmabufV1.GetInterfaceVersion: Integer;
+class function TWpLinuxDmabufV1.GetInterfaceVersion: Integer;
 begin
   Result := 5;
 end;
 
-class function TZwpLinuxDmabufV1.GetInterfaceName: String;
+class function TWpLinuxDmabufV1.GetInterfaceName: String;
 begin
   Result := 'zwp_linux_dmabuf_v1';
 end;
 
-procedure TZwpLinuxDmabufV1.HandleFormat(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufV1.HandleFormat(var AMsg: TWaylandEventMessage);
 var
   lFormat: DWord;
 begin
@@ -158,7 +158,7 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufV1.HandleModifier(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufV1.HandleModifier(var AMsg: TWaylandEventMessage);
 var
   lFormat: DWord;
   lModifierHi: DWord;
@@ -171,44 +171,44 @@ begin
   AMsg.SetHandled;
 end;
 
-destructor TZwpLinuxDmabufV1.Destroy;
+destructor TWpLinuxDmabufV1.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
   inherited Destroy;
 end;
 
-function TZwpLinuxDmabufV1.CreateParams(aClassType: TZwpLinuxBufferParamsV1Class = nil): TZwpLinuxBufferParamsV1;
+function TWpLinuxDmabufV1.CreateParams(aClassType: TWpLinuxBufferParamsV1Class = nil): TWpLinuxBufferParamsV1;
 begin
-  if aClassType = nil then aClassType := TZwpLinuxBufferParamsV1;
+  if aClassType = nil then aClassType := TWpLinuxBufferParamsV1;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_PARAMS), [Result.GetObjectId]);
 end;
 
-function TZwpLinuxDmabufV1.GetDefaultFeedback(aClassType: TZwpLinuxDmabufFeedbackV1Class = nil): TZwpLinuxDmabufFeedbackV1;
+function TWpLinuxDmabufV1.GetDefaultFeedback(aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
 begin
-  if aClassType = nil then aClassType := TZwpLinuxDmabufFeedbackV1;
+  if aClassType = nil then aClassType := TWpLinuxDmabufFeedbackV1;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_DEFAULT_FEEDBACK), [Result.GetObjectId]);
 end;
 
-function TZwpLinuxDmabufV1.GetSurfaceFeedback(aSurface: TWlSurface; aClassType: TZwpLinuxDmabufFeedbackV1Class = nil): TZwpLinuxDmabufFeedbackV1;
+function TWpLinuxDmabufV1.GetSurfaceFeedback(aSurface: TWlSurface; aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
 begin
-  if aClassType = nil then aClassType := TZwpLinuxDmabufFeedbackV1;
+  if aClassType = nil then aClassType := TWpLinuxDmabufFeedbackV1;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SURFACE_FEEDBACK), [Result.GetObjectId,aSurface.GetObjectId]);
 end;
 
-class function TZwpLinuxBufferParamsV1.GetInterfaceVersion: Integer;
+class function TWpLinuxBufferParamsV1.GetInterfaceVersion: Integer;
 begin
   Result := 5;
 end;
 
-class function TZwpLinuxBufferParamsV1.GetInterfaceName: String;
+class function TWpLinuxBufferParamsV1.GetInterfaceName: String;
 begin
   Result := 'zwp_linux_buffer_params_v1';
 end;
 
-procedure TZwpLinuxBufferParamsV1.HandleCreated(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxBufferParamsV1.HandleCreated(var AMsg: TWaylandEventMessage);
 var
   lBuffer: TWlBuffer;
 begin
@@ -217,52 +217,52 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxBufferParamsV1.HandleFailed(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxBufferParamsV1.HandleFailed(var AMsg: TWaylandEventMessage);
 begin
   if Assigned(OnFailed) then OnFailed(Self);
   AMsg.SetHandled;
 end;
 
-destructor TZwpLinuxBufferParamsV1.Destroy;
+destructor TWpLinuxBufferParamsV1.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
   inherited Destroy;
 end;
 
-procedure TZwpLinuxBufferParamsV1.Add(aFd: Integer; aPlaneIdx: DWord; aOffset: DWord; aStride: DWord; aModifierHi: DWord; aModifierLo: DWord);
+procedure TWpLinuxBufferParamsV1.Add(aFd: Integer; aPlaneIdx: DWord; aOffset: DWord; aStride: DWord; aModifierHi: DWord; aModifierLo: DWord);
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._ADD), [aFd,aPlaneIdx,aOffset,aStride,aModifierHi,aModifierLo], 0);
 end;
 
-procedure TZwpLinuxBufferParamsV1.Create_(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags);
+procedure TWpLinuxBufferParamsV1.Create_(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags);
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE), [aWidth,aHeight,aFormat,DWord(aFlags)]);
 end;
 
-function TZwpLinuxBufferParamsV1.CreateImmed(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags; aClassType: TWlBufferClass = nil): TWlBuffer;
+function TWpLinuxBufferParamsV1.CreateImmed(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags; aClassType: TWlBufferClass = nil): TWlBuffer;
 begin
   if aClassType = nil then aClassType := TWlBuffer;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_IMMED), [Result.GetObjectId,aWidth,aHeight,aFormat,DWord(aFlags)]);
 end;
 
-class function TZwpLinuxDmabufFeedbackV1.GetInterfaceVersion: Integer;
+class function TWpLinuxDmabufFeedbackV1.GetInterfaceVersion: Integer;
 begin
   Result := 5;
 end;
 
-class function TZwpLinuxDmabufFeedbackV1.GetInterfaceName: String;
+class function TWpLinuxDmabufFeedbackV1.GetInterfaceName: String;
 begin
   Result := 'zwp_linux_dmabuf_feedback_v1';
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleDone(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleDone(var AMsg: TWaylandEventMessage);
 begin
   if Assigned(OnDone) then OnDone(Self);
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleFormatTable(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleFormatTable(var AMsg: TWaylandEventMessage);
 var
   lFd: Integer;
   lSize: DWord;
@@ -273,7 +273,7 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleMainDevice(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleMainDevice(var AMsg: TWaylandEventMessage);
 var
   lDevice: TBytes;
 begin
@@ -282,13 +282,13 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleTrancheDone(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleTrancheDone(var AMsg: TWaylandEventMessage);
 begin
   if Assigned(OnTrancheDone) then OnTrancheDone(Self);
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleTrancheTargetDevice(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleTrancheTargetDevice(var AMsg: TWaylandEventMessage);
 var
   lDevice: TBytes;
 begin
@@ -297,7 +297,7 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleTrancheFormats(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleTrancheFormats(var AMsg: TWaylandEventMessage);
 var
   lIndices: TBytes;
 begin
@@ -306,7 +306,7 @@ begin
   AMsg.SetHandled;
 end;
 
-procedure TZwpLinuxDmabufFeedbackV1.HandleTrancheFlags(var AMsg: TWaylandEventMessage);
+procedure TWpLinuxDmabufFeedbackV1.HandleTrancheFlags(var AMsg: TWaylandEventMessage);
 var
   lFlags: TTrancheFlags;
 begin
@@ -315,7 +315,7 @@ begin
   AMsg.SetHandled;
 end;
 
-destructor TZwpLinuxDmabufFeedbackV1.Destroy;
+destructor TWpLinuxDmabufFeedbackV1.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
   inherited Destroy;

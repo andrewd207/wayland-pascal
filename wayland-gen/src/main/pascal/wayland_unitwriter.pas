@@ -40,6 +40,16 @@ implementation
 
 { TWaylandUnitWriter }
 
+// Wayland prefixes unstable/experimental interfaces with a leading 'z'
+// (zwp_, zxdg_, zwlr_, zext_, ...). Drop it so the generated class names match
+// the convention used elsewhere, e.g. zwp_linux_dmabuf_v1 -> TWpLinuxDmabufV1.
+function StripZPrefix(const AInterfaceName: String): String;
+begin
+  Result := AInterfaceName;
+  if (Length(Result) > 1) and ((Result[1] = 'z') or (Result[1] = 'Z')) then
+    Delete(Result, 1, 1);
+end;
+
 function TWaylandUnitWriter.GetFullEnumName(AName: String): String;
 var
   lStrings: TStringList;
@@ -47,6 +57,10 @@ var
 begin
   lStrings := TStringList.Create;
   lStrings.AddStrings(AName.Split('.'));
+  // the first segment of a qualified enum ref is an interface name (e.g.
+  // zwp_foo.bar) -> strip its z so it matches the class name TWpFoo.TBar
+  if lStrings.Count > 1 then
+    lStrings[0] := StripZPrefix(lStrings[0]);
   for i := 0 to lStrings.Count-1 do
     lStrings[i] := TClassNode.Pascalify(lStrings[i], True);
 
@@ -69,7 +83,7 @@ begin
           if AArg.Interface_ = '' then
             Result := 'DWord'
           else
-            Result := TClassNode.Pascalify(AArg.Interface_, True, 'T');
+            Result := TClassNode.Pascalify(StripZPrefix(AArg.Interface_), True, 'T');
           AKind:=tvNewObject;
         end;
       'fd'      :
@@ -88,7 +102,7 @@ begin
             Result := 'Cardinal'
           else
           begin
-            Result := TClassNode.Pascalify(AArg.Interface_, True, 'T');
+            Result := TClassNode.Pascalify(StripZPrefix(AArg.Interface_), True, 'T');
             AKind:=tvObject
           end;
         end;
@@ -220,7 +234,7 @@ begin
   if FWrittenInterfaces.IndexOf(AInterface.Name) <> -1 then
       Exit; // already written
 
-  lClassName := TClassNode.Pascalify(AInterface.Name, True);
+  lClassName := TClassNode.Pascalify(StripZPrefix(AInterface.Name), True);
 
   if FWritingInterfaces.IndexOf(AInterface.Name) <> -1 then
   begin
