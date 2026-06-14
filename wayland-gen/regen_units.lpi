@@ -23,7 +23,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="regen_units.lpr"/>
+        <Filename Value="src/main/pascal/regen_units.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -35,6 +35,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="src/main/pascal"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Other>

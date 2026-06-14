@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-demo</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Demo / dogfood app. Depends only on the runtime library, so it builds
+       under pasbuild with no tiOPF. Connects to a live Wayland compositor. -->
+  <build>
+    <projectType>application</projectType>
+    <mainSource>Main.pas</mainSource>
+    <executableName>wayland-demo</executableName>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <moduleDependencies>
+    <module>../wayland-rt</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

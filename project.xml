@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland</name>
+  <version>0.1.0</version>
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Aggregator. Builds the pasbuild modules (RTL-only). The code generator
+       (wayland-gen/) is NOT a module here: it depends on tiOPF / json_easy
+       (Lazarus packages, not in the pasbuild repository) and is built with
+       lazbuild. See README.md. -->
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>wayland-rt</module>
+    <module>wayland-demo</module>
+  </modules>
+</project>

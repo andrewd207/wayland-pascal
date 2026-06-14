@@ -1,4 +1,4 @@
-program wayland_wire_proj;
+program wayland_demo;
 
 {$mode objfpc}{$H+}
 
@@ -6,16 +6,10 @@ uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, sysutils, wayland_interface_reader, wayland_strings,
-  //wayland_implementation,
-  wayland_stream, Wayland_Core,
-  wayland_errors, wayland_queue, wayland_internal_interfaces,//}
-  wayland_unitwriter
-  , wayland
-  , xdg_shell, wayland_shm_impl, unix_fd_socket//}
-
-  { you can add units after this };
-
+  Classes, sysutils,
+  wayland_strings, wayland_stream, Wayland_Core,
+  wayland_errors, wayland_queue, wayland_internal_interfaces,
+  wayland, xdg_shell, wayland_shm_impl, unix_fd_socket;
 
 type
 
@@ -54,12 +48,6 @@ type
     procedure ToplevelConfigureBounds(Sender: TXdgToplevel; aWidth: Integer; aHeight: Integer);
   end;
   //}
-
-var
-  lProtocol: TWIProtocolNode;
-  lWriter: TWaylandUnitWriter;
-  lStringStream: TStringStream;
-  lWaylandTest: TWaylandTest;
 
 { TWaylandTest }
 
@@ -276,33 +264,10 @@ begin
   Writeln(Format('Screen = %d x %d', [aWidth, aHeight]));
 end;
 
-//}
 
+var
+  lWaylandTest: TWaylandTest;
 begin
-
-  lProtocol := TWIProtocolNode.Create('/usr/share/wayland/wayland.xml');
-  //lProtocol := TWIProtocolNode.Create('/usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml');
-  //WriteLn(lProtocol.Interfaces.Count);
-  lWriter := TWaylandUnitWriter.CreateNew();
-  lStringStream := TStringStream.Create('');
-  lWriter.WriteUnit(lProtocol, lStringStream);
-
-  WriteLN(lStringStream.DataString);
-
-  lStringStream.SaveToFile('wayland.pas');
- // lStringStream.SaveToFile('xdg_shell.pas');
-  //}
   lWaylandTest := TWaylandTest.Create;
-  //}
-  {lDisplay := TWaylandDisplay.TryCreateConnection;
-  //lWConn.QueryInterfaces;
-
-  lRegistrlDisplay.GetRegistry;
-  lDisplay.Sync;
-      TWaylandCompositor.Create(lDisplay);
-  while True do
-  lDisplay.WaitMessage(1000);
-  //lWConn.Read;
- // Sleep(2000);}
+  lWaylandTest.Free;
 end.
-
