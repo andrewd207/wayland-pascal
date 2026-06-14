@@ -1233,12 +1233,12 @@ end;
 
 procedure TWlDataDevice.StartDrag(aSource: TWlDataSource; aOrigin: TWlSurface; aIcon: TWlSurface; aSerial: DWord);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._START_DRAG), [aSource.GetObjectId,aOrigin.GetObjectId,aIcon.GetObjectId,aSerial]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._START_DRAG), [WlObjectId(aSource),aOrigin.GetObjectId,WlObjectId(aIcon),aSerial]);
 end;
 
 procedure TWlDataDevice.SetSelection(aSource: TWlDataSource; aSerial: DWord);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SELECTION), [aSource.GetObjectId,aSerial]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_SELECTION), [WlObjectId(aSource),aSerial]);
 end;
 
 destructor TWlDataDevice.Destroy;
@@ -1329,7 +1329,7 @@ end;
 
 procedure TWlShellSurface.SetFullscreen(aMethod: TFullscreenMethod; aFramerate: DWord; aOutput: TWlOutput);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_FULLSCREEN), [DWord(aMethod),aFramerate,aOutput.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_FULLSCREEN), [DWord(aMethod),aFramerate,WlObjectId(aOutput)]);
 end;
 
 procedure TWlShellSurface.SetPopup(aSeat: TWlSeat; aSerial: DWord; aParent: TWlSurface; aX: Integer; aY: Integer; aFlags: TTransient);
@@ -1339,7 +1339,7 @@ end;
 
 procedure TWlShellSurface.SetMaximized(aOutput: TWlOutput);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MAXIMIZED), [aOutput.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MAXIMIZED), [WlObjectId(aOutput)]);
 end;
 
 procedure TWlShellSurface.SetTitle(aTitle: String);
@@ -1493,7 +1493,7 @@ end;
 
 procedure TWlSurface.Attach(aBuffer: TWlBuffer; aX: Integer; aY: Integer);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._ATTACH), [aBuffer.GetObjectId,aX,aY]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._ATTACH), [WlObjectId(aBuffer),aX,aY]);
 end;
 
 procedure TWlSurface.Damage(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
@@ -1510,12 +1510,12 @@ end;
 
 procedure TWlSurface.SetOpaqueRegion(aRegion: TWlRegion);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_OPAQUE_REGION), [aRegion.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_OPAQUE_REGION), [WlObjectId(aRegion)]);
 end;
 
 procedure TWlSurface.SetInputRegion(aRegion: TWlRegion);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_INPUT_REGION), [aRegion.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_INPUT_REGION), [WlObjectId(aRegion)]);
 end;
 
 procedure TWlSurface.Commit;
@@ -1736,7 +1736,7 @@ end;
 
 procedure TWlPointer.SetCursor(aSerial: DWord; aSurface: TWlSurface; aHotspotX: Integer; aHotspotY: Integer);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CURSOR), [aSerial,aSurface.GetObjectId,aHotspotX,aHotspotY]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CURSOR), [aSerial,WlObjectId(aSurface),aHotspotX,aHotspotY]);
 end;
 
 destructor TWlPointer.Destroy;

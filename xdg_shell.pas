@@ -27,7 +27,7 @@ type
   TXdgPositioner = class;
 
   TXdgWmBaseClass = class of TXdgWmBase;
-[TWLIntfAttribute('destroy(),create_positioner(n),get_xdg_surface(no),pong(u)', 'ping(u)')]
+  [TWLIntfAttribute('destroy(),create_positioner(n),get_xdg_surface(no),pong(u)', 'ping(u)')]
   { TXdgWmBase }
   TXdgWmBase = class(TWaylandBase)
   public type
@@ -52,7 +52,7 @@ type
     procedure Pong(aSerial: DWord);
   end;
 
-[TWLIntfAttribute('destroy(),set_size(ii),set_anchor_rect(iiii),set_anchor(u),set_gravity(u),set_constraint_adjustment(u),set_offset(ii),set_reactive(),set_parent_size(ii),set_parent_configure(u)', '')]
+  [TWLIntfAttribute('destroy(),set_size(ii),set_anchor_rect(iiii),set_anchor(u),set_gravity(u),set_constraint_adjustment(u),set_offset(ii),set_reactive(),set_parent_size(ii),set_parent_configure(u)', '')]
   { TXdgPositioner }
   TXdgPositioner = class(TWaylandBase)
   public type
@@ -82,14 +82,14 @@ type
     procedure SetAnchorRect(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
     procedure SetAnchor(aAnchor: TAnchor);
     procedure SetGravity(aGravity: TGravity);
-    procedure SetConstraintAdjustment(aConstraintAdjustment: DWord);
+    procedure SetConstraintAdjustment(aConstraintAdjustment: TConstraintAdjustment);
     procedure SetOffset(aX: Integer; aY: Integer);
     procedure SetReactive;
     procedure SetParentSize(aParentWidth: Integer; aParentHeight: Integer);
     procedure SetParentConfigure(aSerial: DWord);
   end;
 
-[TWLIntfAttribute('destroy(),get_toplevel(n),get_popup(n?oo),set_window_geometry(iiii),ack_configure(u)', 'configure(u)')]
+  [TWLIntfAttribute('destroy(),get_toplevel(n),get_popup(n?oo),set_window_geometry(iiii),ack_configure(u)', 'configure(u)')]
   { TXdgSurface }
   TXdgSurface = class(TWaylandBase)
   public type
@@ -115,13 +115,13 @@ type
     procedure AckConfigure(aSerial: DWord);
   end;
 
-[TWLIntfAttribute('destroy(),set_parent(?o),set_title(s),set_app_id(s),show_window_menu(ouii),move(ou),resize(ouu),set_max_size(ii),set_min_size(ii),set_maximized(),unset_maximized(),set_fullscreen(?o),unset_fullscreen(),set_minimized()', 'configure(iia),close(),configure_bounds(ii),wm_capabilities(a)')]
+  [TWLIntfAttribute('destroy(),set_parent(?o),set_title(s),set_app_id(s),show_window_menu(ouii),move(ou),resize(ouu),set_max_size(ii),set_min_size(ii),set_maximized(),unset_maximized(),set_fullscreen(?o),unset_fullscreen(),set_minimized()', 'configure(iia),close(),configure_bounds(ii),wm_capabilities(a)')]
   { TXdgToplevel }
   TXdgToplevel = class(TWaylandBase)
   public type
     TError = (erInvalidresizeedge = 0, erInvalidparent = 1, erInvalidsize = 2);
     TResizeEdge = (reNone = 0, reTop = 1, reBottom = 2, reLeft = 4, reTopleft = 5, reBottomleft = 6, reRight = 8, reTopright = 9, reBottomright = 10);
-    TState = (stMaximized = 1, stFullscreen = 2, stResizing = 3, stActivated = 4, stTiledleft = 5, stTiledright = 6, stTiledtop = 7, stTiledbottom = 8, stSuspended = 9);
+    TState = (stMaximized = 1, stFullscreen = 2, stResizing = 3, stActivated = 4, stTiledleft = 5, stTiledright = 6, stTiledtop = 7, stTiledbottom = 8, stSuspended = 9, stConstrainedleft = 10, stConstrainedright = 11, stConstrainedtop = 12, stConstrainedbottom = 13);
     TWmCapabilities = (wmWindowmenu = 1, wmMaximize = 2, wmFullscreen = 3, wmMinimize = 4);
     TConfigureEvent = procedure(Sender: TXdgToplevel; aWidth: Integer; aHeight: Integer; aStates: TBytes) of object;
     TCloseEvent = procedure(Sender: TXdgToplevel) of object;
@@ -165,7 +165,7 @@ type
     procedure SetMinimized;
   end;
 
-[TWLIntfAttribute('destroy(),grab(ou),reposition(ou)', 'configure(iiii),popup_done(),repositioned(u)')]
+  [TWLIntfAttribute('destroy(),grab(ou),reposition(ou)', 'configure(iiii),popup_done(),repositioned(u)')]
   { TXdgPopup }
   TXdgPopup = class(TWaylandBase)
   public type
@@ -203,7 +203,7 @@ uses
 
 class function TXdgWmBase.GetInterfaceVersion: Integer;
 begin
-  Result := 6;
+  Result := 7;
 end;
 
 class function TXdgWmBase.GetInterfaceName: String;
@@ -247,7 +247,7 @@ end;
 
 class function TXdgPositioner.GetInterfaceVersion: Integer;
 begin
-  Result := 6;
+  Result := 7;
 end;
 
 class function TXdgPositioner.GetInterfaceName: String;
@@ -281,9 +281,9 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_GRAVITY), [DWord(aGravity)]);
 end;
 
-procedure TXdgPositioner.SetConstraintAdjustment(aConstraintAdjustment: DWord);
+procedure TXdgPositioner.SetConstraintAdjustment(aConstraintAdjustment: TConstraintAdjustment);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CONSTRAINT_ADJUSTMENT), [aConstraintAdjustment]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CONSTRAINT_ADJUSTMENT), [DWord(aConstraintAdjustment)]);
 end;
 
 procedure TXdgPositioner.SetOffset(aX: Integer; aY: Integer);
@@ -308,7 +308,7 @@ end;
 
 class function TXdgSurface.GetInterfaceVersion: Integer;
 begin
-  Result := 6;
+  Result := 7;
 end;
 
 class function TXdgSurface.GetInterfaceName: String;
@@ -342,7 +342,7 @@ function TXdgSurface.GetPopup(aParent: TXdgSurface; aPositioner: TXdgPositioner;
 begin
   if aClassType = nil then aClassType := TXdgPopup;
   Result := aClassType.Create(Connection);
-  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_POPUP), [Result.GetObjectId,aParent.GetObjectId,aPositioner.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._GET_POPUP), [Result.GetObjectId,WlObjectId(aParent),aPositioner.GetObjectId]);
 end;
 
 procedure TXdgSurface.SetWindowGeometry(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
@@ -357,7 +357,7 @@ end;
 
 class function TXdgToplevel.GetInterfaceVersion: Integer;
 begin
-  Result := 6;
+  Result := 7;
 end;
 
 class function TXdgToplevel.GetInterfaceName: String;
@@ -412,7 +412,7 @@ end;
 
 procedure TXdgToplevel.SetParent(aParent: TXdgToplevel);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PARENT), [aParent.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PARENT), [WlObjectId(aParent)]);
 end;
 
 procedure TXdgToplevel.SetTitle(aTitle: String);
@@ -462,7 +462,7 @@ end;
 
 procedure TXdgToplevel.SetFullscreen(aOutput: TWlOutput);
 begin
-  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_FULLSCREEN), [aOutput.GetObjectId]);
+  Connection.SendRequest(GetObjectId, Ord(TRequests._SET_FULLSCREEN), [WlObjectId(aOutput)]);
 end;
 
 procedure TXdgToplevel.UnsetFullscreen;
@@ -477,7 +477,7 @@ end;
 
 class function TXdgPopup.GetInterfaceVersion: Integer;
 begin
-  Result := 6;
+  Result := 7;
 end;
 
 class function TXdgPopup.GetInterfaceName: String;
