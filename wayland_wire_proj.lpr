@@ -149,10 +149,11 @@ var
   lObjName: String;
 begin
   lObj := (FDisplay as IWaylandDisplayCore).GetObject(aObjectId);
-  if Assigned(lObj) then                           
-  else lObjName:='nil';
-     lObjName := (lObj as TWaylandBase).ClassName;
-  WriteLn(Format('Error: obj(%s)[%d] err: %d, %s', [lObjName, aObjectId,  TWlDisplay.TError(aCode), aMessage]));
+  if Assigned(lObj) then
+    lObjName := (lObj as TWaylandBase).ClassName
+  else
+    lObjName := 'nil';
+  WriteLn(Format('Error: obj(%s)[%d] err: %d, %s', [lObjName, aObjectId, aCode, aMessage]));
 end;
 
 procedure TWaylandTest.HandlePing(Sender: TXdgWmBase; aSerial: DWord);
