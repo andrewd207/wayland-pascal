@@ -227,6 +227,7 @@ var
   lReadCount: Int64;
   lTmpObject: TWaylandBase;
   lTmpOpcode: Word;
+  lSent: LongInt;
 
 begin
   lRequest := TWaylandStream.Create;
@@ -320,8 +321,12 @@ begin
       // file descriptors must be sent with sendmsg and can't be in a regular data packet
       if (lFdStart >= 0)  then
       begin
-        SendFD(FSocket.Handle, lFdStart, lRequest.Memory, lRequest.Size);
-        lFdStart:=-2;;
+        lSent := SendFD(FSocket.Handle, lFdStart, lRequest.Memory, lRequest.Size);
+        if lSent < 0 then
+          // SendFD wraps libc sendmsg; the error is in libc's errno (c_errno),
+          // not the FPC RTL errno.
+          raise EWaylandConnectionError.CreateFmt(SErrSendFdFailed, [lFdStart, c_errno]);
+        lFdStart:=-2;
         Exit;
       end;
 

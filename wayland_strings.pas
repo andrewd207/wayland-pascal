@@ -19,6 +19,7 @@ resourcestring
   SErrSocketCreate = 'Failed to create unix socket (errno %d)';
   SErrSocketConnect = 'Failed to connect to [%s] (errno %d)';
   SErrStringTooShort = 'Wayland string length field is %d, must be at least 1 (includes null terminator)';
+  SErrSendFdFailed = 'Failed to send file descriptor %d with request (errno %d)';
 
 
 implementation
