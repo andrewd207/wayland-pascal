@@ -4,6 +4,7 @@ unit linux_dmabuf_v1;
 {$ScopedEnums on}
 {$modeswitch advancedrecords}
 {$modeswitch prefixedattributes}
+{$interfaces corba}
 
 interface
 uses
@@ -19,6 +20,11 @@ type
   TWpLinuxBufferParamsV1 = class;
 
   TWpLinuxDmabufV1Class = class of TWpLinuxDmabufV1;
+  { TWpLinuxDmabufV1 }
+  TWpLinuxDmabufV1 = class;
+
+  IWpLinuxDmabufV1Listener = interface;
+
   [TWLIntfAttribute('destroy(),create_params(n),get_default_feedback(n),get_surface_feedback(no)', 'format(u),modifier(uuu)')]
   { TWpLinuxDmabufV1 }
   TWpLinuxDmabufV1 = class(TWaylandBase)
@@ -45,7 +51,19 @@ type
     function CreateParams(aClassType: TWpLinuxBufferParamsV1Class = nil): TWpLinuxBufferParamsV1;
     function GetDefaultFeedback(aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
     function GetSurfaceFeedback(aSurface: TWlSurface; aClassType: TWpLinuxDmabufFeedbackV1Class = nil): TWpLinuxDmabufFeedbackV1;
+  private
+    FListeners: array of IWpLinuxDmabufV1Listener;
+  public
+    function AddListener(AIntf: IWpLinuxDmabufV1Listener): LongInt;
   end;
+
+  IWpLinuxDmabufV1Listener = interface
+  ['IWpLinuxDmabufV1Listener']
+    procedure wp_linux_dmabuf_v1_format(AWpLinuxDmabufV1: TWpLinuxDmabufV1; aFormat: DWord);
+    procedure wp_linux_dmabuf_v1_modifier(AWpLinuxDmabufV1: TWpLinuxDmabufV1; aFormat: DWord; aModifierHi: DWord; aModifierLo: DWord);
+  end;
+
+  IWpLinuxBufferParamsV1Listener = interface;
 
   [TWLIntfAttribute('destroy(),add(huuuuu),create(iiuu),create_immed(niiuu)', 'created(n),failed()')]
   { TWpLinuxBufferParamsV1 }
@@ -82,7 +100,19 @@ type
     procedure Add(aFd: Integer; aPlaneIdx: DWord; aOffset: DWord; aStride: DWord; aModifierHi: DWord; aModifierLo: DWord);
     procedure Create_(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags);
     function CreateImmed(aWidth: Integer; aHeight: Integer; aFormat: DWord; aFlags: TFlags; aClassType: TWlBufferClass = nil): TWlBuffer;
+  private
+    FListeners: array of IWpLinuxBufferParamsV1Listener;
+  public
+    function AddListener(AIntf: IWpLinuxBufferParamsV1Listener): LongInt;
   end;
+
+  IWpLinuxBufferParamsV1Listener = interface
+  ['IWpLinuxBufferParamsV1Listener']
+    procedure wp_linux_buffer_params_v1_created(AWpLinuxBufferParamsV1: TWpLinuxBufferParamsV1; aBuffer: TWlBuffer);
+    procedure wp_linux_buffer_params_v1_failed(AWpLinuxBufferParamsV1: TWpLinuxBufferParamsV1);
+  end;
+
+  IWpLinuxDmabufFeedbackV1Listener = interface;
 
   [TWLIntfAttribute('destroy()', 'done(),format_table(hu),main_device(a),tranche_done(),tranche_target_device(a),tranche_formats(a),tranche_flags(u)')]
   { TWpLinuxDmabufFeedbackV1 }
@@ -133,6 +163,21 @@ type
     property OnTrancheFlags: TTrancheFlagsEvent read FOnTrancheFlagsPriv write FOnTrancheFlagsPriv;
   public
     destructor Destroy; override;
+  private
+    FListeners: array of IWpLinuxDmabufFeedbackV1Listener;
+  public
+    function AddListener(AIntf: IWpLinuxDmabufFeedbackV1Listener): LongInt;
+  end;
+
+  IWpLinuxDmabufFeedbackV1Listener = interface
+  ['IWpLinuxDmabufFeedbackV1Listener']
+    procedure wp_linux_dmabuf_feedback_v1_done(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1);
+    procedure wp_linux_dmabuf_feedback_v1_format_table(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aFd: Integer; aSize: DWord);
+    procedure wp_linux_dmabuf_feedback_v1_main_device(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aDevice: TBytes);
+    procedure wp_linux_dmabuf_feedback_v1_tranche_done(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1);
+    procedure wp_linux_dmabuf_feedback_v1_tranche_target_device(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aDevice: TBytes);
+    procedure wp_linux_dmabuf_feedback_v1_tranche_formats(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aIndices: TBytes);
+    procedure wp_linux_dmabuf_feedback_v1_tranche_flags(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aFlags: TWpLinuxDmabufFeedbackV1.TTrancheFlags);
   end;
 
 implementation
@@ -152,9 +197,11 @@ end;
 procedure TWpLinuxDmabufV1.HandleFormat(var AMsg: TWaylandEventMessage);
 var
   lFormat: DWord;
+  lListenerIdx: Integer;
 begin
   lFormat := AMsg.Args.ReadDWord;
   if Assigned(OnFormat) then OnFormat(Self,lFormat);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_v1_format(Self,lFormat);
   AMsg.SetHandled;
 end;
 
@@ -163,11 +210,13 @@ var
   lFormat: DWord;
   lModifierHi: DWord;
   lModifierLo: DWord;
+  lListenerIdx: Integer;
 begin
   lFormat := AMsg.Args.ReadDWord;
   lModifierHi := AMsg.Args.ReadDWord;
   lModifierLo := AMsg.Args.ReadDWord;
   if Assigned(OnModifier) then OnModifier(Self,lFormat,lModifierHi,lModifierLo);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_v1_modifier(Self,lFormat,lModifierHi,lModifierLo);
   AMsg.SetHandled;
 end;
 
@@ -198,6 +247,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SURFACE_FEEDBACK), [Result.GetObjectId,aSurface.GetObjectId]);
 end;
 
+function TWpLinuxDmabufV1.AddListener(AIntf: IWpLinuxDmabufV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWpLinuxBufferParamsV1.GetInterfaceVersion: Integer;
 begin
   Result := 5;
@@ -211,15 +267,20 @@ end;
 procedure TWpLinuxBufferParamsV1.HandleCreated(var AMsg: TWaylandEventMessage);
 var
   lBuffer: TWlBuffer;
+  lListenerIdx: Integer;
 begin
   lBuffer := TWlBuffer.Create(Connection, nil, AMsg.Args.ReadDWord);
   if Assigned(OnCreated) then OnCreated(Self,lBuffer);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_buffer_params_v1_created(Self,lBuffer);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxBufferParamsV1.HandleFailed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnFailed) then OnFailed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_buffer_params_v1_failed(Self);
   AMsg.SetHandled;
 end;
 
@@ -246,6 +307,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_IMMED), [Result.GetObjectId,aWidth,aHeight,aFormat,DWord(aFlags)]);
 end;
 
+function TWpLinuxBufferParamsV1.AddListener(AIntf: IWpLinuxBufferParamsV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWpLinuxDmabufFeedbackV1.GetInterfaceVersion: Integer;
 begin
   Result := 5;
@@ -257,8 +325,11 @@ begin
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_done(Self);
   AMsg.SetHandled;
 end;
 
@@ -266,52 +337,65 @@ procedure TWpLinuxDmabufFeedbackV1.HandleFormatTable(var AMsg: TWaylandEventMess
 var
   lFd: Integer;
   lSize: DWord;
+  lListenerIdx: Integer;
 begin
   lFd := AMsg.Args.ReadInteger;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnFormatTable) then OnFormatTable(Self,lFd,lSize);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_format_table(Self,lFd,lSize);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleMainDevice(var AMsg: TWaylandEventMessage);
 var
   lDevice: TBytes;
+  lListenerIdx: Integer;
 begin
   lDevice := AMsg.Args.ReadBlob;
   if Assigned(OnMainDevice) then OnMainDevice(Self,lDevice);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_main_device(Self,lDevice);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleTrancheDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnTrancheDone) then OnTrancheDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_tranche_done(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleTrancheTargetDevice(var AMsg: TWaylandEventMessage);
 var
   lDevice: TBytes;
+  lListenerIdx: Integer;
 begin
   lDevice := AMsg.Args.ReadBlob;
   if Assigned(OnTrancheTargetDevice) then OnTrancheTargetDevice(Self,lDevice);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_tranche_target_device(Self,lDevice);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleTrancheFormats(var AMsg: TWaylandEventMessage);
 var
   lIndices: TBytes;
+  lListenerIdx: Integer;
 begin
   lIndices := AMsg.Args.ReadBlob;
   if Assigned(OnTrancheFormats) then OnTrancheFormats(Self,lIndices);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_tranche_formats(Self,lIndices);
   AMsg.SetHandled;
 end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleTrancheFlags(var AMsg: TWaylandEventMessage);
 var
   lFlags: TTrancheFlags;
+  lListenerIdx: Integer;
 begin
   lFlags := TTrancheFlags(AMsg.Args.ReadDWord);
   if Assigned(OnTrancheFlags) then OnTrancheFlags(Self,lFlags);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_tranche_flags(Self,lFlags);
   AMsg.SetHandled;
 end;
 
@@ -319,6 +403,13 @@ destructor TWpLinuxDmabufFeedbackV1.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
   inherited Destroy;
+end;
+
+function TWpLinuxDmabufFeedbackV1.AddListener(AIntf: IWpLinuxDmabufFeedbackV1Listener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 

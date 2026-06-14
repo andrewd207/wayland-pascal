@@ -4,6 +4,7 @@ unit xdg_shell;
 {$ScopedEnums on}
 {$modeswitch advancedrecords}
 {$modeswitch prefixedattributes}
+{$interfaces corba}
 
 interface
 uses
@@ -27,6 +28,11 @@ type
   TXdgPositioner = class;
 
   TXdgWmBaseClass = class of TXdgWmBase;
+  { TXdgWmBase }
+  TXdgWmBase = class;
+
+  IXdgWmBaseListener = interface;
+
   [TWLIntfAttribute('destroy(),create_positioner(n),get_xdg_surface(no),pong(u)', 'ping(u)')]
   { TXdgWmBase }
   TXdgWmBase = class(TWaylandBase)
@@ -50,7 +56,18 @@ type
     function CreatePositioner(aClassType: TXdgPositionerClass = nil): TXdgPositioner;
     function GetXdgSurface(aSurface: TWlSurface; aClassType: TXdgSurfaceClass = nil): TXdgSurface;
     procedure Pong(aSerial: DWord);
+  private
+    FListeners: array of IXdgWmBaseListener;
+  public
+    function AddListener(AIntf: IXdgWmBaseListener): LongInt;
   end;
+
+  IXdgWmBaseListener = interface
+  ['IXdgWmBaseListener']
+    procedure xdg_wm_base_ping(AXdgWmBase: TXdgWmBase; aSerial: DWord);
+  end;
+
+  IXdgPositionerListener = interface;
 
   [TWLIntfAttribute('destroy(),set_size(ii),set_anchor_rect(iiii),set_anchor(u),set_gravity(u),set_constraint_adjustment(u),set_offset(ii),set_reactive(),set_parent_size(ii),set_parent_configure(u)', '')]
   { TXdgPositioner }
@@ -87,7 +104,17 @@ type
     procedure SetReactive;
     procedure SetParentSize(aParentWidth: Integer; aParentHeight: Integer);
     procedure SetParentConfigure(aSerial: DWord);
+  private
+    FListeners: array of IXdgPositionerListener;
+  public
+    function AddListener(AIntf: IXdgPositionerListener): LongInt;
   end;
+
+  IXdgPositionerListener = interface
+  ['IXdgPositionerListener']
+  end;
+
+  IXdgSurfaceListener = interface;
 
   [TWLIntfAttribute('destroy(),get_toplevel(n),get_popup(n?oo),set_window_geometry(iiii),ack_configure(u)', 'configure(u)')]
   { TXdgSurface }
@@ -113,7 +140,18 @@ type
     function GetPopup(aParent: TXdgSurface; aPositioner: TXdgPositioner; aClassType: TXdgPopupClass = nil): TXdgPopup;
     procedure SetWindowGeometry(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
     procedure AckConfigure(aSerial: DWord);
+  private
+    FListeners: array of IXdgSurfaceListener;
+  public
+    function AddListener(AIntf: IXdgSurfaceListener): LongInt;
   end;
+
+  IXdgSurfaceListener = interface
+  ['IXdgSurfaceListener']
+    procedure xdg_surface_configure(AXdgSurface: TXdgSurface; aSerial: DWord);
+  end;
+
+  IXdgToplevelListener = interface;
 
   [TWLIntfAttribute('destroy(),set_parent(?o),set_title(s),set_app_id(s),show_window_menu(ouii),move(ou),resize(ouu),set_max_size(ii),set_min_size(ii),set_maximized(),unset_maximized(),set_fullscreen(?o),unset_fullscreen(),set_minimized()', 'configure(iia),close(),configure_bounds(ii),wm_capabilities(a)')]
   { TXdgToplevel }
@@ -163,7 +201,21 @@ type
     procedure SetFullscreen(aOutput: TWlOutput);
     procedure UnsetFullscreen;
     procedure SetMinimized;
+  private
+    FListeners: array of IXdgToplevelListener;
+  public
+    function AddListener(AIntf: IXdgToplevelListener): LongInt;
   end;
+
+  IXdgToplevelListener = interface
+  ['IXdgToplevelListener']
+    procedure xdg_toplevel_configure(AXdgToplevel: TXdgToplevel; aWidth: Integer; aHeight: Integer; aStates: TBytes);
+    procedure xdg_toplevel_close(AXdgToplevel: TXdgToplevel);
+    procedure xdg_toplevel_configure_bounds(AXdgToplevel: TXdgToplevel; aWidth: Integer; aHeight: Integer);
+    procedure xdg_toplevel_wm_capabilities(AXdgToplevel: TXdgToplevel; aCapabilities: TBytes);
+  end;
+
+  IXdgPopupListener = interface;
 
   [TWLIntfAttribute('destroy(),grab(ou),reposition(ou)', 'configure(iiii),popup_done(),repositioned(u)')]
   { TXdgPopup }
@@ -195,6 +247,17 @@ type
     destructor Destroy; override;
     procedure Grab(aSeat: TWlSeat; aSerial: DWord);
     procedure Reposition(aPositioner: TXdgPositioner; aToken: DWord);
+  private
+    FListeners: array of IXdgPopupListener;
+  public
+    function AddListener(AIntf: IXdgPopupListener): LongInt;
+  end;
+
+  IXdgPopupListener = interface
+  ['IXdgPopupListener']
+    procedure xdg_popup_configure(AXdgPopup: TXdgPopup; aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+    procedure xdg_popup_popup_done(AXdgPopup: TXdgPopup);
+    procedure xdg_popup_repositioned(AXdgPopup: TXdgPopup; aToken: DWord);
   end;
 
 implementation
@@ -214,9 +277,11 @@ end;
 procedure TXdgWmBase.HandlePing(var AMsg: TWaylandEventMessage);
 var
   lSerial: DWord;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   if Assigned(OnPing) then OnPing(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_wm_base_ping(Self,lSerial);
   AMsg.SetHandled;
 end;
 
@@ -243,6 +308,13 @@ end;
 procedure TXdgWmBase.Pong(aSerial: DWord);
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._PONG), [aSerial]);
+end;
+
+function TXdgWmBase.AddListener(AIntf: IXdgWmBaseListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TXdgPositioner.GetInterfaceVersion: Integer;
@@ -306,6 +378,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_PARENT_CONFIGURE), [aSerial]);
 end;
 
+function TXdgPositioner.AddListener(AIntf: IXdgPositionerListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TXdgSurface.GetInterfaceVersion: Integer;
 begin
   Result := 7;
@@ -319,9 +398,11 @@ end;
 procedure TXdgSurface.HandleConfigure(var AMsg: TWaylandEventMessage);
 var
   lSerial: DWord;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   if Assigned(OnConfigure) then OnConfigure(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_surface_configure(Self,lSerial);
   AMsg.SetHandled;
 end;
 
@@ -355,6 +436,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._ACK_CONFIGURE), [aSerial]);
 end;
 
+function TXdgSurface.AddListener(AIntf: IXdgSurfaceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TXdgToplevel.GetInterfaceVersion: Integer;
 begin
   Result := 7;
@@ -370,17 +458,22 @@ var
   lWidth: Integer;
   lHeight: Integer;
   lStates: TBytes;
+  lListenerIdx: Integer;
 begin
   lWidth := AMsg.Args.ReadInteger;
   lHeight := AMsg.Args.ReadInteger;
   lStates := AMsg.Args.ReadBlob;
   if Assigned(OnConfigure) then OnConfigure(Self,lWidth,lHeight,lStates);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_configure(Self,lWidth,lHeight,lStates);
   AMsg.SetHandled;
 end;
 
 procedure TXdgToplevel.HandleClose(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnClose) then OnClose(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_close(Self);
   AMsg.SetHandled;
 end;
 
@@ -388,19 +481,23 @@ procedure TXdgToplevel.HandleConfigureBounds(var AMsg: TWaylandEventMessage);
 var
   lWidth: Integer;
   lHeight: Integer;
+  lListenerIdx: Integer;
 begin
   lWidth := AMsg.Args.ReadInteger;
   lHeight := AMsg.Args.ReadInteger;
   if Assigned(OnConfigureBounds) then OnConfigureBounds(Self,lWidth,lHeight);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_configure_bounds(Self,lWidth,lHeight);
   AMsg.SetHandled;
 end;
 
 procedure TXdgToplevel.HandleWmCapabilities(var AMsg: TWaylandEventMessage);
 var
   lCapabilities: TBytes;
+  lListenerIdx: Integer;
 begin
   lCapabilities := AMsg.Args.ReadBlob;
   if Assigned(OnWmCapabilities) then OnWmCapabilities(Self,lCapabilities);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_toplevel_wm_capabilities(Self,lCapabilities);
   AMsg.SetHandled;
 end;
 
@@ -475,6 +572,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_MINIMIZED), []);
 end;
 
+function TXdgToplevel.AddListener(AIntf: IXdgToplevelListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TXdgPopup.GetInterfaceVersion: Integer;
 begin
   Result := 7;
@@ -491,27 +595,34 @@ var
   lY: Integer;
   lWidth: Integer;
   lHeight: Integer;
+  lListenerIdx: Integer;
 begin
   lX := AMsg.Args.ReadInteger;
   lY := AMsg.Args.ReadInteger;
   lWidth := AMsg.Args.ReadInteger;
   lHeight := AMsg.Args.ReadInteger;
   if Assigned(OnConfigure) then OnConfigure(Self,lX,lY,lWidth,lHeight);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_popup_configure(Self,lX,lY,lWidth,lHeight);
   AMsg.SetHandled;
 end;
 
 procedure TXdgPopup.HandlePopupDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnPopupDone) then OnPopupDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_popup_popup_done(Self);
   AMsg.SetHandled;
 end;
 
 procedure TXdgPopup.HandleRepositioned(var AMsg: TWaylandEventMessage);
 var
   lToken: DWord;
+  lListenerIdx: Integer;
 begin
   lToken := AMsg.Args.ReadDWord;
   if Assigned(OnRepositioned) then OnRepositioned(Self,lToken);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].xdg_popup_repositioned(Self,lToken);
   AMsg.SetHandled;
 end;
 
@@ -529,6 +640,13 @@ end;
 procedure TXdgPopup.Reposition(aPositioner: TXdgPositioner; aToken: DWord);
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._REPOSITION), [aPositioner.GetObjectId,aToken]);
+end;
+
+function TXdgPopup.AddListener(AIntf: IXdgPopupListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 

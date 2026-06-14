@@ -23,14 +23,16 @@ type
     FWrittenInterfaces: TStringList;
     FWritingInterfaces: TStringList;
     FForwardList: TStringList;
+    FListenerNodes: TStringList; // class name -> full TInterfaceTypeNode, placed after its class
     function GetFullEnumName(AName: String): String;
     function GetArgTypeName(AArg: TWIArgNode; out AKind: TTypeVariety): String;
     function LookupIsBitfield(AThisInterface: TWInterfaceNode; AName: String): Boolean;
     procedure WriteForward(AClassName: String);
+    procedure AppendListenerNode(const AClassName: String);
     procedure WriteShmFunctionsForTWlSHM(AClass: TClassNode);
     procedure WriteInterfaceOverides(AInterface: TWInterfaceNode; AClass: TClassNode);
     procedure WriteInterface(AInterface: TWInterfaceNode);
-    procedure WriteEvent(AInterface: TWInterfaceNode; aEvent: TWIEventNode; AClass: TClassNode; AProtected, APublished: TVisibilityNode);
+    procedure WriteEvent(AInterface: TWInterfaceNode; aEvent: TWIEventNode; AClass: TClassNode; AProtected, APublished: TVisibilityNode; AListener: TInterfaceTypeNode; const AListenerPrefix: String);
     procedure WriteRequest(AInterface: TWInterfaceNode; ARequest: TWIRequestNode; AClass: TClassNode; AProtected, APublished: TVisibilityNode);
   public
     procedure WriteUnit(AProtocol: TWIProtocolNode; AStream: TStream; ASenderUsesBase: Boolean = False);
@@ -160,6 +162,20 @@ begin
   FForwardList.Add(AClassName);
 end;
 
+procedure TWaylandUnitWriter.AppendListenerNode(const AClassName: String);
+var
+  lIdx: Integer;
+begin
+  // emit the full I<Class>Listener decl right after its class body, so the
+  // class's nested enum types are visible to typed listener-method params
+  lIdx := FListenerNodes.IndexOf(AClassName);
+  if lIdx <> -1 then
+  begin
+    FUnit.InterfaceNode.WantTypeSection.List.Add(TInterfaceTypeNode(FListenerNodes.Objects[lIdx]));
+    FListenerNodes.Delete(lIdx);
+  end;
+end;
+
 procedure TWaylandUnitWriter.WriteShmFunctionsForTWlSHM(AClass: TClassNode);
 var
   lPublic: TVisibilityNode;
@@ -230,11 +246,17 @@ var
   lIntfAttr: TAttributeNode;
   lIntfAttrRequests: TStringList;
   lIntfAttrEvents: TStringList;
+  lListener: TInterfaceTypeNode;
+  lListenerName, lListenerPrefix: String;
+  lAddListener: TRoutineNode;
+  lAddListenerImpl: TRoutineImplNode;
 begin
   if FWrittenInterfaces.IndexOf(AInterface.Name) <> -1 then
       Exit; // already written
 
   lClassName := TClassNode.Pascalify(StripZPrefix(AInterface.Name), True);
+  lListenerName := 'I' + Copy(lClassName, 2, MaxInt) + 'Listener';
+  lListenerPrefix := StripZPrefix(AInterface.Name);
 
   if FWritingInterfaces.IndexOf(AInterface.Name) <> -1 then
   begin
@@ -246,6 +268,7 @@ begin
       FForwardList.Add(lClassName);
     end;
     FUnit.InterfaceNode.WantTypeSection.List.add(lClass);
+    AppendListenerNode(lClassName);
     FWritingInterfaces.Delete(lWritingIndex);
     FWrittenInterfaces.Add(AInterface.Name);
     Exit;
@@ -269,6 +292,18 @@ begin
   lClass.AncestorClass := TClassNode.CreateNew(lClass);
   lClass.AncestorClass.Name:=lParentClass;
   //lClass := FUnit.InterfaceNode.WantTypeSection.AddClassType(lClassName, lParentClass);
+
+  // Listener interface (matches the libwayland-bindings I<Class>Listener).
+  // Forward-declare the class so the listener methods can reference it, and
+  // forward-declare the listener itself so the class's AddListener can take it.
+  // The FULL listener decl is emitted AFTER the class body (see the add-paths
+  // below) so the class's nested enum types are in scope for typed params.
+  WriteForward(lClassName);
+  FUnit.InterfaceNode.WantTypeSection.AddInterfaceType(lListenerName).IsForward := True;
+  lListener := TInterfaceTypeNode.CreateNew(FUnit.InterfaceNode.WantTypeSection);
+  lListener.Name := lListenerName;
+  lListener.IID := lListenerName;
+  FListenerNodes.AddObject(lClassName, lListener);
 
   // functions to return the version
   WriteInterfaceOverides(AInterface, lClass);
@@ -335,7 +370,7 @@ begin
     lPublished := lClass.AddSection(vcPublished);
     for i := 0 to AInterface.Events.Count-1 do
     begin
-      WriteEvent(AInterface, AInterface.Events.Items[i], lClass, lProtected, lPublished);
+      WriteEvent(AInterface, AInterface.Events.Items[i], lClass, lProtected, lPublished, lListener, lListenerPrefix);
     end;
   end;
 
@@ -344,6 +379,17 @@ begin
   begin
     WriteRequest(AInterface, AInterface.Requests.Items[i], lClass, lProtected, lPublished);
   end;
+
+  // Listener storage + AddListener. Unlike libwayland (one listener per proxy),
+  // this backs the listeners with a list and AddListener appends, so an object
+  // can have multiple listeners; events fan out to all of them (see WriteEvent).
+  lClass.AddSection(vcPrivate).AddVariable('FListeners', 'array of ' + lListenerName);
+  lAddListener := lClass.AddSection(vcPublic).AddRoutine(rtFunc, 'AddListener', 'LongInt');
+  lAddListener.AddParameter('AIntf', lListenerName);
+  lAddListenerImpl := FUnit.ImplentationNode.AddRoutineImplementation(lAddListener);
+  lAddListenerImpl.BeginEnd.AddCodeLine('SetLength(FListeners, Length(FListeners)+1);');
+  lAddListenerImpl.BeginEnd.AddCodeLine('FListeners[High(FListeners)] := AIntf;');
+  lAddListenerImpl.BeginEnd.AddCodeLine('Result := 0;');
   if AInterface.Name = 'wl_shm' then
     WriteShmFunctionsForTWlSHM(lClass);
 
@@ -367,6 +413,7 @@ begin
     lIntfAttrArg.Name:=QuotedStr(lIntfAttrEvents.CommaText);
     FUnit.InterfaceNode.WantTypeSection.List.add(lIntfAttr);
     FUnit.InterfaceNode.WantTypeSection.List.add(lClass);
+    AppendListenerNode(lClassName);
     FWritingInterfaces.Delete(lWritingIndex);
     FWrittenInterfaces.Add(AInterface.Name);
   end;
@@ -376,11 +423,12 @@ end;
 
 procedure TWaylandUnitWriter.WriteEvent(AInterface: TWInterfaceNode;
   aEvent: TWIEventNode; AClass: TClassNode; AProtected,
-  APublished: TVisibilityNode);
+  APublished: TVisibilityNode; AListener: TInterfaceTypeNode;
+  const AListenerPrefix: String);
 var
   lEventName, lName, lType, lTypeName, lReadArg, lCallArgs, lTypeCast,
-    lLookingFor: String;
-  lInterfaceProc, lProcType: TRoutineNode;
+    lLookingFor, lListenerMethodName: String;
+  lInterfaceProc, lProcType, lListenerMethod: TRoutineNode;
   lPublicType: TTypeSectionNode;
   i, x: Integer;
   lEventArg: TWIArgNode;
@@ -409,12 +457,24 @@ begin
   else
     lProcType.AddParameter('Sender', AClass.Name);
 
+  // matching method on the listener interface: <iface>_<event>(A<Class>, args...)
+  lListenerMethodName := AListenerPrefix + '_' + aEvent.Name;
+  lListenerMethod := AListener.AddMethod(rtProc, lListenerMethodName);
+  lListenerMethod.AddParameter('A'+Copy(AClass.Name, 2, MaxInt), AClass.Name);
+
   for i := 0 to aEvent.Args.Count-1 do
   begin
     lEventArg := aEvent.Args.Items[i];
     lName := TClassNode.Pascalify(lEventArg.Name, True, 'a');
     lTypeName := GetArgTypeName(lEventArg, lKind); // if lIsEnum add forward?
     lProcType.AddParameter(lName, lTypeName);
+    // The listener interface is a top-level type, so a same-interface enum/
+    // bitfield type (nested in the class, hence unqualified) must be qualified
+    // with the class name. Cross-interface refs already contain a '.'.
+    if (lKind = tvEnum) and (Pos('.', lTypeName) = 0) then
+      lListenerMethod.AddParameter(lName, AClass.Name + '.' + lTypeName)
+    else
+      lListenerMethod.AddParameter(lName, lTypeName);
     if (lEventArg.Interface_ <> '') or (Pos('.', lEventArg.Enum) > 0 ) then
     begin
       lLookingFor := lEventArg.Interface_;
@@ -520,6 +580,11 @@ begin
   lCall := TNamedNode.CreateNew(lBeginEnd.List);
   lBeginEnd.List.Add(lCall);
   lCall.Name:= Format('if Assigned(%s) then %s%s;', [lProperty.Name, lProperty.Name, lCallArgs]);
+  // fan out to every registered listener (the native binding allows more than
+  // one; libwayland/waylandbinding only support a single listener per object)
+  lImplProc.AddVariable('lListenerIdx', 'Integer');
+  lBeginEnd.AddCodeLine(Format('for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].%s%s;',
+    [lListenerMethodName, lCallArgs]));
   lSetHandled := TNamedNode.CreateNew(lBeginEnd.List);
   lBeginEnd.List.Add(lSetHandled);
   lSetHandled.Name:='AMsg.SetHandled;';
@@ -718,6 +783,8 @@ begin
   FWritingInterfaces.Duplicates:=TDuplicates.dupIgnore;
   FForwardList := TStringList.Create;
   FForwardList.Sorted:=True;
+  FListenerNodes := TStringList.Create;
+  FListenerNodes.Sorted:=True;
 
   FProtocol := AProtocol;
   FUnit := TUnitNode.CreateNew(Self);
@@ -726,6 +793,10 @@ begin
   FUnit.ModeSwitches.AddModeSwitch('{$ScopedEnums on}');
   FUnit.ModeSwitches.AddModeSwitch('{$modeswitch advancedrecords}');
   FUnit.ModeSwitches.AddModeSwitch('{$modeswitch prefixedattributes}');
+  // corba interfaces: no IUnknown/GUID required, no refcounting -- lets the
+  // generated I<Class>Listener interfaces use a plain string IID and be stored
+  // as raw pointers, matching the libwayland-bindings convention.
+  FUnit.ModeSwitches.AddModeSwitch('{$interfaces corba}');
   FUnit.InterfaceNode.UsesNode.AddUnit(['Classes', 'Sysutils', 'Wayland_Core', 'wayland_queue', 'wayland_internal_interfaces']);
   if AProtocol.Name <> 'wayland' then
     FUnit.InterfaceNode.UsesNode.AddUnit('wayland')
@@ -745,6 +816,7 @@ begin
   FreeAndNil(FWrittenInterfaces);
   FreeAndNil(FWritingInterfaces);
   FreeAndNil(FForwardList);
+  FreeAndNil(FListenerNodes);
 
   FUnit.WriteToStream(AStream);
 

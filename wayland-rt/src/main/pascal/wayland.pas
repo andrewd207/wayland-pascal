@@ -4,6 +4,7 @@ unit wayland;
 {$ScopedEnums on}
 {$modeswitch advancedrecords}
 {$modeswitch prefixedattributes}
+{$interfaces corba}
 
 interface
 uses
@@ -13,6 +14,10 @@ type
   TWlSubsurfaceClass = class of TWlSubsurface;
   { TWlSubsurface }
   TWlSubsurface = class;
+
+  TWlSubcompositorClass = class of TWlSubcompositor;
+  { TWlSubcompositor }
+  TWlSubcompositor = class;
 
   TWlTouchClass = class of TWlTouch;
   { TWlTouch }
@@ -34,6 +39,10 @@ type
   { TWlShellSurface }
   TWlShellSurface = class;
 
+  TWlShellClass = class of TWlShell;
+  { TWlShell }
+  TWlShell = class;
+
   TWlSeatClass = class of TWlSeat;
   { TWlSeat }
   TWlSeat = class;
@@ -46,13 +55,25 @@ type
   { TWlDataSource }
   TWlDataSource = class;
 
-  TWlShmPoolClass = class of TWlShmPool;
-  { TWlShmPool }
-  TWlShmPool = class;
+  TWlDataDeviceManagerClass = class of TWlDataDeviceManager;
+  { TWlDataDeviceManager }
+  TWlDataDeviceManager = class;
+
+  TWlDataOfferClass = class of TWlDataOffer;
+  { TWlDataOffer }
+  TWlDataOffer = class;
+
+  TWlShmClass = class of TWlShm;
+  { TWlShm }
+  TWlShm = class;
 
   TWlBufferClass = class of TWlBuffer;
   { TWlBuffer }
   TWlBuffer = class;
+
+  TWlShmPoolClass = class of TWlShmPool;
+  { TWlShmPool }
+  TWlShmPool = class;
 
   TWlRegionClass = class of TWlRegion;
   { TWlRegion }
@@ -61,6 +82,10 @@ type
   TWlSurfaceClass = class of TWlSurface;
   { TWlSurface }
   TWlSurface = class;
+
+  TWlCompositorClass = class of TWlCompositor;
+  { TWlCompositor }
+  TWlCompositor = class;
 
   TWlRegistryClass = class of TWlRegistry;
   { TWlRegistry }
@@ -71,6 +96,11 @@ type
   TWlCallback = class;
 
   TWlDisplayClass = class of TWlDisplay;
+  { TWlDisplay }
+  TWlDisplay = class;
+
+  IWlDisplayListener = interface;
+
   [TWLIntfAttribute('sync(n),get_registry(n)', 'error(ous),delete_id(u)')]
   { TWlDisplay }
   TWlDisplay = class(TWaylandDisplayBase)
@@ -96,7 +126,19 @@ type
   public
     function Sync(aClassType: TWlCallbackClass = nil): TWlCallback;
     function GetRegistry(aClassType: TWlRegistryClass = nil): TWlRegistry;
+  private
+    FListeners: array of IWlDisplayListener;
+  public
+    function AddListener(AIntf: IWlDisplayListener): LongInt;
   end;
+
+  IWlDisplayListener = interface
+  ['IWlDisplayListener']
+    procedure wl_display_error(AWlDisplay: TWlDisplay; aObjectId: Cardinal; aCode: DWord; aMessage: String);
+    procedure wl_display_delete_id(AWlDisplay: TWlDisplay; aId: DWord);
+  end;
+
+  IWlRegistryListener = interface;
 
   [TWLIntfAttribute('bind(un)', 'global(usu),global_remove(u)')]
   { TWlRegistry }
@@ -121,7 +163,19 @@ type
     property OnGlobalRemove: TGlobalRemoveEvent read FOnGlobalRemovePriv write FOnGlobalRemovePriv;
   public
     procedure Bind(aInterfaceIndex: DWord; aInterfaceName: String; aInterfaceVersion: Integer; aClassType: TWaylandBaseClass; var aOutObject{aClassType});
+  private
+    FListeners: array of IWlRegistryListener;
+  public
+    function AddListener(AIntf: IWlRegistryListener): LongInt;
   end;
+
+  IWlRegistryListener = interface
+  ['IWlRegistryListener']
+    procedure wl_registry_global(AWlRegistry: TWlRegistry; aName: DWord; aInterface: String; aVersion: DWord);
+    procedure wl_registry_global_remove(AWlRegistry: TWlRegistry; aName: DWord);
+  end;
+
+  IWlCallbackListener = interface;
 
   [TWLIntfAttribute('', 'done(u)')]
   { TWlCallback }
@@ -140,11 +194,20 @@ type
     procedure HandleDone(var AMsg: TWaylandEventMessage); message Ord(TEvents.EV_DONE); virtual;
   published
     property OnDone: TDoneEvent read FOnDonePriv write FOnDonePriv;
+  private
+    FListeners: array of IWlCallbackListener;
   public
+    function AddListener(AIntf: IWlCallbackListener): LongInt;
     property IsDone: Boolean read FIsDonePriv;
   end;
 
-  TWlCompositorClass = class of TWlCompositor;
+  IWlCallbackListener = interface
+  ['IWlCallbackListener']
+    procedure wl_callback_done(AWlCallback: TWlCallback; aCallbackData: DWord);
+  end;
+
+  IWlCompositorListener = interface;
+
   [TWLIntfAttribute('create_surface(n),create_region(n)', '')]
   { TWlCompositor }
   TWlCompositor = class(TWaylandBase)
@@ -156,9 +219,20 @@ type
   public
     function CreateSurface(aClassType: TWlSurfaceClass = nil): TWlSurface;
     function CreateRegion(aClassType: TWlRegionClass = nil): TWlRegion;
+  private
+    FListeners: array of IWlCompositorListener;
+  public
+    function AddListener(AIntf: IWlCompositorListener): LongInt;
   end;
 
-  TWlShmClass = class of TWlShm;
+  IWlCompositorListener = interface
+  ['IWlCompositorListener']
+  end;
+
+  IWlShmPoolListener = interface;
+
+  IWlShmListener = interface;
+
   [TWLIntfAttribute('create_pool(nhi)', 'format(u)')]
   { TWlShm }
   TWlShm = class(TWaylandBase)
@@ -180,8 +254,17 @@ type
     property OnFormat: TFormatEvent read FOnFormatPriv write FOnFormatPriv;
   public
     function CreatePool(aFd: Integer; aSize: Integer; aClassType: TWlShmPoolClass = nil): TWlShmPool;
+  private
+    FListeners: array of IWlShmListener;
+  public
+    function AddListener(AIntf: IWlShmListener): LongInt;
     function AllocateShmBuffer(aWidth: Integer; aHeight: Integer; aFormat: TWlShm.TFormat; out aData: Pointer; out fd: Integer): TWlBuffer;
     function AllocateShmPool(aSize: Integer; aOutData: PPointer; aOutFd: PInteger): TWlShmPool;
+  end;
+
+  IWlShmListener = interface
+  ['IWlShmListener']
+    procedure wl_shm_format(AWlShm: TWlShm; aFormat: TWlShm.TFormat);
   end;
 
   [TWLIntfAttribute('create_buffer(niiiiu),destroy(),resize(i)', '')]
@@ -196,7 +279,17 @@ type
     function CreateBuffer(aOffset: Integer; aWidth: Integer; aHeight: Integer; aStride: Integer; aFormat: TWlShm.TFormat; aClassType: TWlBufferClass = nil): TWlBuffer;
     destructor Destroy; override;
     procedure Resize(aSize: Integer);
+  private
+    FListeners: array of IWlShmPoolListener;
+  public
+    function AddListener(AIntf: IWlShmPoolListener): LongInt;
   end;
+
+  IWlShmPoolListener = interface
+  ['IWlShmPoolListener']
+  end;
+
+  IWlBufferListener = interface;
 
   [TWLIntfAttribute('destroy()', 'release()')]
   { TWlBuffer }
@@ -217,9 +310,21 @@ type
     property OnRelease: TReleaseEvent read FOnReleasePriv write FOnReleasePriv;
   public
     destructor Destroy; override;
+  private
+    FListeners: array of IWlBufferListener;
+  public
+    function AddListener(AIntf: IWlBufferListener): LongInt;
   end;
 
-  TWlDataDeviceManagerClass = class of TWlDataDeviceManager;
+  IWlBufferListener = interface
+  ['IWlBufferListener']
+    procedure wl_buffer_release(AWlBuffer: TWlBuffer);
+  end;
+
+  IWlDataOfferListener = interface;
+
+  IWlDataDeviceManagerListener = interface;
+
   [TWLIntfAttribute('create_data_source(n),get_data_device(no)', '')]
   { TWlDataDeviceManager }
   TWlDataDeviceManager = class(TWaylandBase)
@@ -241,9 +346,16 @@ type
   public
     function CreateDataSource(aClassType: TWlDataSourceClass = nil): TWlDataSource;
     function GetDataDevice(aSeat: TWlSeat; aClassType: TWlDataDeviceClass = nil): TWlDataDevice;
+  private
+    FListeners: array of IWlDataDeviceManagerListener;
+  public
+    function AddListener(AIntf: IWlDataDeviceManagerListener): LongInt;
   end;
 
-  TWlDataOfferClass = class of TWlDataOffer;
+  IWlDataDeviceManagerListener = interface
+  ['IWlDataDeviceManagerListener']
+  end;
+
   [TWLIntfAttribute('accept(u?s),receive(sh),destroy(),finish(),set_actions(uu)', 'offer(s),source_actions(u),action(u)')]
   { TWlDataOffer }
   TWlDataOffer = class(TWaylandBase)
@@ -276,7 +388,20 @@ type
     destructor Destroy; override;
     procedure Finish;
     procedure SetActions(aDndActions: TWlDataDeviceManager.TDndAction; aPreferredAction: TWlDataDeviceManager.TDndAction);
+  private
+    FListeners: array of IWlDataOfferListener;
+  public
+    function AddListener(AIntf: IWlDataOfferListener): LongInt;
   end;
+
+  IWlDataOfferListener = interface
+  ['IWlDataOfferListener']
+    procedure wl_data_offer_offer(AWlDataOffer: TWlDataOffer; aMimeType: String);
+    procedure wl_data_offer_source_actions(AWlDataOffer: TWlDataOffer; aSourceActions: TWlDataDeviceManager.TDndAction);
+    procedure wl_data_offer_action(AWlDataOffer: TWlDataOffer; aDndAction: TWlDataDeviceManager.TDndAction);
+  end;
+
+  IWlDataSourceListener = interface;
 
   [TWLIntfAttribute('offer(s),destroy(),set_actions(u)', 'target(?s),send(sh),cancelled(),dnd_drop_performed(),dnd_finished(),action(u)')]
   { TWlDataSource }
@@ -320,7 +445,23 @@ type
     procedure Offer(aMimeType: String);
     destructor Destroy; override;
     procedure SetActions(aDndActions: TWlDataDeviceManager.TDndAction);
+  private
+    FListeners: array of IWlDataSourceListener;
+  public
+    function AddListener(AIntf: IWlDataSourceListener): LongInt;
   end;
+
+  IWlDataSourceListener = interface
+  ['IWlDataSourceListener']
+    procedure wl_data_source_target(AWlDataSource: TWlDataSource; aMimeType: String);
+    procedure wl_data_source_send(AWlDataSource: TWlDataSource; aMimeType: String; aFd: Integer);
+    procedure wl_data_source_cancelled(AWlDataSource: TWlDataSource);
+    procedure wl_data_source_dnd_drop_performed(AWlDataSource: TWlDataSource);
+    procedure wl_data_source_dnd_finished(AWlDataSource: TWlDataSource);
+    procedure wl_data_source_action(AWlDataSource: TWlDataSource; aDndAction: TWlDataDeviceManager.TDndAction);
+  end;
+
+  IWlDataDeviceListener = interface;
 
   [TWLIntfAttribute('start_drag(?oo?ou),set_selection(?ou),release()', 'data_offer(n),enter(uoff?o),leave(),motion(uff),drop(),selection(?o)')]
   { TWlDataDevice }
@@ -364,9 +505,24 @@ type
     procedure StartDrag(aSource: TWlDataSource; aOrigin: TWlSurface; aIcon: TWlSurface; aSerial: DWord);
     procedure SetSelection(aSource: TWlDataSource; aSerial: DWord);
     destructor Destroy; override;
+  private
+    FListeners: array of IWlDataDeviceListener;
+  public
+    function AddListener(AIntf: IWlDataDeviceListener): LongInt;
   end;
 
-  TWlShellClass = class of TWlShell;
+  IWlDataDeviceListener = interface
+  ['IWlDataDeviceListener']
+    procedure wl_data_device_data_offer(AWlDataDevice: TWlDataDevice; aId: TWlDataOffer);
+    procedure wl_data_device_enter(AWlDataDevice: TWlDataDevice; aSerial: DWord; aSurface: TWlSurface; aX: TWaylandFixed; aY: TWaylandFixed; aId: TWlDataOffer);
+    procedure wl_data_device_leave(AWlDataDevice: TWlDataDevice);
+    procedure wl_data_device_motion(AWlDataDevice: TWlDataDevice; aTime: DWord; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wl_data_device_drop(AWlDataDevice: TWlDataDevice);
+    procedure wl_data_device_selection(AWlDataDevice: TWlDataDevice; aId: TWlDataOffer);
+  end;
+
+  IWlShellListener = interface;
+
   [TWLIntfAttribute('get_shell_surface(no)', '')]
   { TWlShell }
   TWlShell = class(TWaylandBase)
@@ -379,7 +535,17 @@ type
     TRequests = (_GET_SHELL_SURFACE = 0);
   public
     function GetShellSurface(aSurface: TWlSurface; aClassType: TWlShellSurfaceClass = nil): TWlShellSurface;
+  private
+    FListeners: array of IWlShellListener;
+  public
+    function AddListener(AIntf: IWlShellListener): LongInt;
   end;
+
+  IWlShellListener = interface
+  ['IWlShellListener']
+  end;
+
+  IWlShellSurfaceListener = interface;
 
   [TWLIntfAttribute('pong(u),move(ou),resize(ouu),set_toplevel(),set_transient(oiiu),set_fullscreen(uu?o),set_popup(ouoiiu),set_maximized(?o),set_title(s),set_class(s)', 'ping(u),configure(uii),popup_done()')]
   { TWlShellSurface }
@@ -438,7 +604,22 @@ type
     procedure SetMaximized(aOutput: TWlOutput);
     procedure SetTitle(aTitle: String);
     procedure SetClass(aClass: String);
+  private
+    FListeners: array of IWlShellSurfaceListener;
+  public
+    function AddListener(AIntf: IWlShellSurfaceListener): LongInt;
   end;
+
+  IWlShellSurfaceListener = interface
+  ['IWlShellSurfaceListener']
+    procedure wl_shell_surface_ping(AWlShellSurface: TWlShellSurface; aSerial: DWord);
+    procedure wl_shell_surface_configure(AWlShellSurface: TWlShellSurface; aEdges: TWlShellSurface.TResize; aWidth: Integer; aHeight: Integer);
+    procedure wl_shell_surface_popup_done(AWlShellSurface: TWlShellSurface);
+  end;
+
+  IWlSurfaceListener = interface;
+
+  IWlOutputListener = interface;
 
   [TWLIntfAttribute('release()', 'geometry(iiiiissi),mode(uiii),done(),scale(i),name(s),description(s)')]
   { TWlOutput }
@@ -488,6 +669,20 @@ type
     property OnDescription: TDescriptionEvent read FOnDescriptionPriv write FOnDescriptionPriv;
   public
     destructor Destroy; override;
+  private
+    FListeners: array of IWlOutputListener;
+  public
+    function AddListener(AIntf: IWlOutputListener): LongInt;
+  end;
+
+  IWlOutputListener = interface
+  ['IWlOutputListener']
+    procedure wl_output_geometry(AWlOutput: TWlOutput; aX: Integer; aY: Integer; aPhysicalWidth: Integer; aPhysicalHeight: Integer; aSubpixel: TWlOutput.TSubpixel; aMake: String; aModel: String; aTransform: TWlOutput.TTransform);
+    procedure wl_output_mode(AWlOutput: TWlOutput; aFlags: TWlOutput.TMode; aWidth: Integer; aHeight: Integer; aRefresh: Integer);
+    procedure wl_output_done(AWlOutput: TWlOutput);
+    procedure wl_output_scale(AWlOutput: TWlOutput; aFactor: Integer);
+    procedure wl_output_name(AWlOutput: TWlOutput; aName: String);
+    procedure wl_output_description(AWlOutput: TWlOutput; aDescription: String);
   end;
 
   [TWLIntfAttribute('destroy(),attach(?oii),damage(iiii),frame(n),set_opaque_region(?o),set_input_region(?o),commit(),set_buffer_transform(i),set_buffer_scale(i),damage_buffer(iiii),offset(ii)', 'enter(o),leave(o),preferred_buffer_scale(i),preferred_buffer_transform(u)')]
@@ -532,7 +727,21 @@ type
     procedure SetBufferScale(aScale: Integer);
     procedure DamageBuffer(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
     procedure Offset(aX: Integer; aY: Integer);
+  private
+    FListeners: array of IWlSurfaceListener;
+  public
+    function AddListener(AIntf: IWlSurfaceListener): LongInt;
   end;
+
+  IWlSurfaceListener = interface
+  ['IWlSurfaceListener']
+    procedure wl_surface_enter(AWlSurface: TWlSurface; aOutput: TWlOutput);
+    procedure wl_surface_leave(AWlSurface: TWlSurface; aOutput: TWlOutput);
+    procedure wl_surface_preferred_buffer_scale(AWlSurface: TWlSurface; aFactor: Integer);
+    procedure wl_surface_preferred_buffer_transform(AWlSurface: TWlSurface; aTransform: TWlOutput.TTransform);
+  end;
+
+  IWlSeatListener = interface;
 
   [TWLIntfAttribute('get_pointer(n),get_keyboard(n),get_touch(n),release()', 'capabilities(u),name(s)')]
   { TWlSeat }
@@ -569,7 +778,19 @@ type
     function GetKeyboard(aClassType: TWlKeyboardClass = nil): TWlKeyboard;
     function GetTouch(aClassType: TWlTouchClass = nil): TWlTouch;
     destructor Destroy; override;
+  private
+    FListeners: array of IWlSeatListener;
+  public
+    function AddListener(AIntf: IWlSeatListener): LongInt;
   end;
+
+  IWlSeatListener = interface
+  ['IWlSeatListener']
+    procedure wl_seat_capabilities(AWlSeat: TWlSeat; aCapabilities: TWlSeat.TCapability);
+    procedure wl_seat_name(AWlSeat: TWlSeat; aName: String);
+  end;
+
+  IWlPointerListener = interface;
 
   [TWLIntfAttribute('set_cursor(u?oii),release()', 'enter(uoff),leave(uo),motion(uff),button(uuuu),axis(uuf),frame(),axis_source(u),axis_stop(uu),axis_discrete(ui),axis_value120(ui),axis_relative_direction(uu)')]
   { TWlPointer }
@@ -636,7 +857,28 @@ type
   public
     procedure SetCursor(aSerial: DWord; aSurface: TWlSurface; aHotspotX: Integer; aHotspotY: Integer);
     destructor Destroy; override;
+  private
+    FListeners: array of IWlPointerListener;
+  public
+    function AddListener(AIntf: IWlPointerListener): LongInt;
   end;
+
+  IWlPointerListener = interface
+  ['IWlPointerListener']
+    procedure wl_pointer_enter(AWlPointer: TWlPointer; aSerial: DWord; aSurface: TWlSurface; aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
+    procedure wl_pointer_leave(AWlPointer: TWlPointer; aSerial: DWord; aSurface: TWlSurface);
+    procedure wl_pointer_motion(AWlPointer: TWlPointer; aTime: DWord; aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
+    procedure wl_pointer_button(AWlPointer: TWlPointer; aSerial: DWord; aTime: DWord; aButton: DWord; aState: TWlPointer.TButtonState);
+    procedure wl_pointer_axis(AWlPointer: TWlPointer; aTime: DWord; aAxis: TWlPointer.TAxis; aValue: TWaylandFixed);
+    procedure wl_pointer_frame(AWlPointer: TWlPointer);
+    procedure wl_pointer_axis_source(AWlPointer: TWlPointer; aAxisSource: TWlPointer.TAxisSource);
+    procedure wl_pointer_axis_stop(AWlPointer: TWlPointer; aTime: DWord; aAxis: TWlPointer.TAxis);
+    procedure wl_pointer_axis_discrete(AWlPointer: TWlPointer; aAxis: TWlPointer.TAxis; aDiscrete: Integer);
+    procedure wl_pointer_axis_value120(AWlPointer: TWlPointer; aAxis: TWlPointer.TAxis; aValue120: Integer);
+    procedure wl_pointer_axis_relative_direction(AWlPointer: TWlPointer; aAxis: TWlPointer.TAxis; aDirection: TWlPointer.TAxisRelativeDirection);
+  end;
+
+  IWlKeyboardListener = interface;
 
   [TWLIntfAttribute('release()', 'keymap(uhu),enter(uoa),leave(uo),key(uuuu),modifiers(uuuuu),repeat_info(ii)')]
   { TWlKeyboard }
@@ -679,7 +921,23 @@ type
     property OnRepeatInfo: TRepeatInfoEvent read FOnRepeatInfoPriv write FOnRepeatInfoPriv;
   public
     destructor Destroy; override;
+  private
+    FListeners: array of IWlKeyboardListener;
+  public
+    function AddListener(AIntf: IWlKeyboardListener): LongInt;
   end;
+
+  IWlKeyboardListener = interface
+  ['IWlKeyboardListener']
+    procedure wl_keyboard_keymap(AWlKeyboard: TWlKeyboard; aFormat: TWlKeyboard.TKeymapFormat; aFd: Integer; aSize: DWord);
+    procedure wl_keyboard_enter(AWlKeyboard: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface; aKeys: TBytes);
+    procedure wl_keyboard_leave(AWlKeyboard: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface);
+    procedure wl_keyboard_key(AWlKeyboard: TWlKeyboard; aSerial: DWord; aTime: DWord; aKey: DWord; aState: TWlKeyboard.TKeyState);
+    procedure wl_keyboard_modifiers(AWlKeyboard: TWlKeyboard; aSerial: DWord; aModsDepressed: DWord; aModsLatched: DWord; aModsLocked: DWord; aGroup: DWord);
+    procedure wl_keyboard_repeat_info(AWlKeyboard: TWlKeyboard; aRate: Integer; aDelay: Integer);
+  end;
+
+  IWlTouchListener = interface;
 
   [TWLIntfAttribute('release()', 'down(uuoiff),up(uui),motion(uiff),frame(),cancel(),shape(iff),orientation(if)')]
   { TWlTouch }
@@ -724,7 +982,24 @@ type
     property OnOrientation: TOrientationEvent read FOnOrientationPriv write FOnOrientationPriv;
   public
     destructor Destroy; override;
+  private
+    FListeners: array of IWlTouchListener;
+  public
+    function AddListener(AIntf: IWlTouchListener): LongInt;
   end;
+
+  IWlTouchListener = interface
+  ['IWlTouchListener']
+    procedure wl_touch_down(AWlTouch: TWlTouch; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wl_touch_up(AWlTouch: TWlTouch; aSerial: DWord; aTime: DWord; aId: Integer);
+    procedure wl_touch_motion(AWlTouch: TWlTouch; aTime: DWord; aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wl_touch_frame(AWlTouch: TWlTouch);
+    procedure wl_touch_cancel(AWlTouch: TWlTouch);
+    procedure wl_touch_shape(AWlTouch: TWlTouch; aId: Integer; aMajor: TWaylandFixed; aMinor: TWaylandFixed);
+    procedure wl_touch_orientation(AWlTouch: TWlTouch; aId: Integer; aOrientation: TWaylandFixed);
+  end;
+
+  IWlRegionListener = interface;
 
   [TWLIntfAttribute('destroy(),add(iiii),subtract(iiii)', '')]
   { TWlRegion }
@@ -738,9 +1013,18 @@ type
     destructor Destroy; override;
     procedure Add(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
     procedure Subtract(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
+  private
+    FListeners: array of IWlRegionListener;
+  public
+    function AddListener(AIntf: IWlRegionListener): LongInt;
   end;
 
-  TWlSubcompositorClass = class of TWlSubcompositor;
+  IWlRegionListener = interface
+  ['IWlRegionListener']
+  end;
+
+  IWlSubcompositorListener = interface;
+
   [TWLIntfAttribute('destroy(),get_subsurface(noo)', '')]
   { TWlSubcompositor }
   TWlSubcompositor = class(TWaylandBase)
@@ -754,7 +1038,17 @@ type
   public
     destructor Destroy; override;
     function GetSubsurface(aSurface: TWlSurface; aParent: TWlSurface; aClassType: TWlSubsurfaceClass = nil): TWlSubsurface;
+  private
+    FListeners: array of IWlSubcompositorListener;
+  public
+    function AddListener(AIntf: IWlSubcompositorListener): LongInt;
   end;
+
+  IWlSubcompositorListener = interface
+  ['IWlSubcompositorListener']
+  end;
+
+  IWlSubsurfaceListener = interface;
 
   [TWLIntfAttribute('destroy(),set_position(ii),place_above(o),place_below(o),set_sync(),set_desync()', '')]
   { TWlSubsurface }
@@ -773,6 +1067,14 @@ type
     procedure PlaceBelow(aSibling: TWlSurface);
     procedure SetSync;
     procedure SetDesync;
+  private
+    FListeners: array of IWlSubsurfaceListener;
+  public
+    function AddListener(AIntf: IWlSubsurfaceListener): LongInt;
+  end;
+
+  IWlSubsurfaceListener = interface
+  ['IWlSubsurfaceListener']
   end;
 
 implementation
@@ -794,20 +1096,24 @@ var
   lObjectId: Cardinal;
   lCode: DWord;
   lMessage: String;
+  lListenerIdx: Integer;
 begin
   lObjectId := AMsg.Args.ReadDWord;
   lCode := AMsg.Args.ReadDWord;
   lMessage := AMsg.Args.ReadString;
   if Assigned(OnError) then OnError(Self,lObjectId,lCode,lMessage);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_display_error(Self,lObjectId,lCode,lMessage);
   AMsg.SetHandled;
 end;
 
 procedure TWlDisplay.HandleDeleteId(var AMsg: TWaylandEventMessage);
 var
   lId: DWord;
+  lListenerIdx: Integer;
 begin
   lId := AMsg.Args.ReadDWord;
   if Assigned(OnDeleteId) then OnDeleteId(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_display_delete_id(Self,lId);
   AMsg.SetHandled;
 end;
 
@@ -825,6 +1131,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_REGISTRY), [Result.GetObjectId]);
 end;
 
+function TWlDisplay.AddListener(AIntf: IWlDisplayListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlRegistry.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -840,20 +1153,24 @@ var
   lName: DWord;
   lInterface: String;
   lVersion: DWord;
+  lListenerIdx: Integer;
 begin
   lName := AMsg.Args.ReadDWord;
   lInterface := AMsg.Args.ReadString;
   lVersion := AMsg.Args.ReadDWord;
   if Assigned(OnGlobal) then OnGlobal(Self,lName,lInterface,lVersion);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_registry_global(Self,lName,lInterface,lVersion);
   AMsg.SetHandled;
 end;
 
 procedure TWlRegistry.HandleGlobalRemove(var AMsg: TWaylandEventMessage);
 var
   lName: DWord;
+  lListenerIdx: Integer;
 begin
   lName := AMsg.Args.ReadDWord;
   if Assigned(OnGlobalRemove) then OnGlobalRemove(Self,lName);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_registry_global_remove(Self,lName);
   AMsg.SetHandled;
 end;
 
@@ -871,6 +1188,13 @@ begin
   TWaylandBase(aOutObject).SetProtocolVersion(lVersion);
 end;
 
+function TWlRegistry.AddListener(AIntf: IWlRegistryListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlCallback.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -884,11 +1208,20 @@ end;
 procedure TWlCallback.HandleDone(var AMsg: TWaylandEventMessage);
 var
   lCallbackData: DWord;
+  lListenerIdx: Integer;
 begin
   lCallbackData := AMsg.Args.ReadDWord;
   if Assigned(OnDone) then OnDone(Self,lCallbackData);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_callback_done(Self,lCallbackData);
   AMsg.SetHandled;
   FIsDonePriv := True;
+end;
+
+function TWlCallback.AddListener(AIntf: IWlCallbackListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlCompositor.GetInterfaceVersion: Integer;
@@ -915,6 +1248,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_REGION), [Result.GetObjectId]);
 end;
 
+function TWlCompositor.AddListener(AIntf: IWlCompositorListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlShmPool.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -938,9 +1278,11 @@ end;
 procedure TWlShm.HandleFormat(var AMsg: TWaylandEventMessage);
 var
   lFormat: TFormat;
+  lListenerIdx: Integer;
 begin
   lFormat := TFormat(AMsg.Args.ReadDWord);
   if Assigned(OnFormat) then OnFormat(Self,lFormat);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_shm_format(Self,lFormat);
   AMsg.SetHandled;
 end;
 
@@ -949,6 +1291,13 @@ begin
   if aClassType = nil then aClassType := TWlShmPool;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._CREATE_POOL), [Result.GetObjectId,aFd,aSize], 1);
+end;
+
+function TWlShm.AddListener(AIntf: IWlShmListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 function TWlShm.AllocateShmBuffer(aWidth: Integer; aHeight: Integer; aFormat: TWlShm.TFormat; out aData: Pointer; out fd: Integer): TWlBuffer;
@@ -979,6 +1328,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._RESIZE), [aSize]);
 end;
 
+function TWlShmPool.AddListener(AIntf: IWlShmPoolListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlBuffer.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -990,8 +1346,11 @@ begin
 end;
 
 procedure TWlBuffer.HandleRelease(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnRelease) then OnRelease(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_buffer_release(Self);
   AMsg.SetHandled;
 end;
 
@@ -999,6 +1358,13 @@ destructor TWlBuffer.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._DESTROY), []);
   inherited Destroy;
+end;
+
+function TWlBuffer.AddListener(AIntf: IWlBufferListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlDataOffer.GetInterfaceVersion: Integer;
@@ -1014,9 +1380,11 @@ end;
 procedure TWlDataOffer.HandleOffer(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
+  lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
   if Assigned(OnOffer) then OnOffer(Self,lMimeType);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_offer_offer(Self,lMimeType);
   AMsg.SetHandled;
 end;
 
@@ -1044,21 +1412,32 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_DATA_DEVICE), [Result.GetObjectId,aSeat.GetObjectId]);
 end;
 
+function TWlDataDeviceManager.AddListener(AIntf: IWlDataDeviceManagerListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 procedure TWlDataOffer.HandleSourceActions(var AMsg: TWaylandEventMessage);
 var
   lSourceActions: TWlDataDeviceManager.TDndAction;
+  lListenerIdx: Integer;
 begin
   lSourceActions := TWlDataDeviceManager.TDndAction(AMsg.Args.ReadDWord);
   if Assigned(OnSourceActions) then OnSourceActions(Self,lSourceActions);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_offer_source_actions(Self,lSourceActions);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataOffer.HandleAction(var AMsg: TWaylandEventMessage);
 var
   lDndAction: TWlDataDeviceManager.TDndAction;
+  lListenerIdx: Integer;
 begin
   lDndAction := TWlDataDeviceManager.TDndAction(AMsg.Args.ReadDWord);
   if Assigned(OnAction) then OnAction(Self,lDndAction);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_offer_action(Self,lDndAction);
   AMsg.SetHandled;
 end;
 
@@ -1088,6 +1467,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_ACTIONS), [DWord(aDndActions),DWord(aPreferredAction)]);
 end;
 
+function TWlDataOffer.AddListener(AIntf: IWlDataOfferListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlDataSource.GetInterfaceVersion: Integer;
 begin
   Result := 3;
@@ -1101,9 +1487,11 @@ end;
 procedure TWlDataSource.HandleTarget(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
+  lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
   if Assigned(OnTarget) then OnTarget(Self,lMimeType);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_target(Self,lMimeType);
   AMsg.SetHandled;
 end;
 
@@ -1111,37 +1499,50 @@ procedure TWlDataSource.HandleSend(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
   lFd: Integer;
+  lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
   lFd := AMsg.Args.ReadInteger;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_send(Self,lMimeType,lFd);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataSource.HandleCancelled(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnCancelled) then OnCancelled(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_cancelled(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataSource.HandleDndDropPerformed(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnDndDropPerformed) then OnDndDropPerformed(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_dnd_drop_performed(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataSource.HandleDndFinished(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnDndFinished) then OnDndFinished(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_dnd_finished(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataSource.HandleAction(var AMsg: TWaylandEventMessage);
 var
   lDndAction: TWlDataDeviceManager.TDndAction;
+  lListenerIdx: Integer;
 begin
   lDndAction := TWlDataDeviceManager.TDndAction(AMsg.Args.ReadDWord);
   if Assigned(OnAction) then OnAction(Self,lDndAction);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_action(Self,lDndAction);
   AMsg.SetHandled;
 end;
 
@@ -1161,6 +1562,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_ACTIONS), [DWord(aDndActions)]);
 end;
 
+function TWlDataSource.AddListener(AIntf: IWlDataSourceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlDataDevice.GetInterfaceVersion: Integer;
 begin
   Result := 3;
@@ -1174,9 +1582,11 @@ end;
 procedure TWlDataDevice.HandleDataOffer(var AMsg: TWaylandEventMessage);
 var
   lId: TWlDataOffer;
+  lListenerIdx: Integer;
 begin
   lId := TWlDataOffer.Create(Connection, nil, AMsg.Args.ReadDWord);
   if Assigned(OnDataOffer) then OnDataOffer(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_data_offer(Self,lId);
   AMsg.SetHandled;
 end;
 
@@ -1187,6 +1597,7 @@ var
   lX: TWaylandFixed;
   lY: TWaylandFixed;
   lId: TWlDataOffer;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
@@ -1194,12 +1605,16 @@ begin
   lY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lId := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlDataOffer);
   if Assigned(OnEnter) then OnEnter(Self,lSerial,lSurface,lX,lY,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_enter(Self,lSerial,lSurface,lX,lY,lId);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataDevice.HandleLeave(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnLeave) then OnLeave(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_leave(Self);
   AMsg.SetHandled;
 end;
 
@@ -1208,26 +1623,33 @@ var
   lTime: DWord;
   lX: TWaylandFixed;
   lY: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lTime := AMsg.Args.ReadDWord;
   lX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnMotion) then OnMotion(Self,lTime,lX,lY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_motion(Self,lTime,lX,lY);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataDevice.HandleDrop(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnDrop) then OnDrop(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_drop(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlDataDevice.HandleSelection(var AMsg: TWaylandEventMessage);
 var
   lId: TWlDataOffer;
+  lListenerIdx: Integer;
 begin
   lId := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlDataOffer);
   if Assigned(OnSelection) then OnSelection(Self,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_device_selection(Self,lId);
   AMsg.SetHandled;
 end;
 
@@ -1247,6 +1669,13 @@ begin
   inherited Destroy;
 end;
 
+function TWlDataDevice.AddListener(AIntf: IWlDataDeviceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlShell.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -1264,6 +1693,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SHELL_SURFACE), [Result.GetObjectId,aSurface.GetObjectId]);
 end;
 
+function TWlShell.AddListener(AIntf: IWlShellListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlShellSurface.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -1277,9 +1713,11 @@ end;
 procedure TWlShellSurface.HandlePing(var AMsg: TWaylandEventMessage);
 var
   lSerial: DWord;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   if Assigned(OnPing) then OnPing(Self,lSerial);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_shell_surface_ping(Self,lSerial);
   AMsg.SetHandled;
 end;
 
@@ -1288,17 +1726,22 @@ var
   lEdges: TResize;
   lWidth: Integer;
   lHeight: Integer;
+  lListenerIdx: Integer;
 begin
   lEdges := TResize(AMsg.Args.ReadDWord);
   lWidth := AMsg.Args.ReadInteger;
   lHeight := AMsg.Args.ReadInteger;
   if Assigned(OnConfigure) then OnConfigure(Self,lEdges,lWidth,lHeight);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_shell_surface_configure(Self,lEdges,lWidth,lHeight);
   AMsg.SetHandled;
 end;
 
 procedure TWlShellSurface.HandlePopupDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnPopupDone) then OnPopupDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_shell_surface_popup_done(Self);
   AMsg.SetHandled;
 end;
 
@@ -1352,6 +1795,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_CLASS), [aClass]);
 end;
 
+function TWlShellSurface.AddListener(AIntf: IWlShellSurfaceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlSurface.GetInterfaceVersion: Integer;
 begin
   Result := 6;
@@ -1365,27 +1815,33 @@ end;
 procedure TWlSurface.HandleEnter(var AMsg: TWaylandEventMessage);
 var
   lOutput: TWlOutput;
+  lListenerIdx: Integer;
 begin
   lOutput := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlOutput);
   if Assigned(OnEnter) then OnEnter(Self,lOutput);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_surface_enter(Self,lOutput);
   AMsg.SetHandled;
 end;
 
 procedure TWlSurface.HandleLeave(var AMsg: TWaylandEventMessage);
 var
   lOutput: TWlOutput;
+  lListenerIdx: Integer;
 begin
   lOutput := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlOutput);
   if Assigned(OnLeave) then OnLeave(Self,lOutput);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_surface_leave(Self,lOutput);
   AMsg.SetHandled;
 end;
 
 procedure TWlSurface.HandlePreferredBufferScale(var AMsg: TWaylandEventMessage);
 var
   lFactor: Integer;
+  lListenerIdx: Integer;
 begin
   lFactor := AMsg.Args.ReadInteger;
   if Assigned(OnPreferredBufferScale) then OnPreferredBufferScale(Self,lFactor);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_surface_preferred_buffer_scale(Self,lFactor);
   AMsg.SetHandled;
 end;
 
@@ -1409,6 +1865,7 @@ var
   lMake: String;
   lModel: String;
   lTransform: TTransform;
+  lListenerIdx: Integer;
 begin
   lX := AMsg.Args.ReadInteger;
   lY := AMsg.Args.ReadInteger;
@@ -1419,6 +1876,7 @@ begin
   lModel := AMsg.Args.ReadString;
   lTransform := TTransform(AMsg.Args.ReadInteger);
   if Assigned(OnGeometry) then OnGeometry(Self,lX,lY,lPhysicalWidth,lPhysicalHeight,lSubpixel,lMake,lModel,lTransform);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_geometry(Self,lX,lY,lPhysicalWidth,lPhysicalHeight,lSubpixel,lMake,lModel,lTransform);
   AMsg.SetHandled;
 end;
 
@@ -1428,45 +1886,56 @@ var
   lWidth: Integer;
   lHeight: Integer;
   lRefresh: Integer;
+  lListenerIdx: Integer;
 begin
   lFlags := TMode(AMsg.Args.ReadDWord);
   lWidth := AMsg.Args.ReadInteger;
   lHeight := AMsg.Args.ReadInteger;
   lRefresh := AMsg.Args.ReadInteger;
   if Assigned(OnMode) then OnMode(Self,lFlags,lWidth,lHeight,lRefresh);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_mode(Self,lFlags,lWidth,lHeight,lRefresh);
   AMsg.SetHandled;
 end;
 
 procedure TWlOutput.HandleDone(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnDone) then OnDone(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_done(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlOutput.HandleScale(var AMsg: TWaylandEventMessage);
 var
   lFactor: Integer;
+  lListenerIdx: Integer;
 begin
   lFactor := AMsg.Args.ReadInteger;
   if Assigned(OnScale) then OnScale(Self,lFactor);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_scale(Self,lFactor);
   AMsg.SetHandled;
 end;
 
 procedure TWlOutput.HandleName(var AMsg: TWaylandEventMessage);
 var
   lName: String;
+  lListenerIdx: Integer;
 begin
   lName := AMsg.Args.ReadString;
   if Assigned(OnName) then OnName(Self,lName);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_name(Self,lName);
   AMsg.SetHandled;
 end;
 
 procedure TWlOutput.HandleDescription(var AMsg: TWaylandEventMessage);
 var
   lDescription: String;
+  lListenerIdx: Integer;
 begin
   lDescription := AMsg.Args.ReadString;
   if Assigned(OnDescription) then OnDescription(Self,lDescription);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_output_description(Self,lDescription);
   AMsg.SetHandled;
 end;
 
@@ -1476,12 +1945,21 @@ begin
   inherited Destroy;
 end;
 
+function TWlOutput.AddListener(AIntf: IWlOutputListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 procedure TWlSurface.HandlePreferredBufferTransform(var AMsg: TWaylandEventMessage);
 var
   lTransform: TWlOutput.TTransform;
+  lListenerIdx: Integer;
 begin
   lTransform := TWlOutput.TTransform(AMsg.Args.ReadDWord);
   if Assigned(OnPreferredBufferTransform) then OnPreferredBufferTransform(Self,lTransform);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_surface_preferred_buffer_transform(Self,lTransform);
   AMsg.SetHandled;
 end;
 
@@ -1543,6 +2021,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._OFFSET), [aX,aY]);
 end;
 
+function TWlSurface.AddListener(AIntf: IWlSurfaceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlSeat.GetInterfaceVersion: Integer;
 begin
   Result := 9;
@@ -1556,18 +2041,22 @@ end;
 procedure TWlSeat.HandleCapabilities(var AMsg: TWaylandEventMessage);
 var
   lCapabilities: TCapability;
+  lListenerIdx: Integer;
 begin
   lCapabilities := TCapability(AMsg.Args.ReadDWord);
   if Assigned(OnCapabilities) then OnCapabilities(Self,lCapabilities);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_seat_capabilities(Self,lCapabilities);
   AMsg.SetHandled;
 end;
 
 procedure TWlSeat.HandleName(var AMsg: TWaylandEventMessage);
 var
   lName: String;
+  lListenerIdx: Integer;
 begin
   lName := AMsg.Args.ReadString;
   if Assigned(OnName) then OnName(Self,lName);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_seat_name(Self,lName);
   AMsg.SetHandled;
 end;
 
@@ -1598,6 +2087,13 @@ begin
   inherited Destroy;
 end;
 
+function TWlSeat.AddListener(AIntf: IWlSeatListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlPointer.GetInterfaceVersion: Integer;
 begin
   Result := 9;
@@ -1614,12 +2110,14 @@ var
   lSurface: TWlSurface;
   lSurfaceX: TWaylandFixed;
   lSurfaceY: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
   lSurfaceX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lSurfaceY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnEnter) then OnEnter(Self,lSerial,lSurface,lSurfaceX,lSurfaceY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_enter(Self,lSerial,lSurface,lSurfaceX,lSurfaceY);
   AMsg.SetHandled;
 end;
 
@@ -1627,10 +2125,12 @@ procedure TWlPointer.HandleLeave(var AMsg: TWaylandEventMessage);
 var
   lSerial: DWord;
   lSurface: TWlSurface;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
   if Assigned(OnLeave) then OnLeave(Self,lSerial,lSurface);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_leave(Self,lSerial,lSurface);
   AMsg.SetHandled;
 end;
 
@@ -1639,11 +2139,13 @@ var
   lTime: DWord;
   lSurfaceX: TWaylandFixed;
   lSurfaceY: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lTime := AMsg.Args.ReadDWord;
   lSurfaceX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lSurfaceY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnMotion) then OnMotion(Self,lTime,lSurfaceX,lSurfaceY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_motion(Self,lTime,lSurfaceX,lSurfaceY);
   AMsg.SetHandled;
 end;
 
@@ -1653,12 +2155,14 @@ var
   lTime: DWord;
   lButton: DWord;
   lState: TButtonState;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lTime := AMsg.Args.ReadDWord;
   lButton := AMsg.Args.ReadDWord;
   lState := TButtonState(AMsg.Args.ReadDWord);
   if Assigned(OnButton) then OnButton(Self,lSerial,lTime,lButton,lState);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_button(Self,lSerial,lTime,lButton,lState);
   AMsg.SetHandled;
 end;
 
@@ -1667,26 +2171,33 @@ var
   lTime: DWord;
   lAxis: TAxis;
   lValue: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lTime := AMsg.Args.ReadDWord;
   lAxis := TAxis(AMsg.Args.ReadDWord);
   lValue := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnAxis) then OnAxis(Self,lTime,lAxis,lValue);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis(Self,lTime,lAxis,lValue);
   AMsg.SetHandled;
 end;
 
 procedure TWlPointer.HandleFrame(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnFrame) then OnFrame(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_frame(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlPointer.HandleAxisSource(var AMsg: TWaylandEventMessage);
 var
   lAxisSource: TAxisSource;
+  lListenerIdx: Integer;
 begin
   lAxisSource := TAxisSource(AMsg.Args.ReadDWord);
   if Assigned(OnAxisSource) then OnAxisSource(Self,lAxisSource);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis_source(Self,lAxisSource);
   AMsg.SetHandled;
 end;
 
@@ -1694,10 +2205,12 @@ procedure TWlPointer.HandleAxisStop(var AMsg: TWaylandEventMessage);
 var
   lTime: DWord;
   lAxis: TAxis;
+  lListenerIdx: Integer;
 begin
   lTime := AMsg.Args.ReadDWord;
   lAxis := TAxis(AMsg.Args.ReadDWord);
   if Assigned(OnAxisStop) then OnAxisStop(Self,lTime,lAxis);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis_stop(Self,lTime,lAxis);
   AMsg.SetHandled;
 end;
 
@@ -1705,10 +2218,12 @@ procedure TWlPointer.HandleAxisDiscrete(var AMsg: TWaylandEventMessage);
 var
   lAxis: TAxis;
   lDiscrete: Integer;
+  lListenerIdx: Integer;
 begin
   lAxis := TAxis(AMsg.Args.ReadDWord);
   lDiscrete := AMsg.Args.ReadInteger;
   if Assigned(OnAxisDiscrete) then OnAxisDiscrete(Self,lAxis,lDiscrete);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis_discrete(Self,lAxis,lDiscrete);
   AMsg.SetHandled;
 end;
 
@@ -1716,10 +2231,12 @@ procedure TWlPointer.HandleAxisValue120(var AMsg: TWaylandEventMessage);
 var
   lAxis: TAxis;
   lValue120: Integer;
+  lListenerIdx: Integer;
 begin
   lAxis := TAxis(AMsg.Args.ReadDWord);
   lValue120 := AMsg.Args.ReadInteger;
   if Assigned(OnAxisValue120) then OnAxisValue120(Self,lAxis,lValue120);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis_value120(Self,lAxis,lValue120);
   AMsg.SetHandled;
 end;
 
@@ -1727,10 +2244,12 @@ procedure TWlPointer.HandleAxisRelativeDirection(var AMsg: TWaylandEventMessage)
 var
   lAxis: TAxis;
   lDirection: TAxisRelativeDirection;
+  lListenerIdx: Integer;
 begin
   lAxis := TAxis(AMsg.Args.ReadDWord);
   lDirection := TAxisRelativeDirection(AMsg.Args.ReadDWord);
   if Assigned(OnAxisRelativeDirection) then OnAxisRelativeDirection(Self,lAxis,lDirection);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_pointer_axis_relative_direction(Self,lAxis,lDirection);
   AMsg.SetHandled;
 end;
 
@@ -1743,6 +2262,13 @@ destructor TWlPointer.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._RELEASE), []);
   inherited Destroy;
+end;
+
+function TWlPointer.AddListener(AIntf: IWlPointerListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlKeyboard.GetInterfaceVersion: Integer;
@@ -1760,11 +2286,13 @@ var
   lFormat: TKeymapFormat;
   lFd: Integer;
   lSize: DWord;
+  lListenerIdx: Integer;
 begin
   lFormat := TKeymapFormat(AMsg.Args.ReadDWord);
   lFd := AMsg.Args.ReadInteger;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnKeymap) then OnKeymap(Self,lFormat,lFd,lSize);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_keymap(Self,lFormat,lFd,lSize);
   AMsg.SetHandled;
 end;
 
@@ -1773,11 +2301,13 @@ var
   lSerial: DWord;
   lSurface: TWlSurface;
   lKeys: TBytes;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
   lKeys := AMsg.Args.ReadBlob;
   if Assigned(OnEnter) then OnEnter(Self,lSerial,lSurface,lKeys);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_enter(Self,lSerial,lSurface,lKeys);
   AMsg.SetHandled;
 end;
 
@@ -1785,10 +2315,12 @@ procedure TWlKeyboard.HandleLeave(var AMsg: TWaylandEventMessage);
 var
   lSerial: DWord;
   lSurface: TWlSurface;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lSurface := (Connection.GetObject(AMsg.Args.ReadDWord) as TWlSurface);
   if Assigned(OnLeave) then OnLeave(Self,lSerial,lSurface);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_leave(Self,lSerial,lSurface);
   AMsg.SetHandled;
 end;
 
@@ -1798,12 +2330,14 @@ var
   lTime: DWord;
   lKey: DWord;
   lState: TKeyState;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lTime := AMsg.Args.ReadDWord;
   lKey := AMsg.Args.ReadDWord;
   lState := TKeyState(AMsg.Args.ReadDWord);
   if Assigned(OnKey) then OnKey(Self,lSerial,lTime,lKey,lState);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_key(Self,lSerial,lTime,lKey,lState);
   AMsg.SetHandled;
 end;
 
@@ -1814,6 +2348,7 @@ var
   lModsLatched: DWord;
   lModsLocked: DWord;
   lGroup: DWord;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lModsDepressed := AMsg.Args.ReadDWord;
@@ -1821,6 +2356,7 @@ begin
   lModsLocked := AMsg.Args.ReadDWord;
   lGroup := AMsg.Args.ReadDWord;
   if Assigned(OnModifiers) then OnModifiers(Self,lSerial,lModsDepressed,lModsLatched,lModsLocked,lGroup);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_modifiers(Self,lSerial,lModsDepressed,lModsLatched,lModsLocked,lGroup);
   AMsg.SetHandled;
 end;
 
@@ -1828,10 +2364,12 @@ procedure TWlKeyboard.HandleRepeatInfo(var AMsg: TWaylandEventMessage);
 var
   lRate: Integer;
   lDelay: Integer;
+  lListenerIdx: Integer;
 begin
   lRate := AMsg.Args.ReadInteger;
   lDelay := AMsg.Args.ReadInteger;
   if Assigned(OnRepeatInfo) then OnRepeatInfo(Self,lRate,lDelay);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_repeat_info(Self,lRate,lDelay);
   AMsg.SetHandled;
 end;
 
@@ -1839,6 +2377,13 @@ destructor TWlKeyboard.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._RELEASE), []);
   inherited Destroy;
+end;
+
+function TWlKeyboard.AddListener(AIntf: IWlKeyboardListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlTouch.GetInterfaceVersion: Integer;
@@ -1859,6 +2404,7 @@ var
   lId: Integer;
   lX: TWaylandFixed;
   lY: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lTime := AMsg.Args.ReadDWord;
@@ -1867,6 +2413,7 @@ begin
   lX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnDown) then OnDown(Self,lSerial,lTime,lSurface,lId,lX,lY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_down(Self,lSerial,lTime,lSurface,lId,lX,lY);
   AMsg.SetHandled;
 end;
 
@@ -1875,11 +2422,13 @@ var
   lSerial: DWord;
   lTime: DWord;
   lId: Integer;
+  lListenerIdx: Integer;
 begin
   lSerial := AMsg.Args.ReadDWord;
   lTime := AMsg.Args.ReadDWord;
   lId := AMsg.Args.ReadInteger;
   if Assigned(OnUp) then OnUp(Self,lSerial,lTime,lId);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_up(Self,lSerial,lTime,lId);
   AMsg.SetHandled;
 end;
 
@@ -1889,24 +2438,32 @@ var
   lId: Integer;
   lX: TWaylandFixed;
   lY: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lTime := AMsg.Args.ReadDWord;
   lId := AMsg.Args.ReadInteger;
   lX := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lY := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnMotion) then OnMotion(Self,lTime,lId,lX,lY);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_motion(Self,lTime,lId,lX,lY);
   AMsg.SetHandled;
 end;
 
 procedure TWlTouch.HandleFrame(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnFrame) then OnFrame(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_frame(Self);
   AMsg.SetHandled;
 end;
 
 procedure TWlTouch.HandleCancel(var AMsg: TWaylandEventMessage);
+var
+  lListenerIdx: Integer;
 begin
   if Assigned(OnCancel) then OnCancel(Self);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_cancel(Self);
   AMsg.SetHandled;
 end;
 
@@ -1915,11 +2472,13 @@ var
   lId: Integer;
   lMajor: TWaylandFixed;
   lMinor: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lId := AMsg.Args.ReadInteger;
   lMajor := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   lMinor := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnShape) then OnShape(Self,lId,lMajor,lMinor);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_shape(Self,lId,lMajor,lMinor);
   AMsg.SetHandled;
 end;
 
@@ -1927,10 +2486,12 @@ procedure TWlTouch.HandleOrientation(var AMsg: TWaylandEventMessage);
 var
   lId: Integer;
   lOrientation: TWaylandFixed;
+  lListenerIdx: Integer;
 begin
   lId := AMsg.Args.ReadInteger;
   lOrientation := TWaylandFixed.FromFixed(AMsg.Args.ReadDWord);
   if Assigned(OnOrientation) then OnOrientation(Self,lId,lOrientation);
+  for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_touch_orientation(Self,lId,lOrientation);
   AMsg.SetHandled;
 end;
 
@@ -1938,6 +2499,13 @@ destructor TWlTouch.Destroy;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._RELEASE), []);
   inherited Destroy;
+end;
+
+function TWlTouch.AddListener(AIntf: IWlTouchListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlRegion.GetInterfaceVersion: Integer;
@@ -1966,6 +2534,13 @@ begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SUBTRACT), [aX,aY,aWidth,aHeight]);
 end;
 
+function TWlRegion.AddListener(AIntf: IWlRegionListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
+end;
+
 class function TWlSubcompositor.GetInterfaceVersion: Integer;
 begin
   Result := 1;
@@ -1987,6 +2562,13 @@ begin
   if aClassType = nil then aClassType := TWlSubsurface;
   Result := aClassType.Create(Connection);
   Connection.SendRequest(GetObjectId, Ord(TRequests._GET_SUBSURFACE), [Result.GetObjectId,aSurface.GetObjectId,aParent.GetObjectId]);
+end;
+
+function TWlSubcompositor.AddListener(AIntf: IWlSubcompositorListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 class function TWlSubsurface.GetInterfaceVersion: Integer;
@@ -2028,6 +2610,13 @@ end;
 procedure TWlSubsurface.SetDesync;
 begin
   Connection.SendRequest(GetObjectId, Ord(TRequests._SET_DESYNC), []);
+end;
+
+function TWlSubsurface.AddListener(AIntf: IWlSubsurfaceListener): LongInt;
+begin
+  SetLength(FListeners, Length(FListeners)+1);
+  FListeners[High(FListeners)] := AIntf;
+  Result := 0;
 end;
 
 
