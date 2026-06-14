@@ -60,6 +60,8 @@ begin
   size := stride * Aheight;
 
   pool := Create_shm_pool(shm, size, @Data, @fd);
+  if pool = nil then
+    Exit; // shm file / mmap failed; Result stays nil
   Result := pool.CreateBuffer(0, AWidth, AHeight, stride, AFormat);
   pool.Free // proxy will be destroyed after the buffer is destroyed
 
@@ -72,44 +74,36 @@ const
   O_CLOEXEC = $80000;
 var
   lName: String;
-  flags: cint;
-  i, retries: Integer;
+  retries: Integer;
+  lErrno: cint;
 begin
-  lName := GetEnvironmentVariable('XDG_RUNTIME_DIR') + '/weston-shared-XXXXXX';
-
-  Randomize;
   for retries := 100 downto 0 do
   begin
 
-    {for i := 0 to 5 do
-      lName[Length(lName)-i]:= Char(ORd('A') + Random (25));}
+    // mkostemp rewrites the XXXXXX template in place, so rebuild a fresh
+    // template each attempt or a retry would call it on a consumed name.
+    lName := GetEnvironmentVariable('XDG_RUNTIME_DIR') + '/weston-shared-XXXXXX';
+    UniqueString(lName); // mkostemp writes into the buffer; must not be shared
 
     Result := mkostemp(PChar(lName), O_CLOEXEC);
-    if REsult >= 0 then
+    if Result >= 0 then
     begin
-      FpUnlink(lName);
+      FpUnlink(PChar(lName));
       Break;
     end;
 
-
-    {Result := shm_open(PChar(lName), O_RDWR or O_CREAT or O_EXCL, {0600} $180);
-    if (Result >= 0) then
-    begin
-      shm_unlink(PChar(lName));
-      Break;
-    end;}
-    Result := __errno_location^;
-    if errno <> ESysEEXIST then
+    // mkostemp is a libc call, so the error lives in libc's errno
+    // (__errno_location), NOT in the FPC RTL errno.
+    lErrno := __errno_location^;
+    if lErrno <> ESysEEXIST then
     begin
       Result := -1;
       Break;
     end;
-
-
   end;
-  if (Result>= 0) and (FpFtruncate(Result, ASize) < 0) then
+  if (Result >= 0) and (FpFtruncate(Result, ASize) < 0) then
   begin
-    WriteLn(errno);
+    WriteLn('ftruncate failed: ', __errno_location^);
     FpClose(Result);
     Result := -1;
   end;
