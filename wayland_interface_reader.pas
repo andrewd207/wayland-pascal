@@ -528,6 +528,16 @@ end;
 constructor TWIProtocolNode.Create(AFileName: String);
 begin
   ReadXMLFile(FDoc, AFileName);
+  // Make sure this is actually a Wayland protocol file before parsing. The
+  // root element of a Wayland protocol XML is <protocol>; anything else (e.g.
+  // an FPDoc <package> doc) would otherwise crash deep in element handling
+  // with a confusing "unhandled node" error.
+  if FDoc.DocumentElement = nil then
+    raise Exception.CreateFmt('Not a Wayland protocol XML: %s (no root element)', [AFileName]);
+  if FDoc.DocumentElement.NodeName <> 'protocol' then
+    raise Exception.CreateFmt(
+      'Not a Wayland protocol XML: %s (root element is <%s>, expected <protocol>)',
+      [AFileName, FDoc.DocumentElement.NodeName]);
   inherited Create(FDoc.DocumentElement);
 end;
 
