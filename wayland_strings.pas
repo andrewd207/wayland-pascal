@@ -15,6 +15,10 @@ resourcestring
   SErrUnsupportedParamType ='Unsupported parameter type [%d]';
   SErrInvalidInterface = 'Invalid Interface';
   SErrNilParam = 'Parameter [%s] cannot be nil';
+  SErrSocketPathTooLong = 'Socket path [%s] is too long (%d bytes, max %d)';
+  SErrSocketCreate = 'Failed to create unix socket (errno %d)';
+  SErrSocketConnect = 'Failed to connect to [%s] (errno %d)';
+  SErrStringTooShort = 'Wayland string length field is %d, must be at least 1 (includes null terminator)';
 
 
 implementation

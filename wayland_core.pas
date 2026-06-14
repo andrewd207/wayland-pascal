@@ -308,8 +308,13 @@ begin
       lTmpObject := (GetObject(lRequest.ReadDWord)) as TWaylandBase;
       lTmpOpcode := lRequest.ReadWord;
 
-      WriteLn('> Requestor ', lTmpObject.ClassName);
-      WriteLn('> Opcode [', lTmpOpcode ,'] ', lTmpObject.GetInterfaceAttribute.Request[lTmpOpcode]);
+      if Assigned(lTmpObject) then
+      begin
+        WriteLn('> Requestor ', lTmpObject.ClassName);
+        WriteLn('> Opcode [', lTmpOpcode ,'] ', lTmpObject.GetInterfaceAttribute.Request[lTmpOpcode]);
+      end
+      else
+        WriteLn('> Requestor <unknown object ', AObjectID, '> opcode [', lTmpOpcode, ']');
       WriteLn('> Size ', lRequest.ReadWord);
 
       // file descriptors must be sent with sendmsg and can't be in a regular data packet
@@ -351,7 +356,12 @@ begin
       FreeAndNil(lRequest);
     end;
   except
+    // lRequest is freed by the inner finally above before the exception can
+    // reach here; FreeAndNil is a safe no-op if it is already nil. Re-raise so
+    // request failures (oversized message, unsupported param, etc.) are not
+    // silently dropped.
     FreeAndNil(lRequest);
+    raise;
   end;
 end;
 
@@ -477,24 +487,30 @@ begin
     end;
 
     ///WriteLn(lBaseObj.ClassName);
-    lQueue := lBaseObj.GetQueue;
     lStream := TWaylandStream.Create;
     lMessageRec.OpCode:=Header.Index;
     lMessageRec.Args := lStream;
+    // Read the payload into the stream. If this fails before the message is
+    // enqueued we still own the stream and must free it ourselves.
     try
       lReadSize := Header.Size-8;
       // if lReadsize = 0 then CopyFrom will default to $20000 bytes, this causes a hang until it can read that many bytes of messages.
       if lReadSize > 0 then
         lStream.CopyFrom(FSocket, lReadSize);
       lStream.Position:=0;
-      lQueue := (lBaseObj as IWaylandBase).GetQueue;
-      lQueue.Enqueue(lMessageRec, lBaseObj);
-      if lQueue = FEventQueue then // the queue of the display
-        Result := lQueue.DispatchEvent;
-      lQueue := nil;
-    finally
+    except
       lStream.Free;
+      raise;
     end;
+    // Ownership of lStream now transfers to the queue. The stream is freed by
+    // DispatchEvent once the event has been dispatched (which may be deferred
+    // if it belongs to a queue other than the display's), so we must NOT free
+    // it here.
+    lQueue := (lBaseObj as IWaylandBase).GetQueue;
+    lQueue.Enqueue(lMessageRec, lBaseObj);
+    if lQueue = FEventQueue then // the queue of the display
+      Result := lQueue.DispatchEvent;
+    lQueue := nil;
   end
   else
   begin
@@ -799,8 +815,8 @@ begin
   lInt := Trunc(Self);
   if (lInt > $7FFFFF) then
     lInt := $7FFFFF
-  else if lInt < -800000 then
-    lInt := -800000;
+  else if lInt < -$800000 then
+    lInt := -$800000;
 
   lDec := Round(Frac(Abs(Self)) * $100);
   if lDec = $100 then
@@ -817,7 +833,7 @@ end;
 
 class function TWaylandFixedHelper.FromFixed(AValue: Integer): TWaylandFixed;
 begin
-  Result := ((AValue shr 8) and $FFFFFF) + (AValue and $ff) / 1000;
+  Result := ((AValue shr 8) and $FFFFFF) + (AValue and $ff) / $100;
 end;
 
 
@@ -917,13 +933,13 @@ begin
   if (FCount > 0) or (FEvent.WaitFor(ATimeout) = wrSignaled) then
   begin
     EnterCriticalSection(FLock);
-    if FCount = 0 then
-      Exit(False);
-    Dec(FCount);
     try
+      if FCount = 0 then
+        Exit(False);
       Result := FHead <> nil;
       if Result then
       begin
+        Dec(FCount);
         Data := FHead^.Data;
         Dest := FHead^.Dest;
         Temp := FHead;
@@ -950,7 +966,13 @@ var
 begin
   Result := Dequeue(lData, lDest, ATimeOut);
   if Result then
+  try
     (lDest as TObject).Dispatch(lData);
+  finally
+    // The stream was created by WaitMessage and ownership was transferred to
+    // the queue on enqueue; free it now that the event has been dispatched.
+    lData.Args.Free;
+  end;
 end;
 
 

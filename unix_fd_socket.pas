@@ -102,7 +102,6 @@ var
   io: iovec;
   io_buf: byte = 0;
   fdptr: pcint;
-  err: cint;
   iovbuf: Byte = 0;
 begin
   SetLength(buf, CMSG_SPACE(SizeOf(cint)));
@@ -132,10 +131,9 @@ begin
   fdptr^ := fd_to_send;
 
 
+  // Returns the number of bytes sent, or -1 on error (errno set by sendmsg).
+  // Callers must check the result.
   Result := fpSendMsg(socket, @msg, 0);
-  err := __errno_location^;
-
-
 end;
 {$ENDIF}
 
