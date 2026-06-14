@@ -1,0 +1,8255 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<fpdoc-descriptions>
+<package name="wayland_fpc">
+
+<!--
+  ====================================================================
+    wayland
+  ====================================================================
+-->
+
+<module name="wayland">
+<short></short>
+<descr>
+</descr>
+
+<!-- uses unit Visibility: default -->
+<element name="Classes">
+<short></short>
+</element>
+
+<!-- uses unit Visibility: default -->
+<element name="Sysutils">
+<short></short>
+</element>
+
+<!-- uses unit Visibility: default -->
+<element name="Wayland_Core">
+<short></short>
+</element>
+
+<!-- uses unit Visibility: default -->
+<element name="wayland_queue">
+<short></short>
+</element>
+
+<!-- uses unit Visibility: default -->
+<element name="wayland_internal_interfaces">
+<short></short>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlSubsurfaceClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlSubsurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlTouchClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlTouch">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlKeyboardClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlKeyboard">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlPointerClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlPointer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlOutputClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlOutput">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlShellSurfaceClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlShellSurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlSeatClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlSeat">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlDataDeviceClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlDataDevice">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlDataSourceClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlDataSource">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlShmPoolClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlShmPool">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlBufferClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlBuffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlRegionClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlRegion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlSurfaceClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlSurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlRegistryClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlRegistry">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlCallbackClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlCallback">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlDisplayClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlDisplay">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlDisplay.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TError.erInvalidobject">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TError.erInvalidmethod">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TError.erNomemory">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TError.erImplementation">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDisplay.TErrorEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TErrorEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TErrorEvent.aObjectId">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TErrorEvent.aCode">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TErrorEvent.aMessage">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDisplay.TDeleteIdEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TDeleteIdEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.TDeleteIdEvent.aId">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDisplay.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDisplay.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDisplay.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDisplay.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDisplay.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TRequests._SYNC">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TRequests._GET_REGISTRY">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDisplay.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TEvents.EV_ERROR">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDisplay.TEvents.EV_DELETE_ID">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDisplay.FOnErrorPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDisplay.FOnDeleteIdPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDisplay.HandleError">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.HandleError.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDisplay.HandleDeleteId">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.HandleDeleteId.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDisplay.OnError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDisplay.OnDeleteId">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlDisplay.Sync">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDisplay.Sync.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.Sync.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlDisplay.GetRegistry">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDisplay.GetRegistry.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDisplay.GetRegistry.aClassType">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlRegistry.TGlobalEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalEvent.aName">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalEvent.aInterface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalEvent.aVersion">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlRegistry.TGlobalRemoveEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalRemoveEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.TGlobalRemoveEvent.aName">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlRegistry.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlRegistry.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlRegistry.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlRegistry.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlRegistry.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegistry.TRequests._BIND">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlRegistry.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegistry.TEvents.EV_GLOBAL">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegistry.TEvents.EV_GLOBAL_REMOVE">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlRegistry.FOnGlobalPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlRegistry.FOnGlobalRemovePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlRegistry.HandleGlobal">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.HandleGlobal.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlRegistry.HandleGlobalRemove">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.HandleGlobalRemove.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlRegistry.OnGlobal">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlRegistry.OnGlobalRemove">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlRegistry.Bind">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.Bind.aInterfaceIndex">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.Bind.aInterfaceName">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.Bind.aInterfaceVersion">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.Bind.aClassType">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegistry.Bind.aOutObject">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlCallback.TDoneEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlCallback.TDoneEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlCallback.TDoneEvent.aCallbackData">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlCallback.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCallback.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlCallback.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCallback.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlCallback.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlCallback.TEvents.EV_DONE">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlCallback.FOnDonePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlCallback.FIsDonePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlCallback.HandleDone">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlCallback.HandleDone.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlCallback.OnDone">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlCallback.IsDone">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlCompositorClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlCompositor">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlCompositor.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCompositor.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlCompositor.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCompositor.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlCompositor.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlCompositor.TRequests._CREATE_SURFACE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlCompositor.TRequests._CREATE_REGION">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlCompositor.CreateSurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCompositor.CreateSurface.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlCompositor.CreateSurface.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlCompositor.CreateRegion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlCompositor.CreateRegion.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlCompositor.CreateRegion.aClassType">
+<short></short>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlShmClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlShm">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlShm.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TError.erInvalidformat">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TError.erInvalidstride">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TError.erInvalidfd">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlShm.TFormat">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foC8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgb332">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgr233">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgbx4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgrx4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgba4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgra4444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb1555">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr1555">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgbx5551">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgrx5551">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb1555">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr1555">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgba5551">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgra5551">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgb565">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgr565">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgb888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgr888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgbx8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgrx8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgba8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgra8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb2101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr2101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgbx1010102">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgrx1010102">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb2101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr2101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgba1010102">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgra1010102">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuyv">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvyu">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foUyvy">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foVyuy">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAyuv">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv12">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv21">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv16">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv61">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv410">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvu410">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv411">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvu411">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv420">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvu420">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv422">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvu422">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYvu444">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foR8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foR16">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRg88">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foGr88">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRg1616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foGr1616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb16161616f">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr16161616f">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb16161616f">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr16161616f">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXyuv8888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foVuy888">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foVuy101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY210">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY212">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY216">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY410">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY412">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY416">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXvyu2101010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXvyu1216161616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXvyu16161616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY0l0">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foX0l0">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foY0l2">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foX0l2">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv4208bit">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foYuv42010bit">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb8888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr8888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgbx8888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgrx8888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgb888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgr888a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foRgb565a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foBgr565a8">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv24">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv42">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foP210">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foP010">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foP012">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foP016">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAxbxgxrx106106106106">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foNv15">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foQ410">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foQ401">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXrgb16161616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foXbgr16161616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foArgb16161616">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TFormat.foAbgr16161616">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlShm.TFormatEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.TFormatEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.TFormatEvent.aFormat">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShm.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShm.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShm.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShm.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShm.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TRequests._CREATE_POOL">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShm.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShm.TEvents.EV_FORMAT">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlShm.FOnFormatPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlShm.HandleFormat">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.HandleFormat.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlShm.OnFormat">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlShm.CreatePool">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShm.CreatePool.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.CreatePool.aFd">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.CreatePool.aSize">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.CreatePool.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlShm.AllocateShmBuffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.aHeight">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.aFormat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.aData">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmBuffer.fd">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlShm.AllocateShmPool">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShm.AllocateShmPool.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmPool.aSize">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmPool.aOutData">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShm.AllocateShmPool.aOutFd">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShmPool.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShmPool.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShmPool.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShmPool.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShmPool.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShmPool.TRequests._CREATE_BUFFER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShmPool.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShmPool.TRequests._RESIZE">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlShmPool.CreateBuffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aOffset">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aHeight">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aStride">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aFormat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.CreateBuffer.aClassType">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlShmPool.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShmPool.Resize">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShmPool.Resize.aSize">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlBuffer.TReleaseEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlBuffer.TReleaseEvent.Sender">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlBuffer.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlBuffer.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlBuffer.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlBuffer.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlBuffer.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlBuffer.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlBuffer.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlBuffer.TEvents.EV_RELEASE">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlBuffer.FOnReleasePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlBuffer.HandleRelease">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlBuffer.HandleRelease.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlBuffer.OnRelease">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlBuffer.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlDataDeviceManagerClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlDataDeviceManager">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- object Visibility: public -->
+<element name="TWlDataDeviceManager.TDndAction">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlDataDeviceManager.TDndAction.None">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlDataDeviceManager.TDndAction.Copy">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlDataDeviceManager.TDndAction.Move">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlDataDeviceManager.TDndAction.Ask">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataDeviceManager.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDeviceManager.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataDeviceManager.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDeviceManager.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataDeviceManager.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDeviceManager.TRequests._CREATE_DATA_SOURCE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDeviceManager.TRequests._GET_DATA_DEVICE">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlDataDeviceManager.CreateDataSource">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDeviceManager.CreateDataSource.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDeviceManager.CreateDataSource.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlDataDeviceManager.GetDataDevice">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDeviceManager.GetDataDevice.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDeviceManager.GetDataDevice.aSeat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDeviceManager.GetDataDevice.aClassType">
+<short></short>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlDataOfferClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlDataOffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlDataOffer.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TError.erInvalidfinish">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TError.erInvalidactionmask">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TError.erInvalidaction">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TError.erInvalidoffer">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataOffer.TOfferEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TOfferEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TOfferEvent.aMimeType">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataOffer.TSourceActionsEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TSourceActionsEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TSourceActionsEvent.aSourceActions">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataOffer.TActionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TActionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.TActionEvent.aDndAction">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataOffer.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataOffer.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataOffer.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataOffer.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataOffer.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TRequests._ACCEPT">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TRequests._RECEIVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TRequests._FINISH">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TRequests._SET_ACTIONS">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataOffer.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TEvents.EV_OFFER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TEvents.EV_SOURCE_ACTIONS">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataOffer.TEvents.EV_ACTION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataOffer.FOnOfferPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataOffer.FOnSourceActionsPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataOffer.FOnActionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataOffer.HandleOffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.HandleOffer.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataOffer.HandleSourceActions">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.HandleSourceActions.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataOffer.HandleAction">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.HandleAction.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataOffer.OnOffer">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataOffer.OnSourceActions">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataOffer.OnAction">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataOffer.Accept">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.Accept.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.Accept.aMimeType">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataOffer.Receive">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.Receive.aMimeType">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.Receive.aFd">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlDataOffer.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataOffer.Finish">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataOffer.SetActions">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.SetActions.aDndActions">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataOffer.SetActions.aPreferredAction">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlDataSource.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TError.erInvalidactionmask">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TError.erInvalidsource">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TTargetEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TTargetEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TTargetEvent.aMimeType">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TSendEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TSendEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TSendEvent.aMimeType">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TSendEvent.aFd">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TCancelledEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TCancelledEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TDndDropPerformedEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TDndDropPerformedEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TDndFinishedEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TDndFinishedEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataSource.TActionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TActionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.TActionEvent.aDndAction">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataSource.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataSource.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataSource.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataSource.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataSource.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TRequests._OFFER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TRequests._SET_ACTIONS">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataSource.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_TARGET">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_SEND">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_CANCELLED">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_DND_DROP_PERFORMED">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_DND_FINISHED">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataSource.TEvents.EV_ACTION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnTargetPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnSendPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnCancelledPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnDndDropPerformedPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnDndFinishedPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataSource.FOnActionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleTarget">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleTarget.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleSend">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleSend.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleCancelled">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleCancelled.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleDndDropPerformed">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleDndDropPerformed.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleDndFinished">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleDndFinished.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataSource.HandleAction">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.HandleAction.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnTarget">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnSend">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnCancelled">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnDndDropPerformed">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnDndFinished">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataSource.OnAction">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataSource.Offer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.Offer.aMimeType">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlDataSource.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataSource.SetActions">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataSource.SetActions.aDndActions">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlDataDevice.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TError.erRole">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TDataOfferEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TDataOfferEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TDataOfferEvent.aId">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TEnterEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TEnterEvent.aId">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TLeaveEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TLeaveEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TMotionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TMotionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TMotionEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TMotionEvent.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TMotionEvent.aY">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TDropEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TDropEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlDataDevice.TSelectionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TSelectionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.TSelectionEvent.aId">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataDevice.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDevice.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlDataDevice.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlDataDevice.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataDevice.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TRequests._START_DRAG">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TRequests._SET_SELECTION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlDataDevice.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_DATA_OFFER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_ENTER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_LEAVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_MOTION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_DROP">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlDataDevice.TEvents.EV_SELECTION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnDataOfferPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnEnterPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnLeavePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnMotionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnDropPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlDataDevice.FOnSelectionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleDataOffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleDataOffer.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleEnter">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleEnter.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleLeave">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleLeave.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleMotion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleMotion.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleDrop">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleDrop.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlDataDevice.HandleSelection">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.HandleSelection.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnDataOffer">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnEnter">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnLeave">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnMotion">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnDrop">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlDataDevice.OnSelection">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataDevice.StartDrag">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.StartDrag.aSource">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.StartDrag.aOrigin">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.StartDrag.aIcon">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.StartDrag.aSerial">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlDataDevice.SetSelection">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.SetSelection.aSource">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlDataDevice.SetSelection.aSerial">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlDataDevice.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlShellClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlShell">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlShell.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShell.TError.erRole">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShell.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShell.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShell.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShell.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShell.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShell.TRequests._GET_SHELL_SURFACE">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlShell.GetShellSurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShell.GetShellSurface.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShell.GetShellSurface.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShell.GetShellSurface.aClassType">
+<short></short>
+</element>
+
+<!-- object Visibility: public -->
+<element name="TWlShellSurface.TResize">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.None">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.Top">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.Bottom">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.Left">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.TopLeft">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.BottomLeft">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.Right">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.TopRight">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TResize.BottomRight">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- object Visibility: public -->
+<element name="TWlShellSurface.TTransient">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlShellSurface.TTransient.Inactive">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlShellSurface.TFullscreenMethod">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TFullscreenMethod.fuDefault">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TFullscreenMethod.fuScale">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TFullscreenMethod.fuDriver">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TFullscreenMethod.fuFill">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlShellSurface.TPingEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TPingEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TPingEvent.aSerial">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlShellSurface.TConfigureEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TConfigureEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TConfigureEvent.aEdges">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TConfigureEvent.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TConfigureEvent.aHeight">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlShellSurface.TPopupDoneEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.TPopupDoneEvent.Sender">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShellSurface.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShellSurface.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlShellSurface.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlShellSurface.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShellSurface.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._PONG">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._MOVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._RESIZE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_TOPLEVEL">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_TRANSIENT">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_FULLSCREEN">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_POPUP">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_MAXIMIZED">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_TITLE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TRequests._SET_CLASS">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlShellSurface.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TEvents.EV_PING">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TEvents.EV_CONFIGURE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlShellSurface.TEvents.EV_POPUP_DONE">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlShellSurface.FOnPingPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlShellSurface.FOnConfigurePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlShellSurface.FOnPopupDonePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlShellSurface.HandlePing">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.HandlePing.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlShellSurface.HandleConfigure">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.HandleConfigure.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlShellSurface.HandlePopupDone">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.HandlePopupDone.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlShellSurface.OnPing">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlShellSurface.OnConfigure">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlShellSurface.OnPopupDone">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.Pong">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Pong.aSerial">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.Move">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Move.aSeat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Move.aSerial">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.Resize">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Resize.aSeat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Resize.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.Resize.aEdges">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetToplevel">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetTransient">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetTransient.aParent">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetTransient.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetTransient.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetTransient.aFlags">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetFullscreen">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetFullscreen.aMethod">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetFullscreen.aFramerate">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetFullscreen.aOutput">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetPopup">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aSeat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aParent">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetPopup.aFlags">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetMaximized">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetMaximized.aOutput">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetTitle">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetTitle.aTitle">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlShellSurface.SetClass">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlShellSurface.SetClass.aClass">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlOutput.TSubpixel">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suUnknown">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suNone">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suHorizontalrgb">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suHorizontalbgr">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suVerticalrgb">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TSubpixel.suVerticalbgr">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlOutput.TTransform">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.trNormal">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.tr90">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.tr180">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.tr270">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.trFlipped">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.trFlipped90">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.trFlipped180">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TTransform.trFlipped270">
+<short></short>
+</element>
+
+<!-- object Visibility: public -->
+<element name="TWlOutput.TMode">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlOutput.TMode.Current">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlOutput.TMode.Preferred">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TGeometryEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aPhysicalWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aPhysicalHeight">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aSubpixel">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aMake">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aModel">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TGeometryEvent.aTransform">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TModeEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TModeEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TModeEvent.aFlags">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TModeEvent.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TModeEvent.aHeight">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TModeEvent.aRefresh">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TDoneEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TDoneEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TScaleEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TScaleEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TScaleEvent.aFactor">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TNameEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TNameEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TNameEvent.aName">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlOutput.TDescriptionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TDescriptionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.TDescriptionEvent.aDescription">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlOutput.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlOutput.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlOutput.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlOutput.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlOutput.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlOutput.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_GEOMETRY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_MODE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_DONE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_SCALE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_NAME">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlOutput.TEvents.EV_DESCRIPTION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnGeometryPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnModePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnDonePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnScalePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnNamePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlOutput.FOnDescriptionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleGeometry">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleGeometry.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleMode">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleMode.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleDone">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleDone.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleScale">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleScale.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleName.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlOutput.HandleDescription">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlOutput.HandleDescription.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnGeometry">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnMode">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnDone">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnScale">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnName">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlOutput.OnDescription">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlOutput.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlSurface.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TError.erInvalidscale">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TError.erInvalidtransform">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TError.erInvalidsize">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TError.erInvalidoffset">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TError.erDefunctroleobject">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSurface.TEnterEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TEnterEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TEnterEvent.aOutput">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSurface.TLeaveEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TLeaveEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TLeaveEvent.aOutput">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSurface.TPreferredBufferScaleEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TPreferredBufferScaleEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TPreferredBufferScaleEvent.aFactor">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSurface.TPreferredBufferTransformEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TPreferredBufferTransformEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.TPreferredBufferTransformEvent.aTransform">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSurface.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSurface.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSurface.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSurface.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSurface.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._ATTACH">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._DAMAGE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._FRAME">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._SET_OPAQUE_REGION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._SET_INPUT_REGION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._COMMIT">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._SET_BUFFER_TRANSFORM">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._SET_BUFFER_SCALE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._DAMAGE_BUFFER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TRequests._OFFSET">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSurface.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TEvents.EV_ENTER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TEvents.EV_LEAVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TEvents.EV_PREFERRED_BUFFER_SCALE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSurface.TEvents.EV_PREFERRED_BUFFER_TRANSFORM">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSurface.FOnEnterPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSurface.FOnLeavePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSurface.FOnPreferredBufferScalePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSurface.FOnPreferredBufferTransformPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSurface.HandleEnter">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.HandleEnter.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSurface.HandleLeave">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.HandleLeave.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSurface.HandlePreferredBufferScale">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.HandlePreferredBufferScale.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSurface.HandlePreferredBufferTransform">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.HandlePreferredBufferTransform.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSurface.OnEnter">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSurface.OnLeave">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSurface.OnPreferredBufferScale">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSurface.OnPreferredBufferTransform">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlSurface.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.Attach">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Attach.aBuffer">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Attach.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Attach.aY">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.Damage">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Damage.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Damage.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Damage.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Damage.aHeight">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlSurface.Frame">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSurface.Frame.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Frame.aClassType">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.SetOpaqueRegion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.SetOpaqueRegion.aRegion">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.SetInputRegion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.SetInputRegion.aRegion">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.Commit">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.SetBufferTransform">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.SetBufferTransform.aTransform">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.SetBufferScale">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.SetBufferScale.aScale">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.DamageBuffer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.DamageBuffer.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.DamageBuffer.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.DamageBuffer.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.DamageBuffer.aHeight">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSurface.Offset">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Offset.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSurface.Offset.aY">
+<short></short>
+</element>
+
+<!-- object Visibility: public -->
+<element name="TWlSeat.TCapability">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlSeat.TCapability.Pointer">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlSeat.TCapability.Keyboard">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: public -->
+<element name="TWlSeat.TCapability.Touch">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlSeat.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TError.erMissingcapability">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSeat.TCapabilitiesEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.TCapabilitiesEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.TCapabilitiesEvent.aCapabilities">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlSeat.TNameEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.TNameEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.TNameEvent.aName">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSeat.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSeat.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSeat.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSeat.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSeat.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TRequests._GET_POINTER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TRequests._GET_KEYBOARD">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TRequests._GET_TOUCH">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSeat.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TEvents.EV_CAPABILITIES">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSeat.TEvents.EV_NAME">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSeat.FOnCapabilitiesPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlSeat.FOnNamePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSeat.HandleCapabilities">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.HandleCapabilities.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlSeat.HandleName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.HandleName.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSeat.OnCapabilities">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlSeat.OnName">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlSeat.GetPointer">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSeat.GetPointer.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.GetPointer.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlSeat.GetKeyboard">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSeat.GetKeyboard.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.GetKeyboard.aClassType">
+<short></short>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlSeat.GetTouch">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSeat.GetTouch.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSeat.GetTouch.aClassType">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlSeat.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlPointer.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TError.erRole">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlPointer.TButtonState">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TButtonState.buReleased">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TButtonState.buPressed">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlPointer.TAxis">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxis.axVerticalscroll">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxis.axHorizontalscroll">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlPointer.TAxisSource">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisSource.axWheel">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisSource.axFinger">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisSource.axContinuous">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisSource.axWheeltilt">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlPointer.TAxisRelativeDirection">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisRelativeDirection.axIdentical">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TAxisRelativeDirection.axInverted">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TEnterEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TEnterEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TEnterEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TEnterEvent.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TEnterEvent.aSurfaceX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TEnterEvent.aSurfaceY">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TLeaveEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TLeaveEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TLeaveEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TLeaveEvent.aSurface">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TMotionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TMotionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TMotionEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TMotionEvent.aSurfaceX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TMotionEvent.aSurfaceY">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TButtonEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TButtonEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TButtonEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TButtonEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TButtonEvent.aButton">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TButtonEvent.aState">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisEvent.aAxis">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisEvent.aValue">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TFrameEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TFrameEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisSourceEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisSourceEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisSourceEvent.aAxisSource">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisStopEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisStopEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisStopEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisStopEvent.aAxis">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisDiscreteEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisDiscreteEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisDiscreteEvent.aAxis">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisDiscreteEvent.aDiscrete">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisValue120Event">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisValue120Event.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisValue120Event.aAxis">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisValue120Event.aValue120">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlPointer.TAxisRelativeDirectionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisRelativeDirectionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisRelativeDirectionEvent.aAxis">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.TAxisRelativeDirectionEvent.aDirection">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlPointer.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlPointer.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlPointer.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlPointer.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlPointer.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TRequests._SET_CURSOR">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlPointer.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_ENTER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_LEAVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_MOTION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_BUTTON">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_FRAME">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS_SOURCE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS_STOP">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS_DISCRETE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS_VALUE120">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlPointer.TEvents.EV_AXIS_RELATIVE_DIRECTION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnEnterPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnLeavePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnMotionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnButtonPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnFramePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisSourcePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisStopPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisDiscretePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisValue120Priv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlPointer.FOnAxisRelativeDirectionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleEnter">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleEnter.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleLeave">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleLeave.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleMotion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleMotion.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleButton">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleButton.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxis">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxis.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleFrame">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleFrame.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxisSource">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxisSource.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxisStop">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxisStop.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxisDiscrete">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxisDiscrete.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxisValue120">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxisValue120.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlPointer.HandleAxisRelativeDirection">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.HandleAxisRelativeDirection.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnEnter">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnLeave">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnMotion">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnButton">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxis">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnFrame">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxisSource">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxisStop">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxisDiscrete">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxisValue120">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlPointer.OnAxisRelativeDirection">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlPointer.SetCursor">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.SetCursor.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.SetCursor.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.SetCursor.aHotspotX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlPointer.SetCursor.aHotspotY">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlPointer.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlKeyboard.TKeymapFormat">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TKeymapFormat.keNokeymap">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TKeymapFormat.keXkbv1">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlKeyboard.TKeyState">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TKeyState.keReleased">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TKeyState.kePressed">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TKeymapEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeymapEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeymapEvent.aFormat">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeymapEvent.aFd">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeymapEvent.aSize">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TEnterEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TEnterEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TEnterEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TEnterEvent.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TEnterEvent.aKeys">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TLeaveEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TLeaveEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TLeaveEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TLeaveEvent.aSurface">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TKeyEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeyEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeyEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeyEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeyEvent.aKey">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TKeyEvent.aState">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TModifiersEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.aModsDepressed">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.aModsLatched">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.aModsLocked">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TModifiersEvent.aGroup">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlKeyboard.TRepeatInfoEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TRepeatInfoEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TRepeatInfoEvent.aRate">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.TRepeatInfoEvent.aDelay">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlKeyboard.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlKeyboard.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlKeyboard.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlKeyboard.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlKeyboard.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlKeyboard.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_KEYMAP">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_ENTER">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_LEAVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_KEY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_MODIFIERS">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlKeyboard.TEvents.EV_REPEAT_INFO">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnKeymapPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnEnterPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnLeavePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnKeyPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnModifiersPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlKeyboard.FOnRepeatInfoPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleKeymap">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleKeymap.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleEnter">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleEnter.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleLeave">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleLeave.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleKey">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleKey.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleModifiers">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleModifiers.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlKeyboard.HandleRepeatInfo">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlKeyboard.HandleRepeatInfo.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnKeymap">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnEnter">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnLeave">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnKey">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnModifiers">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlKeyboard.OnRepeatInfo">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlKeyboard.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TDownEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aId">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TDownEvent.aY">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TUpEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TUpEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TUpEvent.aSerial">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TUpEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TUpEvent.aId">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TMotionEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TMotionEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TMotionEvent.aTime">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TMotionEvent.aId">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TMotionEvent.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TMotionEvent.aY">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TFrameEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TFrameEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TCancelEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TCancelEvent.Sender">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TShapeEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TShapeEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TShapeEvent.aId">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TShapeEvent.aMajor">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TShapeEvent.aMinor">
+<short></short>
+</element>
+
+<!-- procedure type Visibility: public -->
+<element name="TWlTouch.TOrientationEvent">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TOrientationEvent.Sender">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TOrientationEvent.aId">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.TOrientationEvent.aOrientation">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlTouch.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlTouch.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlTouch.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlTouch.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlTouch.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TRequests._RELEASE">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlTouch.TEvents">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_DOWN">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_UP">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_MOTION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_FRAME">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_CANCEL">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_SHAPE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlTouch.TEvents.EV_ORIENTATION">
+<short></short>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnDownPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnUpPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnMotionPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnFramePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnCancelPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnShapePriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- variable Visibility: private -->
+<element name="TWlTouch.FOnOrientationPriv">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleDown">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleDown.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleUp">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleUp.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleMotion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleMotion.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleFrame">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleFrame.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleCancel">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleCancel.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleShape">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleShape.AMsg">
+<short></short>
+</element>
+
+<!-- procedure Visibility: protected -->
+<element name="TWlTouch.HandleOrientation">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlTouch.HandleOrientation.AMsg">
+<short></short>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnDown">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnUp">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnMotion">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnFrame">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnCancel">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnShape">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- property Visibility: published -->
+<element name="TWlTouch.OnOrientation">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlTouch.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlRegion.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlRegion.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlRegion.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlRegion.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlRegion.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegion.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegion.TRequests._ADD">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlRegion.TRequests._SUBTRACT">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlRegion.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlRegion.Add">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Add.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Add.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Add.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Add.aHeight">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlRegion.Subtract">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Subtract.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Subtract.aY">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Subtract.aWidth">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlRegion.Subtract.aHeight">
+<short></short>
+</element>
+
+<!-- "class of" type Visibility: default -->
+<element name="TWlSubcompositorClass">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- class Visibility: default -->
+<element name="TWlSubcompositor">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlSubcompositor.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubcompositor.TError.erBadsurface">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubcompositor.TError.erBadparent">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSubcompositor.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSubcompositor.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSubcompositor.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSubcompositor.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSubcompositor.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubcompositor.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubcompositor.TRequests._GET_SUBSURFACE">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlSubcompositor.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function Visibility: public -->
+<element name="TWlSubcompositor.GetSubsurface">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSubcompositor.GetSubsurface.Result">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubcompositor.GetSubsurface.aSurface">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubcompositor.GetSubsurface.aParent">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubcompositor.GetSubsurface.aClassType">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: public -->
+<element name="TWlSubsurface.TError">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TError.erBadsurface">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSubsurface.GetInterfaceVersion">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSubsurface.GetInterfaceVersion.Result">
+<short></short>
+</element>
+
+<!-- class function Visibility: protected -->
+<element name="TWlSubsurface.GetInterfaceName">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- function result Visibility: default -->
+<element name="TWlSubsurface.GetInterfaceName.Result">
+<short></short>
+</element>
+
+<!-- enumeration type Visibility: protected -->
+<element name="TWlSubsurface.TRequests">
+<short></short>
+<descr>
+</descr>
+<seealso>
+</seealso>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._DESTROY">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._SET_POSITION">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._PLACE_ABOVE">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._PLACE_BELOW">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._SET_SYNC">
+<short></short>
+</element>
+
+<!-- enumeration value Visibility: default -->
+<element name="TWlSubsurface.TRequests._SET_DESYNC">
+<short></short>
+</element>
+
+<!-- destructor Visibility: public -->
+<element name="TWlSubsurface.Destroy">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSubsurface.SetPosition">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubsurface.SetPosition.aX">
+<short></short>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubsurface.SetPosition.aY">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSubsurface.PlaceAbove">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubsurface.PlaceAbove.aSibling">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSubsurface.PlaceBelow">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- argument Visibility: default -->
+<element name="TWlSubsurface.PlaceBelow.aSibling">
+<short></short>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSubsurface.SetSync">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+<!-- procedure Visibility: public -->
+<element name="TWlSubsurface.SetDesync">
+<short></short>
+<descr>
+</descr>
+<errors>
+</errors>
+<seealso>
+</seealso>
+</element>
+
+</module> <!-- wayland -->
+
+</package>
+</fpdoc-descriptions>

@@ -1,0 +1,7 @@
+*.o
+*.res
+*.compiled
+lib/
+backup/
+wayland_wire_proj
+wayland_wire_proj.lps
