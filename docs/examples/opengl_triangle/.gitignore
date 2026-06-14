@@ -1,0 +1,7 @@
+# build artifacts
+*.o
+*.ppu
+*.rsj
+*.res
+units/
+opengl_triangle

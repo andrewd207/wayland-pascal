@@ -30,13 +30,20 @@ uses
 const
   WIN_W = 800;
   WIN_H = 600;
-  FRAME_SLOTS = 3;
+  // Double-buffered: the minimum that still animates (a single buffer deadlocks
+  // -- the compositor won't release the only buffer it's displaying). With the
+  // "draw only when ready AND free" pacing this keeps just one frame in flight,
+  // minimising the trailing that stacks up at high rotation speed.
+  FRAME_SLOTS = 2;
   MSAA = VK_SAMPLE_COUNT_4_BIT; // 4x anti-aliasing for clean triangle edges
-  ROT_SPEED = 3.0;              // radians/second (time-based, frame-rate independent)
+  ROT_SPEED = 2.5;              // radians/second (time-based, frame-rate independent)
 
   // not present in the generated bindings; from vulkan_core.h
   VK_QUEUE_FAMILY_IGNORED     = cuint($FFFFFFFF);
   VK_QUEUE_FAMILY_FOREIGN_EXT = cuint($FFFFFFFE);
+
+  BTN_LEFT  = $110; // 272 — interactive move
+  BTN_RIGHT = $111; // 273 — close
 
   // DRM fourcc + modifier we present to the compositor.
   DRM_FORMAT_XRGB8888 = $34325258; // 'XR24'
@@ -89,8 +96,11 @@ type
     FXdgSurface: TXdgSurface;
     FToplevel:   TXdgToplevel;
     FDmabuf:     TWpLinuxDmabufV1;
+    FSeat:       TWlSeat;
+    FPointer:    TWlPointer;
     FConfigured: Boolean;
     FQuit:       Boolean;
+    FFrameReady: Boolean; // compositor signalled it wants a new frame
     FAngle:      Single;
     FFrames:     Integer;
     FStartTick:  QWord;
@@ -108,6 +118,7 @@ type
     procedure InitWayland;
     procedure BuildWlBuffers;
     function  AcquireSlot: Integer;
+    procedure TryDraw;
     procedure DrawFrame;
 
     // wayland callbacks
@@ -117,6 +128,8 @@ type
     procedure OnXdgConfigure(Sender: TXdgSurface; aSerial: DWord);
     procedure OnToplevelConfigure(Sender: TXdgToplevel; aWidth, aHeight: Integer; aStates: TBytes);
     procedure OnToplevelClose(Sender: TXdgToplevel);
+    procedure OnSeatCapabilities(Sender: TWlSeat; aCapabilities: TWlSeat.TCapability);
+    procedure OnPointerButton(Sender: TWlPointer; aSerial, aTime, aButton: DWord; aState: TWlPointer.TButtonState);
     procedure OnBufferRelease(Sender: TWlBuffer);
     procedure OnFrameDone(Sender: TWlCallback; aData: DWord);
   public
@@ -675,6 +688,16 @@ begin
   Result := -1; // all in flight
 end;
 
+// Draw only when the compositor has asked for a new frame AND a buffer is free,
+// so just one frame is ever in flight (minimum trailing at high speed).
+procedure TVkTriangle.TryDraw;
+begin
+  if FQuit or not FFrameReady then Exit;
+  if AcquireSlot < 0 then Exit;
+  FFrameReady := False;
+  DrawFrame;
+end;
+
 procedure TVkTriangle.DrawFrame;
 var
   idx: Integer;
@@ -716,7 +739,12 @@ begin
     FWM.OnPing := @OnPing;
   end
   else if aInterface = 'zwp_linux_dmabuf_v1' then
-    Sender.Bind(aName, aInterface, aVersion, TWpLinuxDmabufV1, FDmabuf);
+    Sender.Bind(aName, aInterface, aVersion, TWpLinuxDmabufV1, FDmabuf)
+  else if aInterface = 'wl_seat' then
+  begin
+    Sender.Bind(aName, aInterface, aVersion, TWlSeat, FSeat);
+    FSeat.OnCapabilities := @OnSeatCapabilities;
+  end;
 end;
 
 procedure TVkTriangle.OnError(Sender: TWlDisplay; aObjectId: Cardinal;
@@ -737,7 +765,8 @@ begin
   if not FConfigured then
   begin
     FConfigured := True;
-    DrawFrame; // kick off the first frame
+    FFrameReady := True;
+    TryDraw; // kick off the first frame
   end;
 end;
 
@@ -752,6 +781,26 @@ begin
   FQuit := True;
 end;
 
+procedure TVkTriangle.OnSeatCapabilities(Sender: TWlSeat;
+  aCapabilities: TWlSeat.TCapability);
+begin
+  if aCapabilities.Pointer and not Assigned(FPointer) then
+  begin
+    FPointer := Sender.GetPointer;
+    FPointer.OnButton := @OnPointerButton;
+  end;
+end;
+
+procedure TVkTriangle.OnPointerButton(Sender: TWlPointer; aSerial, aTime,
+  aButton: DWord; aState: TWlPointer.TButtonState);
+begin
+  if aState <> TWlPointer.TButtonState.buPressed then Exit;
+  case aButton of
+    BTN_LEFT:  FToplevel.Move(FSeat, aSerial); // interactive drag-move
+    BTN_RIGHT: FQuit := True;                  // close
+  end;
+end;
+
 procedure TVkTriangle.OnBufferRelease(Sender: TWlBuffer);
 var
   i: Integer;
@@ -762,12 +811,14 @@ begin
       FSlots[i].Busy := False;
       Break;
     end;
+  TryDraw; // a buffer freed up — draw if the compositor is also ready
 end;
 
 procedure TVkTriangle.OnFrameDone(Sender: TWlCallback; aData: DWord);
 begin
   Sender.Free;
-  if not FQuit then DrawFrame;
+  FFrameReady := True;
+  TryDraw; // compositor is ready — draw if a buffer is also free
 end;
 
 { lifecycle }
