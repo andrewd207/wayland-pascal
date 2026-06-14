@@ -9,7 +9,8 @@ uses
   Classes, sysutils,
   wayland_strings, wayland_stream, Wayland_Core,
   wayland_errors, wayland_queue, wayland_internal_interfaces,
-  wayland, xdg_shell_protocol, wayland_shm_impl, unix_fd_socket;
+  wayland, xdg_shell_protocol, fractional_scale_v1_protocol,
+  wayland_shm_impl, unix_fd_socket;
 
 type
 
@@ -28,6 +29,8 @@ type
     FShell: TWlShell;
     FSHM: TWlShm;
     FSeat: TWlSeat;
+    FFractionalMgr: TWpFractionalScaleManagerV1;   // staging protocol
+    FFractionalScale: TWpFractionalScaleV1;
     FConfigured : Boolean;
     FWidth, FHeight: Integer;
     constructor Create;
@@ -38,6 +41,7 @@ type
 
     procedure Handle_Registry_Global(Sender: TWlRegistry; aName: DWord; aInterface: String; aVersion: DWord);
 
+    procedure HandlePreferredScale(Sender: TWpFractionalScaleV1; aScale: DWord);
     procedure HandleShmFormat(Sender: TWlShm; aFormat: TWlShm.TFormat);
     procedure HandleXDGConfigure(Sender: TXdgSurface; aSerial: DWord);
     procedure MouseMotion(Sender: TWlPointer; aTime: DWord; aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
@@ -83,7 +87,15 @@ begin
 
   FSurface := FCompositor.CreateSurface();
 
-
+  // staging protocol: ask the compositor for this surface's preferred
+  // fractional scale (delivered as 120ths via the preferred_scale event).
+  if Assigned(FFractionalMgr) then
+  begin
+    FFractionalScale := FFractionalMgr.GetFractionalScale(FSurface);
+    FFractionalScale.OnPreferredScale := @HandlePreferredScale;
+  end
+  else
+    WriteLn('wp_fractional_scale_manager_v1 not advertised by this compositor');
 
   //FDisplay.SyncAndWait;
   FXDGSurface := FWM.GetXdgSurface(FSurface);
@@ -182,6 +194,11 @@ begin
     FSHM.OnFormat:=@HandleShmFormat;
   end;
 
+  if aInterface = 'wp_fractional_scale_manager_v1' then
+  begin
+    Sender.Bind(aName, aInterface, aVersion, TWpFractionalScaleManagerV1, FFractionalMgr);
+  end;
+
   if aInterface = 'wl_seat' then
   begin
     //FSHM:= TWlShm.Create(FDisplay);
@@ -192,6 +209,13 @@ begin
     FSeat.OnName := @SeatName;
   end;
 
+end;
+
+procedure TWaylandTest.HandlePreferredScale(Sender: TWpFractionalScaleV1;
+  aScale: DWord);
+begin
+  // wp_fractional_scale_v1 reports scale in 1/120ths (e.g. 180 => 1.5x).
+  WriteLn(Format('Preferred fractional scale: %.3f (%d/120)', [aScale / 120, aScale]));
 end;
 
 procedure TWaylandTest.HandleShmFormat(Sender: TWlShm; aFormat: TWlShm.TFormat);

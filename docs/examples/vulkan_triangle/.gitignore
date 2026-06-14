@@ -1,0 +1,6 @@
+# build artifacts
+*.o
+*.ppu
+*.res
+*.spv
+vulkan_triangle

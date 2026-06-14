@@ -1,6 +1,9 @@
 *.o
+*.ppu
+*.rsj
 *.res
 *.compiled
+units/
 lib/
 backup/
 wayland_wire_proj

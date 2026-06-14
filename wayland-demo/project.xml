@@ -17,6 +17,7 @@
   <moduleDependencies>
     <module>../wayland-rt</module>
     <module>../wayland-stable</module>
+    <module>../wayland-staging</module>
   </moduleDependencies>
 
   <profiles>
