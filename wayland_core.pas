@@ -185,6 +185,11 @@ type
   operator := (A: TBitfield): DWord;
   operator := (A: DWord): TBitfield;
 
+  // Returns the wayland object id for AObject, or 0 (the protocol's null object
+  // id) when AObject is nil. Used for nullable (allow-null) object request args
+  // so a nil argument is sent as a null id instead of crashing.
+  function WlObjectId(AObject: TObject): Integer;
+
 
 
 implementation
@@ -206,6 +211,14 @@ end;
 operator:=(A: DWord): TBitfield;
 begin
   Result.Value:=A;
+end;
+
+function WlObjectId(AObject: TObject): Integer;
+begin
+  if AObject = nil then
+    Result := 0
+  else
+    Result := (AObject as IWaylandBase).GetObjectId;
 end;
 
 { TWaylandDisplayBase }

@@ -652,7 +652,12 @@ begin
                       else
                         lParams+='Result.GetObjectId,';
         tvArray     : lParams+= TClassNode.Pascalify(lArg.Name, True, 'a')+',';
-        tvObject    : lParams+= TClassNode.Pascalify(lArg.Name, True, 'a')+'.GetObjectId,';
+        tvObject    : if lArg.Allow_Null then
+                        // nullable object: send 0 (null id) when nil instead of
+                        // dereferencing nil via .GetObjectId
+                        lParams+= 'WlObjectId('+TClassNode.Pascalify(lArg.Name, True, 'a')+'),'
+                      else
+                        lParams+= TClassNode.Pascalify(lArg.Name, True, 'a')+'.GetObjectId,';
       else
         raise Exception.Create('unsupported type: '+ lArg.Type_);
       end;
