@@ -13,8 +13,10 @@
   frames with wl_surface.frame callbacks.
 
   The image uses LINEAR tiling and is advertised to the compositor as
-  DRM_FORMAT_XRGB8888 / DRM_FORMAT_MOD_LINEAR, which Mesa drivers (and the
+  DRM_FORMAT_ARGB8888 / DRM_FORMAT_MOD_LINEAR, which Mesa drivers (and the
   llvmpipe software ICD) export cleanly -- no DRM-format-modifier negotiation.
+  ARGB (not XRGB) so the compositor blends the alpha: everything but the triangle
+  is transparent.
 
   Build with ./build.sh (needs the shaders compiled to .spv next to the binary). }
 program vulkan_triangle;
@@ -45,8 +47,9 @@ const
   BTN_LEFT  = $110; // 272 — interactive move
   BTN_RIGHT = $111; // 273 — close
 
-  // DRM fourcc + modifier we present to the compositor.
-  DRM_FORMAT_XRGB8888 = $34325258; // 'XR24'
+  // DRM fourcc + modifier we present to the compositor. ARGB (not XRGB) so the
+  // compositor honours the alpha channel -> transparent around the triangle.
+  DRM_FORMAT_ARGB8888 = $34325241; // 'AR24'
   DRM_MOD_LINEAR_HI   = 0;
   DRM_MOD_LINEAR_LO   = 0;
 
@@ -573,10 +576,10 @@ begin
   VkCheck(vkBeginCommandBuffer(ASlot.Cmd, @lBegin), 'vkBeginCommandBuffer');
 
   FillChar(lClear, SizeOf(lClear), 0);
-  lClear[0].color.float32[0] := 0.08; // dark blue-grey background
-  lClear[0].color.float32[1] := 0.09;
-  lClear[0].color.float32[2] := 0.12;
-  lClear[0].color.float32[3] := 1.0;
+  lClear[0].color.float32[0] := 0.0; // transparent: only the triangle is opaque
+  lClear[0].color.float32[1] := 0.0;
+  lClear[0].color.float32[2] := 0.0;
+  lClear[0].color.float32[3] := 0.0;
 
   FillChar(lRpb, SizeOf(lRpb), 0);
   lRpb.sType := VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -627,8 +630,6 @@ begin
 end;
 
 procedure TVkTriangle.InitWayland;
-var
-  lRegion: TWlRegion;
 begin
   TWlDisplay.TryCreateConnection(FDisplay);
   FDisplay.OnError := @OnError;
@@ -642,13 +643,8 @@ begin
   if not Assigned(FDmabuf) then raise Exception.Create('no zwp_linux_dmabuf_v1');
 
   FSurface := FCompositor.CreateSurface;
-
-  // mark the whole surface opaque: the buffer is XRGB8888 (no alpha), so this
-  // lets the compositor skip blending entirely -- avoids any trailing/ghosting.
-  lRegion := FCompositor.CreateRegion;
-  lRegion.Add(0, 0, WIN_W, WIN_H);
-  FSurface.SetOpaqueRegion(lRegion);
-  lRegion.Free;
+  // No opaque region: the buffer is ARGB8888 and we want the compositor to
+  // blend, so the area around the triangle shows through to what's behind.
 
   FXdgSurface := FWM.GetXdgSurface(FSurface);
   FXdgSurface.OnConfigure := @OnXdgConfigure;
@@ -673,7 +669,7 @@ begin
     lParams.Add(FSlots[i].DmabufFd, 0, FSlots[i].Offset, FSlots[i].Stride,
                 DRM_MOD_LINEAR_HI, DRM_MOD_LINEAR_LO);
     lFlags.Value := 0;
-    FSlots[i].Buffer := lParams.CreateImmed(WIN_W, WIN_H, DRM_FORMAT_XRGB8888, lFlags);
+    FSlots[i].Buffer := lParams.CreateImmed(WIN_W, WIN_H, DRM_FORMAT_ARGB8888, lFlags);
     FSlots[i].Buffer.OnRelease := @OnBufferRelease;
     lParams.Free; // single-use; the wl_buffer outlives it
   end;
