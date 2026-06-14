@@ -536,7 +536,17 @@ begin
   end;
 
   lPublic := AClass.WantVisibiltySection(vcPublic, True);
-  lIntfProc := lPublic.AddRoutine(lIntfProcType, TClassNode.Pascalify(ARequest.Name, True, ''), '');
+  lName := TClassNode.Pascalify(ARequest.Name, True, '');
+  // A request whose Pascal name collides with a TObject / constructor identifier
+  // (e.g. a protocol request literally named "create", as in
+  // zwp_linux_buffer_params_v1) would shadow the constructor and break
+  // aClass.Create(...) calls. Suffix such names with '_'. (destructor requests
+  // are intentionally mapped to Destroy below and are exempt.)
+  if (ARequest.Type_ <> 'destructor')
+     and (SameText(lName, 'Create') or SameText(lName, 'Destroy')
+          or SameText(lName, 'Free') or SameText(lName, 'Dispatch')) then
+    lName := lName + '_';
+  lIntfProc := lPublic.AddRoutine(lIntfProcType, lName, '');
   if ARequest.Type_ = 'destructor' then
   begin
     lIntfProc.RoutineType:=rtDestructor;
