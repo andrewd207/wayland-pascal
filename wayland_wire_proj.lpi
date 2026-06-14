@@ -99,7 +99,6 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="../coinbasetests/requests/generator"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
