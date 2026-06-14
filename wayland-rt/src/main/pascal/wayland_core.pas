@@ -3,6 +3,10 @@ unit Wayland_Core;
 {$mode ObjFPC}{$H+}
 {$ModeSwitch typehelpers}
 
+{ Define WL_DEBUG (or build with -dWL_DEBUG) for verbose protocol tracing.
+  It is off by default so the request/event hot paths carry no logging cost. }
+{.$DEFINE WL_DEBUG}
+
 interface
 
 uses
@@ -147,6 +151,7 @@ type
     FObjectListLock: TRTLCriticalSection;
     FQuit: Boolean;
     FSocket: TUnixSocket;
+    FRequestStream: TWaylandStream; // pooled outgoing buffer, guarded by FCrit
     FReader: TReadThread;
     //FProxyList: TWaylandProxyObjectList;
     FObjectList: TWaylandObjectList;
@@ -237,18 +242,23 @@ var
   lNeedsPadding: Boolean;
   i: Integer;
   lFdStart: Int64 = -1;
-  lReadCount: Int64;
-  lTmpObject: TWaylandBase;
-  lTmpOpcode: Word;
+  lMsgLen: Int64;
   lSent: LongInt;
-
+  {$IFDEF WL_DEBUG}
+  lObj: TWaylandBase;
+  {$ENDIF}
 begin
-  lRequest := TWaylandStream.Create;
-  lRequest.WriteDWord(AObjectID); // 4 bytes
-  lRequest.WriteWord(ARequest); // 2 bytes
-  lRequest.WriteWord(0); // Size. will equal the size of the TMemoryStream. Written last
-
+  // Serialize the whole build+send under FCrit: FRequestStream is a pooled
+  // per-connection buffer (no per-request heap alloc / buffer regrow), and
+  // concurrent writers would corrupt the socket byte stream anyway.
+  EnterCriticalSection(FCrit);
   try
+    lRequest := FRequestStream;
+    lRequest.Position := 0; // reuse buffer; capacity is retained (never shrunk)
+    lRequest.WriteDWord(AObjectID); // 4 bytes
+    lRequest.WriteWord(ARequest);   // 2 bytes
+    lRequest.WriteWord(0);          // size placeholder; backpatched below
+
     for i := Low(Args) to High(Args) do
     begin
       if (AFdIndex <> -1) and (AFdIndex = i) then
@@ -260,7 +270,6 @@ begin
       case Args[i].VType of
         vtBoolean: lRequest.WriteDWord(Ord(Args[i].VBoolean));
         vtInteger: lRequest.WriteDWord(Ord(Args[i].VInteger));
-        //vtExtended: lRequest.WriteBuffer(TWaylandFixed(Args[i].VExtended).AsBytes[0], 4); // 24bit integer 8 bit decimal
         vtInt64:
           begin
             if Args[i].VInt64^ <= MaxInt then
@@ -299,87 +308,45 @@ begin
               Raise EWaylandParamError.CreateFmt(SErrUnsupportedObjectForParam, [Args[i].VObject.ClassName, i]);
           end;
       end;
-      // pad to 32bit boundary
-      while lNeedsPadding and ((lRequest.Size mod 4) <> 0) do
-      begin
+      // pad to 32bit boundary (use Position, not Size: the pooled buffer may be
+      // larger than this message from a previous, longer request)
+      while lNeedsPadding and ((lRequest.Position mod 4) <> 0) do
         lRequest.WriteByte(0);
-        WriteLn('wrote padding');
-      end;
     end;
 
-    if lRequest.Size > $FFFF then
-      Raise EWaylandParamError.CreateFmt(SErrSizeTooLarge, [lRequest.Size, $FFFF]);
+    // Exact message length. The buffer's Size may exceed it (stale tail from a
+    // previous request); only the first lMsgLen bytes are this message.
+    lMsgLen := lRequest.Position;
+    if lMsgLen > $FFFF then
+      Raise EWaylandParamError.CreateFmt(SErrSizeTooLarge, [lMsgLen, $FFFF]);
 
+    // backpatch the size field, then rewind for sending
     lRequest.Position := cSizeOffset;
-    lRequest.WriteWord(lRequest.Size);
-    lRequest.Position:=0;
+    lRequest.WriteWord(lMsgLen);
+    lRequest.Position := 0;
 
+    {$IFDEF WL_DEBUG}
+    lObj := GetObject(AObjectID) as TWaylandBase;
+    if Assigned(lObj) then
+      WriteLn('> ', lObj.ClassName, '.', lObj.GetInterfaceAttribute.Request[ARequest],
+              ' size=', lMsgLen)
+    else
+      WriteLn('> <unknown object ', AObjectID, '> opcode [', ARequest, '] size=', lMsgLen);
+    {$ENDIF}
 
-
-    try
-      EnterCriticalSection(FCrit);
-
-      lTmpObject := (GetObject(lRequest.ReadDWord)) as TWaylandBase;
-      lTmpOpcode := lRequest.ReadWord;
-
-      if Assigned(lTmpObject) then
-      begin
-        WriteLn('> Requestor ', lTmpObject.ClassName);
-        WriteLn('> Opcode [', lTmpOpcode ,'] ', lTmpObject.GetInterfaceAttribute.Request[lTmpOpcode]);
-      end
-      else
-        WriteLn('> Requestor <unknown object ', AObjectID, '> opcode [', lTmpOpcode, ']');
-      WriteLn('> Size ', lRequest.ReadWord);
-
-      // file descriptors must be sent with sendmsg and can't be in a regular data packet
-      if (lFdStart >= 0)  then
-      begin
-        lSent := SendFD(FSocket.Handle, lFdStart, lRequest.Memory, lRequest.Size);
-        if lSent < 0 then
-          // SendFD wraps libc sendmsg; the error is in libc's errno (c_errno),
-          // not the FPC RTL errno.
-          raise EWaylandConnectionError.CreateFmt(SErrSendFdFailed, [lFdStart, c_errno]);
-        lFdStart:=-2;
-        Exit;
-      end;
-
-      lRequest.Position:=0;
-      repeat
-        if (lFdStart >= 0)  then
-          lReadCount := lFdStart
-        else
-          lReadCount := lRequest.Size - lRequest.Position ;
-
-        FSocket.CopyFrom(lRequest, lReadCount);
-        if (lFdStart >= 0) then
-        begin
-
-          //lFdStart := SendFD(FSocket.Handle, lRequest.ReadInteger);
-          lFdstart := -2;
-
-         //         lRequest.Seek(-4, soFromCurrent);
-          lRequest.WriteByte(00);
-          lRequest.WriteByte(00);
-        end;
-
-      until lRequest.Position >= lRequest.Size;
-      if lFdStart = -2 then
-        begin
-
-
-        end;
-    finally
-
-      LeaveCriticalSection(FCrit);
-      FreeAndNil(lRequest);
-    end;
-  except
-    // lRequest is freed by the inner finally above before the exception can
-    // reach here; FreeAndNil is a safe no-op if it is already nil. Re-raise so
-    // request failures (oversized message, unsupported param, etc.) are not
-    // silently dropped.
-    FreeAndNil(lRequest);
-    raise;
+    // file descriptors must be sent with sendmsg out-of-band, not inline
+    if lFdStart >= 0 then
+    begin
+      lSent := SendFD(FSocket.Handle, lFdStart, lRequest.Memory, lMsgLen);
+      if lSent < 0 then
+        // SendFD wraps libc sendmsg; the error is in libc's errno (c_errno),
+        // not the FPC RTL errno.
+        raise EWaylandConnectionError.CreateFmt(SErrSendFdFailed, [lFdStart, c_errno]);
+    end
+    else
+      FSocket.CopyFrom(lRequest, lMsgLen); // Position is 0
+  finally
+    LeaveCriticalSection(FCrit);
   end;
 end;
 
@@ -430,6 +397,7 @@ begin
   InitCriticalSection(FObjectListLock);
   Inherited Create(Self as IWaylandDisplayCore, TWaylandMessageQueue.Create, 1);
   FSocket := ASocket;
+  FRequestStream := TWaylandStream.Create; // pooled across all SendRequest calls
   FNextId:=2; // 0 invalid 1 always is display. 2 will be the registry
   //FProtocol := TWIProtocolNode.Create('/usr/share/wayland/wayland.xml');
   FObjectList := TWaylandObjectList.Create;
@@ -478,11 +446,6 @@ begin
 
   if Header.Obj = 0 then
   begin
-    WriteLn('< Object Target = ', Header.Obj);
-    WriteLn('< Object Opcode = ', Header.Index);
-    WriteLn('< Object Size = ', Header.Index);
-
-    //WriteLn('Got null');
     Raise Exception.Create('Null object not handled...disconnected?');
     // maybe read/seek data and hope for the best
   end;
@@ -497,14 +460,10 @@ begin
 
   if Assigned(lBaseObj) {and (lProxyObj.Obj is TWInterfaceNode)} then
   begin
-    //if not lBaseObj.InheritsFrom(TWlPointer) then
-    begin
-      WriteLn('< Object Target = [', HEader.Obj, '] ', lBaseObj.ClassName);
-      WriteLn('< Object Opcode = [', Header.Index, '] ', lBaseObj.GetInterfaceAttribute.Event[Header.Index]);
-      WriteLn('< Object Size = ', Header.Size);
-    end;
-
-    ///WriteLn(lBaseObj.ClassName);
+    {$IFDEF WL_DEBUG}
+    WriteLn('< ', lBaseObj.ClassName, '.', lBaseObj.GetInterfaceAttribute.Event[Header.Index],
+            ' [obj ', Header.Obj, '] size=', Header.Size);
+    {$ENDIF}
     lStream := TWaylandStream.Create;
     lMessageRec.OpCode:=Header.Index;
     lMessageRec.Args := lStream;
@@ -532,7 +491,9 @@ begin
   end
   else
   begin
+    {$IFDEF WL_DEBUG}
     WriteLn('didn''t find object for message ', Header.Index);
+    {$ENDIF}
     FSocket.Seek(Header.Size-8, fsFromCurrent);
   end;
 
@@ -553,6 +514,7 @@ destructor TWaylandDisplayBase.Destroy;
 begin
   FObjectList.Free;
   FSocket.Free;
+  FRequestStream.Free;
   FEventQueue := nil;
   DoneCriticalSection(FCrit);
   DoneCriticalSection(FObjectListLock);
@@ -764,7 +726,9 @@ begin
 
   FConnection := ADisplay;
   FConnection.RegisterObject(Self, AObjectID);
+  {$IFDEF WL_DEBUG}
   WriteLn('Created ', ClassName,' id = ', GetObjectId);
+  {$ENDIF}
 end;
 
 constructor TWaylandBase.Create(ADisplay: IWaylandDisplayCore; AQueue: IWaylandEventQueue);
@@ -775,7 +739,9 @@ end;
 
 destructor TWaylandBase.Destroy;
 begin
+  {$IFDEF WL_DEBUG}
   WriteLn('Destroying ', ClassName , '[',FObjectId,']');
+  {$ENDIF}
   Connection.ObjectDestroying(Self.GetObjectId, True);
   inherited Destroy;
 end;
