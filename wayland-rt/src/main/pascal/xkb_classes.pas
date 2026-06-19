@@ -169,7 +169,11 @@ begin
     if lSize = 0 then
       Exit(''); // invalid string
   until lSize > 0;
-  SetLength(Result, lSize);
+  { xkb_keysym_to_utf8 returns the byte count INCLUDING the terminating NUL, so
+    trim it — otherwise every result carries a trailing #0 (e.g. Backspace ->
+    #8#0), which slips past length-based filtering and gets inserted as a
+    .notdef box glyph. }
+  SetLength(Result, lSize - 1);
 end;
 
 function TXKBHelper.KeyCodeName(AKeyCode: xkb_keycode_t): String;
