@@ -675,12 +675,18 @@ type
     FTheme: TXCursorTheme;    { pure-Pascal XCursor theme loader (was libwayland-cursor) }
     FDisplay: TfpgwDisplay;
     FCursors: TFPHashList;    { name -> TfpgwCursorEntry cache (owns the shm buffers) }
-    FCurrentName: String;
+    FCurrent: TObject;        { the active TfpgwCursorEntry (for animation) }
+    FFrame: Integer;          { current animation frame index }
+    FFrameStartMs: QWord;     { tick (ms) at which the current frame was shown }
     procedure CheckSurface;
+    procedure ShowFrame(AIndex: Integer);  { attach + commit one frame to FSurface }
   public
     constructor Create(ADisplay: TfpgwDisplay; AThemeName: String; ADesiredSize: Integer);
     destructor  Destroy; override;
     procedure SetCursor(ANames: array of String);
+    { Advance the active cursor's animation if its current frame's delay has
+      elapsed. Cheap no-op for static cursors; called from the event loop. }
+    procedure Tick;
     property    Surface: TWlSurface read FSurface;
   end;
 
@@ -700,18 +706,33 @@ uses
   BaseUnix, Math;
 
 type
-  { Cached, ready-to-attach cursor: an shm buffer holding the first frame's
-    pixels plus its hotspot/size. Owned by TfpgwCursor.FCursors. }
-  TfpgwCursorEntry = class
+  { One animation frame: a ready-to-attach shm buffer + how long to show it. }
+  TfpgwCursorFrame = record
     Buffer: TWlBuffer;
+    Delay: Integer;       { ms to display this frame (0 for a static cursor) }
+  end;
+
+  { Cached, ready-to-attach cursor: one shm buffer per frame plus the shared
+    hotspot/size. Owned by TfpgwCursor.FCursors. }
+  TfpgwCursorEntry = class
+    Frames: array of TfpgwCursorFrame;
     Width, Height: Integer;
     XHot, YHot: Integer;
+    function Animated: Boolean;
     destructor Destroy; override;
   end;
 
-destructor TfpgwCursorEntry.Destroy;
+function TfpgwCursorEntry.Animated: Boolean;
 begin
-  Buffer.Free;
+  Result := Length(Frames) > 1;
+end;
+
+destructor TfpgwCursorEntry.Destroy;
+var
+  i: Integer;
+begin
+  for i := 0 to High(Frames) do
+    Frames[i].Buffer.Free;
   inherited Destroy;
 end;
 
@@ -1465,12 +1486,12 @@ var
   S: String;
   lImages: TXCursorImages;
   lData: Pointer;
-  lFd: Integer;
+  lFd, i: Integer;
 begin
   CheckSurface;
 
   { Find the first of ANames that resolves in the theme chain, caching the built
-    shm buffer per name so re-setting the same cursor is cheap. }
+    shm buffers per name so re-setting the same cursor is cheap. }
   lEntry := nil;
   for S in ANames do
   begin
@@ -1482,32 +1503,79 @@ begin
     if Length(lImages) = 0 then
       Continue;
 
-    { Build an shm buffer from the first frame (animation is not driven yet — the
-      old libwayland-cursor path didn't either). Xcursor pixels are premultiplied
-      ARGB little-endian, which is exactly wl_shm ARGB8888, so copy verbatim. }
+    { Build one shm buffer per frame. Xcursor pixels are premultiplied ARGB
+      little-endian, which is exactly wl_shm ARGB8888, so copy verbatim. The
+      hotspot/size are shared across frames (Xcursor guarantees a uniform size
+      per loaded cursor). }
     lEntry := TfpgwCursorEntry.Create;
     lEntry.Width  := lImages[0].Width;
     lEntry.Height := lImages[0].Height;
     lEntry.XHot   := lImages[0].XHot;
     lEntry.YHot   := lImages[0].YHot;
-    lEntry.Buffer := FDisplay.FShm.AllocateShmBuffer(lEntry.Width, lEntry.Height,
-                       TWlShm.TFormat.foArgb8888, lData, lFd);
-    Move(lImages[0].Pixels[0], lData^, Length(lImages[0].Pixels));
+    SetLength(lEntry.Frames, Length(lImages));
+    for i := 0 to High(lImages) do
+    begin
+      lEntry.Frames[i].Delay := lImages[i].Delay;
+      lEntry.Frames[i].Buffer := FDisplay.FShm.AllocateShmBuffer(
+        lEntry.Width, lEntry.Height, TWlShm.TFormat.foArgb8888, lData, lFd);
+      Move(lImages[i].Pixels[0], lData^, Length(lImages[i].Pixels));
+    end;
     FCursors.Add(S, lEntry);
     Break;
   end;
 
-  FCurrentName := '';
   if not Assigned(lEntry) then
+  begin
+    FCurrent := nil;
     Exit;  { unknown cursor: leave whatever the compositor currently shows }
+  end;
 
   { Point the pointer at our cursor surface (hotspot in surface coords), then
-    paint the image into it. The surface MUST be damaged so the compositor adopts
-    the new image; without it a re-set cursor keeps the previous image. }
+    paint the first frame. Subsequent frames are re-attached by Tick without
+    re-issuing set_cursor. }
+  FCurrent := lEntry;
+  FFrame := 0;
+  FFrameStartMs := GetTickCount64;
   FDisplay.Mouse.SetCursor(FDisplay.NextSerial, FSurface, lEntry.XHot, lEntry.YHot);
-  FSurface.Attach(lEntry.Buffer, 0, 0);
+  ShowFrame(0);
+end;
+
+procedure TfpgwCursor.ShowFrame(AIndex: Integer);
+var
+  lEntry: TfpgwCursorEntry;
+begin
+  lEntry := TfpgwCursorEntry(FCurrent);
+  if (lEntry = nil) or (AIndex < 0) or (AIndex > High(lEntry.Frames)) then
+    Exit;
+  FFrame := AIndex;
+  { The surface MUST be damaged so the compositor adopts the new image; without
+    it a re-attached frame keeps the previous image. }
+  FSurface.Attach(lEntry.Frames[AIndex].Buffer, 0, 0);
   FSurface.Damage(0, 0, lEntry.Width, lEntry.Height);
   FSurface.Commit;
+end;
+
+procedure TfpgwCursor.Tick;
+var
+  lEntry: TfpgwCursorEntry;
+  lNow: QWord;
+  lDelay: Integer;
+begin
+  lEntry := TfpgwCursorEntry(FCurrent);
+  if (lEntry = nil) or not lEntry.Animated then
+    Exit;
+  lNow := GetTickCount64;
+  { Advance as many frames as the elapsed time covers (handles slow event-loop
+    ticks); each frame carries its own delay (clamp tiny/zero delays). }
+  repeat
+    lDelay := lEntry.Frames[FFrame].Delay;
+    if lDelay <= 0 then
+      lDelay := 60;
+    if lNow - FFrameStartMs < QWord(lDelay) then
+      Break;
+    FFrameStartMs := FFrameStartMs + QWord(lDelay);
+    ShowFrame((FFrame + 1) mod Length(lEntry.Frames));
+  until False;
 end;
 
 { TfpgwBuffer }
@@ -2638,6 +2706,9 @@ begin
   if FDisplay.MessagesPending(ATimeOut) then
     while FDisplay.MessagesPending(0) do
       FDisplay.WaitMessage(0);
+  { Advance the pointer cursor's animation (no-op for static cursors). }
+  if Assigned(FCursor) then
+    FCursor.Tick;
 end;
 
 procedure TfpgwDisplay.Wakeup;

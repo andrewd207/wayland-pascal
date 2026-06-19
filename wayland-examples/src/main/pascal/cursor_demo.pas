@@ -6,7 +6,8 @@
   cursor's pixels, which are alpha-composited (Xcursor images are premultiplied
   ARGB) into the window via TWaylandCanvas. Hovering a cell calls
   Display.SetCursor with that cell's candidate names, so the real pointer turns
-  into the pictured cursor.
+  into the pictured cursor. Animated cursors (e.g. 'watch') cycle their frames
+  both in the grid and on the live pointer.
 
   Controls:
     move    — hover a cell to change the pointer to that cursor
@@ -29,11 +30,13 @@ const
   PAD      = 8;
 
 type
-  { A grid cell: candidate cursor names (first that resolves wins) plus the
-    loaded first-frame image used to paint the cell. }
+  { A grid cell: candidate cursor names (first that resolves wins) plus all
+    loaded frames. Animated cursors (Length(Frames) > 1) cycle their frames. }
   TCell = record
     Names: array of String;
-    Img: TXCursorImage;
+    Frames: TXCursorImages;
+    Frame: Integer;            { current frame index }
+    FrameStartMs: QWord;       { tick (ms) the current frame started }
     HasImg: Boolean;
   end;
 
@@ -48,6 +51,7 @@ type
     Dirty: Boolean;
     Painted: Boolean;
     procedure AddCursor(const ANames: array of String);
+    procedure AdvanceAnimations;
     function  CellAt(AX, AY: Integer): Integer;
     procedure DoPaint(Sender: TObject);
     procedure DoMotion(Sender: TObject; ATime: LongWord; AX, AY: Integer);
@@ -103,19 +107,46 @@ begin
   SetLength(lCell.Names, Length(ANames));
   for i := 0 to High(ANames) do
     lCell.Names[i] := ANames[i];
-  { Load the first candidate that resolves in the theme chain. }
+  { Load the first candidate that resolves in the theme chain (all frames). }
   for S in ANames do
   begin
     lImages := Theme.LoadCursor(S);
     if Length(lImages) > 0 then
     begin
-      lCell.Img := lImages[0];
+      lCell.Frames := lImages;
+      lCell.Frame := 0;
+      lCell.FrameStartMs := GetTickCount64;
       lCell.HasImg := True;
       Break;
     end;
   end;
   SetLength(Cells, Length(Cells) + 1);
   Cells[High(Cells)] := lCell;
+end;
+
+{ Advance every animated cell whose current frame's delay has elapsed; marks the
+  window dirty so the loop repaints. }
+procedure TDemo.AdvanceAnimations;
+var
+  i, lDelay: Integer;
+  lNow: QWord;
+begin
+  lNow := GetTickCount64;
+  for i := 0 to High(Cells) do
+  begin
+    if not Cells[i].HasImg or (Length(Cells[i].Frames) < 2) then
+      Continue;
+    repeat
+      lDelay := Cells[i].Frames[Cells[i].Frame].Delay;
+      if lDelay <= 0 then
+        lDelay := 60;
+      if lNow - Cells[i].FrameStartMs < QWord(lDelay) then
+        Break;
+      Cells[i].FrameStartMs := Cells[i].FrameStartMs + QWord(lDelay);
+      Cells[i].Frame := (Cells[i].Frame + 1) mod Length(Cells[i].Frames);
+      Dirty := True;
+    until False;
+  end;
 end;
 
 function TDemo.CellAt(AX, AY: Integer): Integer;
@@ -164,11 +195,12 @@ begin
       c.FillRoundRect(cx + PAD, cy + PAD, CELL - 2 * PAD, CELL - 2 * PAD, 10, 10, bg);
       c.RoundRect(cx + PAD, cy + PAD, CELL - 2 * PAD, CELL - 2 * PAD, 10, 10, border);
       if Cells[i].HasImg then
-      begin
-        ix := cx + (CELL - Cells[i].Img.Width) div 2;
-        iy := cy + (CELL - Cells[i].Img.Height) div 2;
-        BlitCursor(c, Cells[i].Img, ix, iy);
-      end;
+        with Cells[i].Frames[Cells[i].Frame] do
+        begin
+          ix := cx + (CELL - Width) div 2;
+          iy := cy + (CELL - Height) div 2;
+          BlitCursor(c, Cells[i].Frames[Cells[i].Frame], ix, iy);
+        end;
     end;
   finally
     c.Free;
@@ -265,7 +297,9 @@ begin
 
   while not Quit do
   begin
-    Display.WaitEvent(50);
+    { Short timeout so animated cursors keep ticking even without input. }
+    Display.WaitEvent(30);
+    AdvanceAnimations;
     if Window.Configured and not Painted then
     begin
       Painted := True;
