@@ -9,6 +9,19 @@ dispatch, fd passing, the shm pool and the cursor-theme (XCursor) loader are all
 implemented in pure Pascal on top of the FPC RTL — the only runtime dependency is
 a running Wayland compositor.
 
+## Screenshots
+
+From the [examples](wayland-examples/README.md):
+
+| | |
+|---|---|
+| ![wl_window_demo](docs/screenshots/wl_window_demo.png) | ![canvas_demo](docs/screenshots/canvas_demo.png) |
+| `wl_window_demo` — a basic toplevel | `canvas_demo` — `TWaylandCanvas` shapes |
+| ![canvas_dmabuf](docs/screenshots/canvas_dmabuf.png) | ![cursor_demo](docs/screenshots/cursor_demo.png) |
+| `canvas_dmabuf` — canvas in a CPU dma-buf | `cursor_demo` — cursor grid, retargets the pointer on hover |
+
+<sub>Images live in [`docs/screenshots/`](docs/screenshots/).</sub>
+
 ## Layout
 
 The project is split by dependency footprint so the runtime binding stays free
