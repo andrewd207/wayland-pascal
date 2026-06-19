@@ -1,15 +1,21 @@
 # Screenshots
 
-Drop PNGs here for the README's Screenshots section. Expected filenames (any that
-are missing simply won't render):
+Images used by the root README's Screenshots section.
 
-| File | Capture of |
+| File | Shows |
 |---|---|
-| `wl_window_demo.png` | `wl_window_demo` — a basic toplevel window |
+| `wl_window_demo.png` | `wl_window_demo` — a basic toplevel (solid fill) |
 | `canvas_demo.png` | `canvas_demo` — `TWaylandCanvas` shapes in an shm buffer |
-| `canvas_dmabuf.png` | `canvas_dmabuf` — the same canvas in a CPU dma-buf |
-| `cursor_demo.png` | `cursor_demo` — the cursor grid (hover retargets the pointer) |
+| `canvas_dmabuf.png` | `canvas_dmabuf` — the canvas in a CPU dma-buf |
+| `cursor_demo.png` | `cursor_demo` — the cursor grid (the highlighted cell is the hovered one) |
 
-Capture with your compositor's screenshot tool, e.g. `grim` on wlroots, the
-GNOME/KDE screenshot UI, or `import` under XWayland. Keep them reasonably small
-(≈800px wide).
+These are **offline renders of exactly what each example draws** — produced by
+running the same `TWaylandCanvas` (and `xcursor`) code into a memory buffer and
+saving it as PNG — not compositor captures. That's deliberate: GNOME/mutter
+doesn't implement `wlr-screencopy`, so `grim` can't grab native Wayland windows
+here, and a render is clean (no desktop clutter or decoration variance) and
+deterministic. They therefore show the client content only, without the
+compositor's window border.
+
+On a wlroots compositor (Sway, etc.) you can capture the real windows with
+`grim`/`slurp` if you want decorated shots instead.
