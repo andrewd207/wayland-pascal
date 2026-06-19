@@ -29,9 +29,9 @@ cursors, and clipboard.
 
 See also: the [event reference](events.md) for every `Tfpgw*` callback signature.
 
-Drawing into a buffer is done with [`TWaylandCanvas`](TfpgwBuffer.md#drawing-with-twaylandcanvas)
-(unit `wayland_canvas`, in `wayland-rt`) — a minimal software canvas over raw
-ARGB8888 memory, independent of `wayland-classes`.
+Drawing into a buffer is done with [`TWaylandCanvas`](../wayland-canvas.md) (unit
+`wayland_canvas`, in `wayland-rt`) — a minimal software canvas over raw ARGB8888
+memory, independent of `wayland-classes`.
 
 ## Quick start
 

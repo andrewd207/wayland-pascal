@@ -9,7 +9,7 @@ of heavy build-time dependencies:
 
 | Directory | What | Dependencies | Built with |
 |---|---|---|---|
-| `wayland-rt/` | Runtime Wayland binding (library). Hand-written core + generated `wayland.pas` (core protocol). | FPC RTL only | **pasbuild** |
+| `wayland-rt/` | Runtime Wayland binding (library). Hand-written core + generated `wayland.pas` (core protocol). Also ships `wayland_canvas`, a minimal software canvas ([docs](docs/wayland-canvas.md)). | FPC RTL only | **pasbuild** |
 | `wayland-stable/` | Stable wayland-protocols, generated as `<protocol>_protocol` units (xdg-shell, linux-dmabuf, viewporter, …). | `wayland-rt` | **pasbuild** |
 | `wayland-unstable/` | Unstable (`z*`) wayland-protocols. | `wayland-rt`, `wayland-stable` | **pasbuild** |
 | `wayland-staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | `wayland-rt`, `wayland-stable`, `wayland-unstable` | **pasbuild** |

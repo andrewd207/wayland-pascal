@@ -66,4 +66,6 @@ Primitives:
 
 Colour helpers: `ARGB(a,r,g,b)`, `RGB(r,g,b)` (opaque), `FPColorToCanvas`.
 
-See the `canvas_demo` (shm) and `canvas_dmabuf` (dma-buf) examples.
+Full reference (and notes on extending it or swapping in another raster library):
+**[wayland_canvas](../wayland-canvas.md)**. See the `canvas_demo` (shm) and
+`canvas_dmabuf` (dma-buf) examples.
