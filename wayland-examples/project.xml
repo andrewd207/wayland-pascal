@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-examples</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Standalone examples for the wayland-classes abstraction and the runtime
+       binding. Registered activeByDefault="false" in the aggregator, so a plain
+       `pasbuild compile` skips it. Build via the Makefile's `examples` target
+       (which builds every example program) or pasbuild's all-modules flag.
+       pasbuild's application type builds the one mainSource below; the Makefile
+       builds the rest. -->
+  <build>
+    <projectType>application</projectType>
+    <mainSource>wl_window_demo.pas</mainSource>
+    <executableName>wl-window-demo</executableName>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <moduleDependencies>
+    <module>../wayland-rt</module>
+    <module>../wayland-stable</module>
+    <module>../wayland-unstable</module>
+    <module>../wayland-staging</module>
+    <module>../wayland-classes</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

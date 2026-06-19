@@ -20,5 +20,8 @@
     <module>wayland-staging</module>
     <module>wayland-classes</module>
     <module>wayland-demo</module>
+    <!-- Examples: excluded from the default build; built by `make examples`
+         (or `pasbuild compile` with the all-modules flag). -->
+    <module activeByDefault="false">wayland-examples</module>
   </modules>
 </project>
