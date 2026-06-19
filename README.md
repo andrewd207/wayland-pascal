@@ -13,7 +13,7 @@ of heavy build-time dependencies:
 | `wayland-stable/` | Stable wayland-protocols, generated as `<protocol>_protocol` units (xdg-shell, linux-dmabuf, viewporter, …). | `wayland-rt` | **pasbuild** |
 | `wayland-unstable/` | Unstable (`z*`) wayland-protocols. | `wayland-rt`, `wayland-stable` | **pasbuild** |
 | `wayland-staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | `wayland-rt`, `wayland-stable`, `wayland-unstable` | **pasbuild** |
-| `wayland-classes/` | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. Toolkit-friendly wrappers over the raw binding. | `wayland-rt` + protocol tiers | **pasbuild** |
+| `wayland-classes/` | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. Toolkit-friendly wrappers over the raw binding. [Docs.](docs/wayland-classes/index.md) | `wayland-rt` + protocol tiers | **pasbuild** |
 | `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | `wayland-rt`, `wayland-stable` | **pasbuild** |
 | [`wayland-examples/`](wayland-examples/README.md) | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard). Not built by default. | `wayland-rt`, tiers, `wayland-classes` | **fpc** (`make examples`) |
 | [`wayland-gen/`](wayland-gen/README.md) | Code generator: reads Wayland protocol XML, emits the binding units. Bundles a vendored AST writer in `wayland-gen/vendor/`. | FPC RTL only | **pasbuild** |
