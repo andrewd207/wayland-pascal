@@ -13,7 +13,8 @@ program wl_window_demo;
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  SysUtils, fpg_wayland_classes;
+  {$IFDEF UNIX}BaseUnix,{$ENDIF}
+  SysUtils, fpg_wayland_classes, wayland;
 
 type
   TDemo = class
@@ -24,6 +25,7 @@ type
     FPainted: Boolean;
     procedure DoPaint(Sender: TObject);
     procedure DoClose(Sender: TObject);
+    procedure DoError(Sender: TWlDisplay; aObjectId: Cardinal; aCode: DWord; aMessage: String);
   public
     procedure Run;
   end;
@@ -51,14 +53,33 @@ begin
   FQuit := True;
 end;
 
+procedure TDemo.DoError(Sender: TWlDisplay; aObjectId: Cardinal; aCode: DWord; aMessage: String);
+begin
+  WriteLn(Format('PROTOCOL ERROR: object %d code %d: %s', [aObjectId, aCode, aMessage]));
+  Flush(Output);
+  FQuit := True;
+end;
+
 procedure TDemo.Run;
 begin
+  {$IFDEF UNIX}
+  { A Wayland client must not die from SIGPIPE if the compositor closes the
+    socket (e.g. on a protocol error) — let writes fail with EPIPE instead. }
+  FpSignal(SIGPIPE, SignalHandler(SIG_IGN));
+  {$ENDIF}
+
   FDisplay := TfpgwDisplay.Create(Self, '');
   if not FDisplay.Connected then
   begin
     WriteLn('could not connect to a Wayland compositor (is WAYLAND_DISPLAY set?)');
     Halt(1);
   end;
+  FDisplay.Display.OnError := @DoError;
+
+  { Enumerate + bind the globals (compositor, shm, seat, xdg_wm_base, ...) BEFORE
+    creating any window: TfpgwWindow.Create needs the bound shell (FSurfaceClass)
+    to build its surface. }
+  FDisplay.AfterCreate;
 
   FWindow := TfpgwWindow.Create(Self, FDisplay, nil, 0, 0, 480, 320, nil);
   FWindow.OnPaint := @DoPaint;
@@ -68,8 +89,8 @@ begin
     exercise OnClose; harmless no-op if the compositor lacks xdg-decoration. }
   FWindow.SurfaceShell.SetServerSideDecorations;
 
-  FDisplay.AfterCreate;             { roundtrips: enumerate globals + initial events }
   WriteLn('window open — close it to quit');
+  Flush(Output);
 
   while not FQuit do
   begin

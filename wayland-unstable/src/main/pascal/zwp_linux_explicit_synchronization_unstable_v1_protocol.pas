@@ -192,7 +192,7 @@ var
   lFence: Integer;
   lListenerIdx: Integer;
 begin
-  lFence := AMsg.Args.ReadInteger;
+  lFence := AMsg.NextFd;
   if Assigned(OnFencedRelease) then OnFencedRelease(Self,lFence);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_buffer_release_v1_fenced_release(Self,lFence);
   AMsg.SetHandled;

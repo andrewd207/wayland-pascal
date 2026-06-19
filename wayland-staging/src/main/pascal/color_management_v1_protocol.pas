@@ -796,7 +796,7 @@ var
   lIccSize: DWord;
   lListenerIdx: Integer;
 begin
-  lIcc := AMsg.Args.ReadInteger;
+  lIcc := AMsg.NextFd;
   lIccSize := AMsg.Args.ReadDWord;
   if Assigned(OnIccFile) then OnIccFile(Self,lIcc,lIccSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_image_description_info_v1_icc_file(Self,lIcc,lIccSize);

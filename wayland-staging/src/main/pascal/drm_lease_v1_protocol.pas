@@ -208,7 +208,7 @@ var
   lFd: Integer;
   lListenerIdx: Integer;
 begin
-  lFd := AMsg.Args.ReadInteger;
+  lFd := AMsg.NextFd;
   if Assigned(OnDrmFd) then OnDrmFd(Self,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_drm_lease_device_v1_drm_fd(Self,lFd);
   AMsg.SetHandled;
@@ -380,7 +380,7 @@ var
   lLeasedFd: Integer;
   lListenerIdx: Integer;
 begin
-  lLeasedFd := AMsg.Args.ReadInteger;
+  lLeasedFd := AMsg.NextFd;
   if Assigned(OnLeaseFd) then OnLeaseFd(Self,lLeasedFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_drm_lease_v1_lease_fd(Self,lLeasedFd);
   AMsg.SetHandled;

@@ -1502,7 +1502,7 @@ var
   lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
-  lFd := AMsg.Args.ReadInteger;
+  lFd := AMsg.NextFd;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_send(Self,lMimeType,lFd);
   AMsg.SetHandled;
@@ -2289,7 +2289,7 @@ var
   lListenerIdx: Integer;
 begin
   lFormat := TKeymapFormat(AMsg.Args.ReadDWord);
-  lFd := AMsg.Args.ReadInteger;
+  lFd := AMsg.NextFd;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnKeymap) then OnKeymap(Self,lFormat,lFd,lSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_keymap(Self,lFormat,lFd,lSize);

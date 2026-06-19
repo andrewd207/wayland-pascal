@@ -606,7 +606,7 @@ begin
           end;
         tvFd:
           begin
-            lTypeCast:='';  // todo. how do we read an fd from and event?
+            lTypeCast:='';  // fd handled specially below: read from NextFd, not the body
           end;
 
         tvEnum:
@@ -637,7 +637,13 @@ begin
       else
         raise Exception.Create('Unhandled type: '+ lEventArg.Interface_)
       end;
-      lAssign.Name:=Format('%s := %sAMsg.Args.%s;', [lName, lTypeCast, lReadArg]);
+      // fds travel out-of-band (SCM_RIGHTS), not in the message body, so they are
+      // popped from the message's fd queue and occupy no bytes in Args. Reading
+      // them from Args would over-run the body and mis-align the args that follow.
+      if lKind = tvFd then
+        lAssign.Name:=Format('%s := AMsg.NextFd;', [lName])
+      else
+        lAssign.Name:=Format('%s := %sAMsg.Args.%s;', [lName, lTypeCast, lReadArg]);
       lTypeCast:='';
     end; // for
   end;

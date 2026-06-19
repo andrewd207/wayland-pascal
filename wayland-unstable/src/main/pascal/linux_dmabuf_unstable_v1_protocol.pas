@@ -339,7 +339,7 @@ var
   lSize: DWord;
   lListenerIdx: Integer;
 begin
-  lFd := AMsg.Args.ReadInteger;
+  lFd := AMsg.NextFd;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnFormatTable) then OnFormatTable(Self,lFd,lSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_format_table(Self,lFd,lSize);

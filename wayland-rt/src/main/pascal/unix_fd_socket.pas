@@ -13,10 +13,25 @@ interface
 uses
   Classes, SysUtils, BaseUnix, ctypes, sockets, ssockets;
 
+const
+  // Matches libwayland's MAX_FDS_OUT: the most file descriptors we accept on a
+  // single recvmsg. Wayland events carry at most a handful, so this is ample.
+  WL_MAX_FDS_PER_RECV = 28;
+
 {$IFNDEF extern_sendfd}
 function SendFD(socket: cint; fd_to_send: cint; data: Pointer; datalen: cint): cint;
 {$ENDIF}
 function RecvFD(socket: cint): cint;
+
+// Receives up to ADataLen bytes into AData AND captures any SCM_RIGHTS file
+// descriptors carried out-of-band on the same datagram. Captured fds are written
+// to AFds[0..AFdCount-1] (up to AMaxFds; extras are silently dropped). Honors the
+// socket's SO_RCVTIMEO (set via TUnixSocket.IOTimeout): returns -1 with errno
+// EAGAIN/EWOULDBLOCK on timeout, 0 on orderly shutdown, or the byte count read.
+// This is the receive counterpart to SendFD and the only correct way to read a
+// Wayland stream: a plain read() silently discards the ancillary fds.
+function RecvWithFds(socket: cint; AData: Pointer; ADataLen: cint;
+  AFds: pcint; AMaxFds: Integer; out AFdCount: Integer): ssize_t;
 
 function c_errno: Integer;
 
@@ -166,6 +181,53 @@ begin
   end
   else
     Result := -1;
+end;
+
+function RecvWithFds(socket: cint; AData: Pointer; ADataLen: cint;
+  AFds: pcint; AMaxFds: Integer; out AFdCount: Integer): ssize_t;
+var
+  msg: msghdr;
+  io: iovec;
+  cmsg: PCmsghdr;
+  ctrl: TBytes;
+  lNFds, i: Integer;
+  lSrc: pcint;
+begin
+  AFdCount := 0;
+  // Control buffer big enough for AMaxFds descriptors in one SCM_RIGHTS message.
+  SetLength(ctrl, CMSG_SPACE(AMaxFds * SizeOf(cint)));
+  FillChar(msg, SizeOf(msg), 0);
+  FillChar(ctrl[0], Length(ctrl), 0);
+
+  io.iov_base := AData;
+  io.iov_len := ADataLen;
+  msg.msg_iov := @io;
+  msg.msg_iovlen := 1;
+  msg.msg_control := @ctrl[0];
+  msg.msg_controllen := Length(ctrl);
+
+  Result := fpRecvMsg(socket, @msg, 0);
+  if Result <= 0 then
+    Exit; // error (errno set) or orderly shutdown; no ancillary data to harvest
+
+  // Walk every SCM_RIGHTS control message and append its fds in arrival order.
+  cmsg := CMSG_FIRSTHDR(@msg);
+  while cmsg <> nil do
+  begin
+    if (cmsg^.cmsg_level = SOL_SOCKET) and (cmsg^.cmsg_type = SCM_RIGHTS) then
+    begin
+      // payload length = cmsg_len minus the aligned header; one cint per fd.
+      lNFds := (cmsg^.cmsg_len - CMSG_LEN(0)) div SizeOf(cint);
+      lSrc := pcint(CMSG_DATA(cmsg));
+      for i := 0 to lNFds - 1 do
+        if AFdCount < AMaxFds then
+        begin
+          AFds[AFdCount] := lSrc[i];
+          Inc(AFdCount);
+        end;
+    end;
+    cmsg := CMSG_NXTHDR(@msg, cmsg);
+  end;
 end;
 
 function c_errno: Integer;

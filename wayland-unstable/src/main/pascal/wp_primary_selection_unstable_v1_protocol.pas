@@ -307,7 +307,7 @@ var
   lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
-  lFd := AMsg.Args.ReadInteger;
+  lFd := AMsg.NextFd;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_source_v1_send(Self,lMimeType,lFd);
   AMsg.SetHandled;

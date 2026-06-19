@@ -163,10 +163,35 @@ type
     FWakeupRead: cint;
     FWakeupWrite: cint;
 
+    // Receive buffer: bytes pulled off the socket via recvmsg but not yet parsed
+    // into messages. FRecvHead is the parse cursor, FRecvTail the end of valid
+    // data; the [Head..Tail) window is compacted to the front on each refill.
+    FRecvBuf: TBytes;
+    FRecvHead: Integer;
+    FRecvTail: Integer;
+    // FIFO of file descriptors harvested (out-of-band, SCM_RIGHTS) by recvmsg,
+    // in arrival order. Drained as each event's 'h' args are parsed in
+    // WaitMessage. Head..Tail window; reset to 0 when emptied.
+    FRecvFds: array of cint;
+    FRecvFdHead: Integer;
+    FRecvFdTail: Integer;
 
     function NextObjectId: Integer;
     procedure ReadNextMessage;
     procedure CreateWakeupPipe;
+    // recvmsg one chunk into FRecvBuf, harvesting any fds into FRecvFds. True if
+    // bytes were read, False on timeout (EAGAIN); raises EConnectionReset on a
+    // closed/broken connection. Honors the socket's current IOTimeout.
+    function FillRecvBuffer: Boolean;
+    // Block (subject to IOTimeout) until at least ACount unparsed bytes are
+    // buffered. False if a refill timed out before reaching ACount.
+    function EnsureUnread(ACount: Integer): Boolean;
+    // Copy ACount already-buffered bytes out of FRecvBuf, advancing the cursor.
+    procedure ReadRecv(out Buf; ACount: Integer);
+    procedure PushRecvFd(AFd: cint);
+    function PopRecvFd: cint; // -1 if the FIFO is empty
+    // Count the 'h' (fd) args in an event signature like 'keymap(uhu)'.
+    function CountEventFds(const ASignature: String): Integer;
   protected
     class function FindSocketName: String;
     procedure RegisterObject(AObject: IWaylandBase; AUseID: Integer = -1);
@@ -218,7 +243,12 @@ type
 
 implementation
 uses
-  wayland_errors, wayland_strings, wayland, unix_fd_socket;
+  wayland_errors, wayland_strings, wayland, unix_fd_socket, ctypes;
+
+const
+  // Amount of socket data pulled per recvmsg into the receive buffer. Wayland's
+  // max message is 64KiB; a smaller chunk just means more (cheap) recvmsg calls.
+  RECV_CHUNK = 4096;
 
 type
   TWaylandMsgHeader = record
@@ -456,16 +486,114 @@ begin
   FQuit := True;
 end;
 
+function TWaylandDisplayBase.FillRecvBuffer: Boolean;
+var
+  lFds: array[0..WL_MAX_FDS_PER_RECV - 1] of cint;
+  lFdCount, i, lLeft, lErr: Integer;
+  lRead: ssize_t;
+begin
+  // Compact the consumed prefix to the front so the buffer does not grow without
+  // bound across reads.
+  if FRecvHead > 0 then
+  begin
+    lLeft := FRecvTail - FRecvHead;
+    if lLeft > 0 then
+      Move(FRecvBuf[FRecvHead], FRecvBuf[0], lLeft);
+    FRecvTail := lLeft;
+    FRecvHead := 0;
+  end;
+  // Guarantee room for one more chunk.
+  if Length(FRecvBuf) - FRecvTail < RECV_CHUNK then
+    SetLength(FRecvBuf, FRecvTail + RECV_CHUNK);
+
+  while True do
+  begin
+    lFdCount := 0;
+    lRead := RecvWithFds(FSocket.Handle, @FRecvBuf[FRecvTail],
+                         Length(FRecvBuf) - FRecvTail,
+                         @lFds[0], WL_MAX_FDS_PER_RECV, lFdCount);
+    if lRead > 0 then
+    begin
+      for i := 0 to lFdCount - 1 do
+        PushRecvFd(lFds[i]);
+      Inc(FRecvTail, lRead);
+      Exit(True);
+    end
+    else if lRead = 0 then
+      raise EConnectionReset.Create('connection reset')
+    else
+    begin
+      lErr := c_errno;
+      if lErr = ESysEINTR then
+        Continue; // interrupted before any data; just retry
+      if (lErr = ESysEAGAIN) or (lErr = ESysEWOULDBLOCK) then
+        Exit(False); // SO_RCVTIMEO elapsed: no data within the timeout
+      raise EConnectionReset.CreateFmt('recvmsg failed (errno %d)', [lErr]);
+    end;
+  end;
+end;
+
+function TWaylandDisplayBase.EnsureUnread(ACount: Integer): Boolean;
+begin
+  while (FRecvTail - FRecvHead) < ACount do
+    if not FillRecvBuffer then
+      Exit(False);
+  Result := True;
+end;
+
+procedure TWaylandDisplayBase.ReadRecv(out Buf; ACount: Integer);
+begin
+  Move(FRecvBuf[FRecvHead], Buf, ACount);
+  Inc(FRecvHead, ACount);
+end;
+
+procedure TWaylandDisplayBase.PushRecvFd(AFd: cint);
+begin
+  if FRecvFdTail >= Length(FRecvFds) then
+    SetLength(FRecvFds, FRecvFdTail + 8);
+  FRecvFds[FRecvFdTail] := AFd;
+  Inc(FRecvFdTail);
+end;
+
+function TWaylandDisplayBase.PopRecvFd: cint;
+begin
+  if FRecvFdHead >= FRecvFdTail then
+    Exit(-1);
+  Result := FRecvFds[FRecvFdHead];
+  Inc(FRecvFdHead);
+  if FRecvFdHead = FRecvFdTail then // emptied: reset to reuse from the front
+  begin
+    FRecvFdHead := 0;
+    FRecvFdTail := 0;
+  end;
+end;
+
+function TWaylandDisplayBase.CountEventFds(const ASignature: String): Integer;
+var
+  i: Integer;
+  lInArgs: Boolean;
+begin
+  // Signature looks like 'keymap(uhu)'; count 'h' (fd) args between the parens.
+  Result := 0;
+  lInArgs := False;
+  for i := 1 to Length(ASignature) do
+    case ASignature[i] of
+      '(': lInArgs := True;
+      ')': Break;
+      'h': if lInArgs then Inc(Result);
+    end;
+end;
+
 function TWaylandDisplayBase.WaitMessage(ATimeOut: Integer): Boolean;
 var
   Header: TWaylandMsgHeader;
-  lSize: LongInt;
   lBaseObj: TWaylandBase;
   lStream: TWaylandStream;
   lMessageRec: TWaylandEventMessage;
   lObjectIndex: Integer;
   lQueue: IWaylandEventQueue;
   lReadSize: Word;
+  lFdCount, i: Integer;
 begin
   Result := True;
   Fillchar(Header, SizeOf(Header), 0);
@@ -474,21 +602,23 @@ begin
   if FSocket.PeerClosed then
     Raise EConnectionReset.Create('connection reset');
 
-  lSize := FSocket.Read(Header, SizeOF(Header));
-  if lSize <= 0 then
-  begin
-    lSize := c_errno;
+  // Wait (up to ATimeOut) for a full 8-byte header. A partial read stays buffered
+  // for the next call, so a timeout here never loses bytes.
+  if not EnsureUnread(SizeOf(Header)) then
     Exit(False);
-  end;
-
-  if Header.Size > 8 then
-    FSocket.IOTimeout:=0;
-
+  ReadRecv(Header, SizeOf(Header));
 
   if Header.Obj = 0 then
-  begin
-    Raise Exception.Create('Null object not handled...disconnected?');
     // maybe read/seek data and hope for the best
+    Raise Exception.Create('Null object not handled...disconnected?');
+
+  // We are committed to this message: block (IOTimeout 0) for the rest of the
+  // body, including any out-of-band fds, which arrive on the same recvmsg.
+  lReadSize := Header.Size - 8;
+  if lReadSize > 0 then
+  begin
+    FSocket.IOTimeout := 0;
+    EnsureUnread(lReadSize);
   end;
 
   if Header.Obj = 1 then
@@ -520,22 +650,34 @@ begin
     lStream := TWaylandStream.Create;
     lMessageRec.OpCode:=Header.Index;
     lMessageRec.Args := lStream;
-    // Read the payload into the stream. If this fails before the message is
-    // enqueued we still own the stream and must free it ourselves.
+    // Copy the payload out of the receive buffer into the message stream. If this
+    // fails before the message is enqueued we still own the stream and must free
+    // it ourselves.
     try
-      lReadSize := Header.Size-8;
-      // if lReadsize = 0 then CopyFrom will default to $20000 bytes, this causes a hang until it can read that many bytes of messages.
       if lReadSize > 0 then
-        lStream.CopyFrom(FSocket, lReadSize);
-      lStream.Position:=0;
+      begin
+        lStream.WriteBuffer(FRecvBuf[FRecvHead], lReadSize);
+        Inc(FRecvHead, lReadSize);
+        lStream.Position:=0;
+      end;
     except
       lStream.Free;
       raise;
     end;
-    // Ownership of lStream now transfers to the queue. The stream is freed by
-    // DispatchEvent once the event has been dispatched (which may be deferred
-    // if it belongs to a queue other than the display's), so we must NOT free
-    // it here.
+    // Attach this event's out-of-band fds (popped from the connection FIFO in
+    // arrival order = signature order) so they travel with the message and stay
+    // correctly paired even if dispatch is deferred to another queue.
+    lFdCount := CountEventFds(lBaseObj.GetInterfaceAttribute.Event[Header.Index]);
+    if lFdCount > 0 then
+    begin
+      SetLength(lMessageRec.Fds, lFdCount);
+      for i := 0 to lFdCount - 1 do
+        lMessageRec.Fds[i] := PopRecvFd;
+    end;
+    // Ownership of lStream now transfers to the queue. The stream is freed (and
+    // any unconsumed fds closed) by DispatchEvent once the event has been
+    // dispatched (which may be deferred if it belongs to a queue other than the
+    // display's), so we must NOT free it here.
     lQueue := (lBaseObj as IWaylandBase).GetQueue;
     lQueue.Enqueue(lMessageRec, lBaseObj);
     if lQueue = FEventQueue then // the queue of the display
@@ -547,7 +689,8 @@ begin
     {$IFDEF WL_DEBUG}
     WriteLn('didn''t find object for message ', Header.Index);
     {$ENDIF}
-    FSocket.Seek(Header.Size-8, fsFromCurrent);
+    // Discard the body; the cursor was already advanced past the header.
+    Inc(FRecvHead, lReadSize);
   end;
 
 
@@ -606,9 +749,16 @@ begin
 end;
 
 destructor TWaylandDisplayBase.Destroy;
+var
+  lFd: cint;
 begin
   if FWakeupRead >= 0 then FpClose(FWakeupRead);
   if FWakeupWrite >= 0 then FpClose(FWakeupWrite);
+  // Close any received-but-unconsumed fds so they don't leak on shutdown.
+  repeat
+    lFd := PopRecvFd;
+    if lFd >= 0 then FpClose(lFd);
+  until lFd < 0;
   FObjectList.Free;
   FSocket.Free;
   FRequestStream.Free;
@@ -1060,6 +1210,8 @@ begin
     // The stream was created by WaitMessage and ownership was transferred to
     // the queue on enqueue; free it now that the event has been dispatched.
     lData.Args.Free;
+    // Close any fds the handler did not take ownership of (via NextFd).
+    lData.CloseUnusedFds;
   end;
 end;
 
