@@ -150,6 +150,10 @@ type
     FCrit: TRTLCriticalSection;
     FObjectListLock: TRTLCriticalSection;
     FQuit: Boolean;
+    // Set once the display destructor starts tearing down. While true, child
+    // objects freed by FObjectList must neither send protocol requests (the
+    // socket is closing) nor mutate the object list (it is mid-free).
+    FShuttingDown: Boolean;
     FSocket: TUnixSocket;
     FRequestStream: TWaylandStream; // pooled outgoing buffer, guarded by FCrit
     FReader: TReadThread;
@@ -297,6 +301,11 @@ var
   lObj: TWaylandBase;
   {$ENDIF}
 begin
+  // During display teardown the socket is being closed and the object list is
+  // mid-free; suppress the destroy requests child objects fire from their
+  // destructors rather than write to a dead connection.
+  if FShuttingDown then
+    Exit;
   // Serialize the whole build+send under FCrit: FRequestStream is a pooled
   // per-connection buffer (no per-request heap alloc / buffer regrow), and
   // concurrent writers would corrupt the socket byte stream anyway.
@@ -648,8 +657,15 @@ begin
             ' [obj ', Header.Obj, '] size=', Header.Size);
     {$ENDIF}
     lStream := TWaylandStream.Create;
+    // Initialize every field: a local object only gets its managed fields (Fds,
+    // FdStreams) auto-nil'd — OpCode/Handled/FdPos are otherwise garbage, and a
+    // stray FdPos makes ReleaseFds index a nil Fds array and crash.
     lMessageRec.OpCode:=Header.Index;
     lMessageRec.Args := lStream;
+    lMessageRec.Handled := False;
+    lMessageRec.FdPos := 0;
+    lMessageRec.Fds := nil;
+    lMessageRec.FdStreams := nil;
     // Copy the payload out of the receive buffer into the message stream. If this
     // fails before the message is enqueued we still own the stream and must free
     // it ourselves.
@@ -702,6 +718,15 @@ var
   lCount: Integer;
   lDrain: array[0..63] of Byte;
 begin
+  // A single recvmsg pulls a whole chunk off the socket, which often holds
+  // several messages; WaitMessage parses one and leaves the rest in FRecvBuf.
+  // Those buffered messages are NOT on the socket, so report them as pending
+  // directly — otherwise a poll of the (now-empty) socket would strand them
+  // until the next blocking read, e.g. an xdg_surface.configure never gets
+  // dispatched and the window never maps.
+  if FRecvTail > FRecvHead then
+    Exit(True);
+
   lPoll[0].fd := FSocket.Handle;
   lPoll[0].events := POLLIN;
   lPoll[0].revents := 0;
@@ -752,6 +777,7 @@ destructor TWaylandDisplayBase.Destroy;
 var
   lFd: cint;
 begin
+  FShuttingDown := True; // stop child destructors sending requests / mutating the list
   if FWakeupRead >= 0 then FpClose(FWakeupRead);
   if FWakeupWrite >= 0 then FpClose(FWakeupWrite);
   // Close any received-but-unconsumed fds so they don't leak on shutdown.
@@ -759,13 +785,18 @@ begin
     lFd := PopRecvFd;
     if lFd >= 0 then FpClose(lFd);
   until lFd < 0;
-  FObjectList.Free;
   FSocket.Free;
   FRequestStream.Free;
+  // inherited Destroy -> TWaylandBase.Destroy -> Connection.ObjectDestroying,
+  // which still uses FObjectList and FObjectListLock (the display is its own
+  // Connection), so those must outlive it — tear them down AFTER. The object's
+  // memory is only released once this whole destructor chain returns, so the
+  // fields are still valid here.
+  inherited Destroy;
+  FObjectList.Free;
   FEventQueue := nil;
   DoneCriticalSection(FCrit);
   DoneCriticalSection(FObjectListLock);
-  inherited Destroy;
 end;
 
 { TWaylandDisplayBase.TReadThread }
@@ -877,6 +908,10 @@ var
   lObject: TObject = nil;
 begin
   // possibly notify we are destroying it to the server?
+  // While the display is tearing down, FObjectList is being freed (which is what
+  // destroys these child objects); mutating it here would corrupt that walk.
+  if FShuttingDown then
+    Exit;
   // Guard the list mutation with the same lock as RegisterObject/GetObject and
   // the WaitMessage dispatch lookup, so removal is race-free across threads.
   EnterCriticalSection(FObjectListLock);
@@ -1210,8 +1245,9 @@ begin
     // The stream was created by WaitMessage and ownership was transferred to
     // the queue on enqueue; free it now that the event has been dispatched.
     lData.Args.Free;
-    // Close any fds the handler did not take ownership of (via NextFd).
-    lData.CloseUnusedFds;
+    // Free the fd streams handed to the handler and close any fds it did not
+    // take ownership of.
+    lData.ReleaseFds;
   end;
 end;
 

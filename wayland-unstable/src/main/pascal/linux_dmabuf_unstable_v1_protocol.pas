@@ -125,7 +125,7 @@ type
     end;
 
     TDoneEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1) of object;
-    TFormatTableEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aFd: Integer; aSize: DWord) of object;
+    TFormatTableEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aFd: TWaylandFdStream; aSize: DWord) of object;
     TMainDeviceEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
     TTrancheDoneEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1) of object;
     TTrancheTargetDeviceEvent = procedure(Sender: TWpLinuxDmabufFeedbackV1; aDevice: TBytes) of object;
@@ -172,7 +172,7 @@ type
   IWpLinuxDmabufFeedbackV1Listener = interface
   ['IWpLinuxDmabufFeedbackV1Listener']
     procedure wp_linux_dmabuf_feedback_v1_done(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1);
-    procedure wp_linux_dmabuf_feedback_v1_format_table(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aFd: Integer; aSize: DWord);
+    procedure wp_linux_dmabuf_feedback_v1_format_table(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aFd: TWaylandFdStream; aSize: DWord);
     procedure wp_linux_dmabuf_feedback_v1_main_device(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aDevice: TBytes);
     procedure wp_linux_dmabuf_feedback_v1_tranche_done(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1);
     procedure wp_linux_dmabuf_feedback_v1_tranche_target_device(AWpLinuxDmabufFeedbackV1: TWpLinuxDmabufFeedbackV1; aDevice: TBytes);
@@ -335,11 +335,11 @@ end;
 
 procedure TWpLinuxDmabufFeedbackV1.HandleFormatTable(var AMsg: TWaylandEventMessage);
 var
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lSize: DWord;
   lListenerIdx: Integer;
 begin
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnFormatTable) then OnFormatTable(Self,lFd,lSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_dmabuf_feedback_v1_format_table(Self,lFd,lSize);

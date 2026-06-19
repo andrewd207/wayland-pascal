@@ -146,7 +146,7 @@ type
     procedure wl_pointer_axis_value120(AWlPointer: TWlPointer; AAxis: TWlPointer.TAxis; AValue120: LongInt);
     procedure wl_pointer_axis_relative_direction(AWlPointer: TWlPointer; AAxis: TWlPointer.TAxis; ADirection: TWlPointer.TAxisRelativeDirection);
     // keyboard
-    procedure wl_keyboard_keymap(AWlKeyboard: TWlKeyboard; AFormat: TWlKeyboard.TKeymapFormat; AFd: LongInt{fd}; ASize: DWord);
+    procedure wl_keyboard_keymap(AWlKeyboard: TWlKeyboard; AFormat: TWlKeyboard.TKeymapFormat; AFd: TWaylandFdStream; ASize: DWord);
     procedure wl_keyboard_enter(AWlKeyboard: TWlKeyboard; ASerial: DWord; ASurface: TWlSurface; AKeys: TBytes);
     procedure wl_keyboard_leave(AWlKeyboard: TWlKeyboard; ASerial: DWord; ASurface: TWlSurface);
     procedure wl_keyboard_key(AWlKeyboard: TWlKeyboard; ASerial: DWord; ATime: DWord; AKey: DWord; AState: TWlKeyboard.TKeyState);
@@ -317,7 +317,7 @@ type
     FDndFinished: Boolean;
     FDndAction: TWlDataDeviceManager.TDndAction;
     procedure wl_data_source_target(AWlDataSource: TWlDataSource; AMimeType: String);
-    procedure wl_data_source_send(AWlDataSource: TWlDataSource; AMimeType: String; AFd: LongInt);
+    procedure wl_data_source_send(AWlDataSource: TWlDataSource; AMimeType: String; AFd: TWaylandFdStream);
     procedure wl_data_source_cancelled(AWlDataSource: TWlDataSource);
     procedure wl_data_source_dnd_drop_performed(AWlDataSource: TWlDataSource);
     procedure wl_data_source_dnd_finished(AWlDataSource: TWlDataSource);
@@ -1947,11 +1947,14 @@ begin
 end;
 
 procedure TfpgwDisplay.wl_keyboard_keymap(AWlKeyboard: TWlKeyboard;
-  AFormat: TWlKeyboard.TKeymapFormat; AFd: LongInt; ASize: DWord);
+  AFormat: TWlKeyboard.TKeymapFormat; AFd: TWaylandFdStream; ASize: DWord);
 begin
   //Writeln('keymap');
+  { The fpGUI-facing event takes a raw fd to mmap then close, so hand ownership
+    of the fd over (ReleaseHandle) — otherwise the message would also close it.
+    If nobody is listening, the stream closes the fd itself after dispatch. }
   if Assigned(FOnKeyboardKeymap) then
-    FOnKeyboardKeymap(Owner,AFormat,AFd,ASize);
+    FOnKeyboardKeymap(Owner,AFormat,AFd.ReleaseHandle,ASize);
 end;
 
 procedure TfpgwDisplay.wl_keyboard_enter(AWlKeyboard: TWlKeyboard;
@@ -2204,10 +2207,10 @@ end;
 
 function TfpgwDataOffer.Receive(const AMimeType: String): TBytes;
 var
-  fds: array[0..1] of cint;
+  lRead, lWrite: TWaylandFdStream;
   ms: TMemoryStream;
   buf: array[0..4095] of Byte;
-  n: TsSize;
+  n: LongInt;
   pfd: TPollFd;
   r: cint;
   done: Boolean;
@@ -2215,29 +2218,29 @@ begin
   SetLength(Result, 0);
   if not Assigned(FOffer) then
     Exit;
-  if FpPipe(fds) <> 0 then       { fds[0]=read, fds[1]=write }
+  if not TWaylandFdStream.CreatePipe(lRead, lWrite) then
     Exit;
-  FOffer.Receive(AMimeType, fds[1]);
-  FDisplay.Flush;        { send the receive request (with the write fd) }
-  FpClose(fds[1]);              { we only read }
-
-  { The source (another process) writes its payload to the pipe; we just read
-    it. No wl_display dispatch here — doing so reentrantly deadlocks libwayland,
-    and it isn't needed: the data arrives over the pipe, not the protocol. The
-    same-process case is short-circuited in ClipboardText (we never reach here
-    for our own selection). A poll timeout guards against a source that never
-    answers. }
   ms := TMemoryStream.Create;
-  done := False;
   try
+    FOffer.Receive(AMimeType, lWrite.Handle); { source writes into the write end }
+    FDisplay.Flush;        { send the receive request (with the write fd) }
+    FreeAndNil(lWrite);          { we only read; closing it gives the source EOF cue }
+
+    { The source (another process) writes its payload to the pipe; we just read
+      it. No wl_display dispatch here — doing so reentrantly deadlocks libwayland,
+      and it isn't needed: the data arrives over the pipe, not the protocol. The
+      same-process case is short-circuited in ClipboardText (we never reach here
+      for our own selection). A poll timeout guards against a source that never
+      answers — TStream has no timeout, so we poll the read end's Handle. }
+    done := False;
     repeat
-      pfd.fd := fds[0]; pfd.events := POLLIN; pfd.revents := 0;
+      pfd.fd := lRead.Handle; pfd.events := POLLIN; pfd.revents := 0;
       r := FpPoll(@pfd, 1, 2000);   { 2s safety timeout }
       if r <= 0 then
         Break;                       { timeout or error }
       if (pfd.revents and (POLLIN or POLLHUP)) <> 0 then
       begin
-        n := FpRead(fds[0], buf, SizeOf(buf));
+        n := lRead.Read(buf, SizeOf(buf));
         if n > 0 then
           ms.Write(buf, n)
         else
@@ -2248,8 +2251,9 @@ begin
     if ms.Size > 0 then
       Move(ms.Memory^, Result[0], ms.Size);
   finally
-    FpClose(fds[0]);
-    ms.Free;
+    FreeAndNil(lWrite);  { nil-safe if already freed above }
+    FreeAndNil(lRead);
+    FreeAndNil(ms);
   end;
 end;
 
@@ -2327,19 +2331,20 @@ begin
   // informational (the mime the target would accept); nothing to do
 end;
 
-procedure TfpgwDataSource.wl_data_source_send(AWlDataSource: TWlDataSource; AMimeType: String; AFd: LongInt);
+procedure TfpgwDataSource.wl_data_source_send(AWlDataSource: TWlDataSource; AMimeType: String; AFd: TWaylandFdStream);
 var
   i: Integer;
   s: String;
 begin
+  { Write our payload to the stream. We do NOT close it — the message owns the
+    stream and closes the fd after dispatch, which is what gives the reader EOF. }
   i := FMimes.IndexOf(AMimeType);
   if i >= 0 then
   begin
     s := FPayloads[i];
     if Length(s) > 0 then
-      FpWrite(AFd, s[1], Length(s));
+      AFd.WriteBuffer(s[1], Length(s));
   end;
-  FpClose(AFd);
 end;
 
 procedure TfpgwDataSource.wl_data_source_cancelled(AWlDataSource: TWlDataSource);

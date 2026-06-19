@@ -532,6 +532,10 @@ begin
     lEventArg := aEvent.Args.Items[i];
     lName := TClassNode.Pascalify(lEventArg.Name, True, 'a');
     lTypeName := GetArgTypeName(lEventArg, lKind); // if lIsEnum add forward?
+    // Event fds arrive out-of-band; deliver them as a ready-to-use stream (the
+    // message owns it). Request fd args stay Integer (the caller supplies the fd).
+    if lKind = tvFd then
+      lTypeName := 'TWaylandFdStream';
     lProcType.AddParameter(lName, lTypeName);
     // The listener interface is a top-level type, so a same-interface enum/
     // bitfield type (nested in the class, hence unqualified) must be qualified
@@ -578,6 +582,8 @@ begin
       lEventArg := aEvent.Args.Items[i];
       lName := TClassNode.Pascalify(lEventArg.Name, True, 'l');
       lTypeName := GetArgTypeName(lEventArg, lKind); // if lIsEnum add forward?
+      if lKind = tvFd then
+        lTypeName := 'TWaylandFdStream'; // event fds are delivered as a stream
       lVarDecl := TParameterNode.CreateNew(lVar);
       lCallArgs+=lName+',';
       lVar.List.Add(lVarDecl);
@@ -638,10 +644,11 @@ begin
         raise Exception.Create('Unhandled type: '+ lEventArg.Interface_)
       end;
       // fds travel out-of-band (SCM_RIGHTS), not in the message body, so they are
-      // popped from the message's fd queue and occupy no bytes in Args. Reading
-      // them from Args would over-run the body and mis-align the args that follow.
+      // taken from the message's fd queue (as a stream) and occupy no bytes in
+      // Args. Reading them from Args would over-run the body and mis-align the
+      // args that follow.
       if lKind = tvFd then
-        lAssign.Name:=Format('%s := AMsg.NextFd;', [lName])
+        lAssign.Name:=Format('%s := AMsg.NextFdStream;', [lName])
       else
         lAssign.Name:=Format('%s := %sAMsg.Args.%s;', [lName, lTypeCast, lReadArg]);
       lTypeCast:='';

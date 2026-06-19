@@ -33,7 +33,7 @@ type
   { TWpDrmLeaseDeviceV1 }
   TWpDrmLeaseDeviceV1 = class(TWaylandBase)
   public type
-    TDrmFdEvent = procedure(Sender: TWpDrmLeaseDeviceV1; aFd: Integer) of object;
+    TDrmFdEvent = procedure(Sender: TWpDrmLeaseDeviceV1; aFd: TWaylandFdStream) of object;
     TConnectorEvent = procedure(Sender: TWpDrmLeaseDeviceV1; aId: TWpDrmLeaseConnectorV1) of object;
     TDoneEvent = procedure(Sender: TWpDrmLeaseDeviceV1) of object;
     TReleasedEvent = procedure(Sender: TWpDrmLeaseDeviceV1) of object;
@@ -69,7 +69,7 @@ type
 
   IWpDrmLeaseDeviceV1Listener = interface
   ['IWpDrmLeaseDeviceV1Listener']
-    procedure wp_drm_lease_device_v1_drm_fd(AWpDrmLeaseDeviceV1: TWpDrmLeaseDeviceV1; aFd: Integer);
+    procedure wp_drm_lease_device_v1_drm_fd(AWpDrmLeaseDeviceV1: TWpDrmLeaseDeviceV1; aFd: TWaylandFdStream);
     procedure wp_drm_lease_device_v1_connector(AWpDrmLeaseDeviceV1: TWpDrmLeaseDeviceV1; aId: TWpDrmLeaseConnectorV1);
     procedure wp_drm_lease_device_v1_done(AWpDrmLeaseDeviceV1: TWpDrmLeaseDeviceV1);
     procedure wp_drm_lease_device_v1_released(AWpDrmLeaseDeviceV1: TWpDrmLeaseDeviceV1);
@@ -158,7 +158,7 @@ type
   { TWpDrmLeaseV1 }
   TWpDrmLeaseV1 = class(TWaylandBase)
   public type
-    TLeaseFdEvent = procedure(Sender: TWpDrmLeaseV1; aLeasedFd: Integer) of object;
+    TLeaseFdEvent = procedure(Sender: TWpDrmLeaseV1; aLeasedFd: TWaylandFdStream) of object;
     TFinishedEvent = procedure(Sender: TWpDrmLeaseV1) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
@@ -185,7 +185,7 @@ type
 
   IWpDrmLeaseV1Listener = interface
   ['IWpDrmLeaseV1Listener']
-    procedure wp_drm_lease_v1_lease_fd(AWpDrmLeaseV1: TWpDrmLeaseV1; aLeasedFd: Integer);
+    procedure wp_drm_lease_v1_lease_fd(AWpDrmLeaseV1: TWpDrmLeaseV1; aLeasedFd: TWaylandFdStream);
     procedure wp_drm_lease_v1_finished(AWpDrmLeaseV1: TWpDrmLeaseV1);
   end;
 
@@ -205,10 +205,10 @@ end;
 
 procedure TWpDrmLeaseDeviceV1.HandleDrmFd(var AMsg: TWaylandEventMessage);
 var
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   if Assigned(OnDrmFd) then OnDrmFd(Self,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_drm_lease_device_v1_drm_fd(Self,lFd);
   AMsg.SetHandled;
@@ -377,10 +377,10 @@ end;
 
 procedure TWpDrmLeaseV1.HandleLeaseFd(var AMsg: TWaylandEventMessage);
 var
-  lLeasedFd: Integer;
+  lLeasedFd: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
-  lLeasedFd := AMsg.NextFd;
+  lLeasedFd := AMsg.NextFdStream;
   if Assigned(OnLeaseFd) then OnLeaseFd(Self,lLeasedFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_drm_lease_v1_lease_fd(Self,lLeasedFd);
   AMsg.SetHandled;

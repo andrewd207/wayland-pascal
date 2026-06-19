@@ -409,7 +409,7 @@ type
   public type
     TError = (erInvalidactionmask = 0, erInvalidsource = 1);
     TTargetEvent = procedure(Sender: TWlDataSource; aMimeType: String) of object;
-    TSendEvent = procedure(Sender: TWlDataSource; aMimeType: String; aFd: Integer) of object;
+    TSendEvent = procedure(Sender: TWlDataSource; aMimeType: String; aFd: TWaylandFdStream) of object;
     TCancelledEvent = procedure(Sender: TWlDataSource) of object;
     TDndDropPerformedEvent = procedure(Sender: TWlDataSource) of object;
     TDndFinishedEvent = procedure(Sender: TWlDataSource) of object;
@@ -454,7 +454,7 @@ type
   IWlDataSourceListener = interface
   ['IWlDataSourceListener']
     procedure wl_data_source_target(AWlDataSource: TWlDataSource; aMimeType: String);
-    procedure wl_data_source_send(AWlDataSource: TWlDataSource; aMimeType: String; aFd: Integer);
+    procedure wl_data_source_send(AWlDataSource: TWlDataSource; aMimeType: String; aFd: TWaylandFdStream);
     procedure wl_data_source_cancelled(AWlDataSource: TWlDataSource);
     procedure wl_data_source_dnd_drop_performed(AWlDataSource: TWlDataSource);
     procedure wl_data_source_dnd_finished(AWlDataSource: TWlDataSource);
@@ -886,7 +886,7 @@ type
   public type
     TKeymapFormat = (keNokeymap = 0, keXkbv1 = 1);
     TKeyState = (keReleased = 0, kePressed = 1);
-    TKeymapEvent = procedure(Sender: TWlKeyboard; aFormat: TKeymapFormat; aFd: Integer; aSize: DWord) of object;
+    TKeymapEvent = procedure(Sender: TWlKeyboard; aFormat: TKeymapFormat; aFd: TWaylandFdStream; aSize: DWord) of object;
     TEnterEvent = procedure(Sender: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface; aKeys: TBytes) of object;
     TLeaveEvent = procedure(Sender: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface) of object;
     TKeyEvent = procedure(Sender: TWlKeyboard; aSerial: DWord; aTime: DWord; aKey: DWord; aState: TKeyState) of object;
@@ -929,7 +929,7 @@ type
 
   IWlKeyboardListener = interface
   ['IWlKeyboardListener']
-    procedure wl_keyboard_keymap(AWlKeyboard: TWlKeyboard; aFormat: TWlKeyboard.TKeymapFormat; aFd: Integer; aSize: DWord);
+    procedure wl_keyboard_keymap(AWlKeyboard: TWlKeyboard; aFormat: TWlKeyboard.TKeymapFormat; aFd: TWaylandFdStream; aSize: DWord);
     procedure wl_keyboard_enter(AWlKeyboard: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface; aKeys: TBytes);
     procedure wl_keyboard_leave(AWlKeyboard: TWlKeyboard; aSerial: DWord; aSurface: TWlSurface);
     procedure wl_keyboard_key(AWlKeyboard: TWlKeyboard; aSerial: DWord; aTime: DWord; aKey: DWord; aState: TWlKeyboard.TKeyState);
@@ -1498,11 +1498,11 @@ end;
 procedure TWlDataSource.HandleSend(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_data_source_send(Self,lMimeType,lFd);
   AMsg.SetHandled;
@@ -2284,12 +2284,12 @@ end;
 procedure TWlKeyboard.HandleKeymap(var AMsg: TWaylandEventMessage);
 var
   lFormat: TKeymapFormat;
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lSize: DWord;
   lListenerIdx: Integer;
 begin
   lFormat := TKeymapFormat(AMsg.Args.ReadDWord);
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   lSize := AMsg.Args.ReadDWord;
   if Assigned(OnKeymap) then OnKeymap(Self,lFormat,lFd,lSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wl_keyboard_keymap(Self,lFormat,lFd,lSize);

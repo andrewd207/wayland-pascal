@@ -108,7 +108,7 @@ type
   TExtDataControlSourceV1 = class(TWaylandBase)
   public type
     TError = (erInvalidoffer = 1);
-    TSendEvent = procedure(Sender: TExtDataControlSourceV1; aMimeType: String; aFd: Integer) of object;
+    TSendEvent = procedure(Sender: TExtDataControlSourceV1; aMimeType: String; aFd: TWaylandFdStream) of object;
     TCancelledEvent = procedure(Sender: TExtDataControlSourceV1) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
@@ -136,7 +136,7 @@ type
 
   IExtDataControlSourceV1Listener = interface
   ['IExtDataControlSourceV1Listener']
-    procedure ext_data_control_source_v1_send(AExtDataControlSourceV1: TExtDataControlSourceV1; aMimeType: String; aFd: Integer);
+    procedure ext_data_control_source_v1_send(AExtDataControlSourceV1: TExtDataControlSourceV1; aMimeType: String; aFd: TWaylandFdStream);
     procedure ext_data_control_source_v1_cancelled(AExtDataControlSourceV1: TExtDataControlSourceV1);
   end;
 
@@ -302,11 +302,11 @@ end;
 procedure TExtDataControlSourceV1.HandleSend(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].ext_data_control_source_v1_send(Self,lMimeType,lFd);
   AMsg.SetHandled;

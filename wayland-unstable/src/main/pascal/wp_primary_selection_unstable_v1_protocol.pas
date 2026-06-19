@@ -128,7 +128,7 @@ type
   { TWpPrimarySelectionSourceV1 }
   TWpPrimarySelectionSourceV1 = class(TWaylandBase)
   public type
-    TSendEvent = procedure(Sender: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: Integer) of object;
+    TSendEvent = procedure(Sender: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: TWaylandFdStream) of object;
     TCancelledEvent = procedure(Sender: TWpPrimarySelectionSourceV1) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
@@ -156,7 +156,7 @@ type
 
   IWpPrimarySelectionSourceV1Listener = interface
   ['IWpPrimarySelectionSourceV1Listener']
-    procedure wp_primary_selection_source_v1_send(AWpPrimarySelectionSourceV1: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: Integer);
+    procedure wp_primary_selection_source_v1_send(AWpPrimarySelectionSourceV1: TWpPrimarySelectionSourceV1; aMimeType: String; aFd: TWaylandFdStream);
     procedure wp_primary_selection_source_v1_cancelled(AWpPrimarySelectionSourceV1: TWpPrimarySelectionSourceV1);
   end;
 
@@ -303,11 +303,11 @@ end;
 procedure TWpPrimarySelectionSourceV1.HandleSend(var AMsg: TWaylandEventMessage);
 var
   lMimeType: String;
-  lFd: Integer;
+  lFd: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
   lMimeType := AMsg.Args.ReadString;
-  lFd := AMsg.NextFd;
+  lFd := AMsg.NextFdStream;
   if Assigned(OnSend) then OnSend(Self,lMimeType,lFd);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_primary_selection_source_v1_send(Self,lMimeType,lFd);
   AMsg.SetHandled;

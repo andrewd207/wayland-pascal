@@ -305,7 +305,7 @@ type
   TWpImageDescriptionInfoV1 = class(TWaylandBase)
   public type
     TDoneEvent = procedure(Sender: TWpImageDescriptionInfoV1) of object;
-    TIccFileEvent = procedure(Sender: TWpImageDescriptionInfoV1; aIcc: Integer; aIccSize: DWord) of object;
+    TIccFileEvent = procedure(Sender: TWpImageDescriptionInfoV1; aIcc: TWaylandFdStream; aIccSize: DWord) of object;
     TPrimariesEvent = procedure(Sender: TWpImageDescriptionInfoV1; aRX: Integer; aRY: Integer; aGX: Integer; aGY: Integer; aBX: Integer; aBY: Integer; aWX: Integer; aWY: Integer) of object;
     TPrimariesNamedEvent = procedure(Sender: TWpImageDescriptionInfoV1; aPrimaries: TWpColorManagerV1.TPrimaries) of object;
     TTfPowerEvent = procedure(Sender: TWpImageDescriptionInfoV1; aEexp: DWord) of object;
@@ -365,7 +365,7 @@ type
   IWpImageDescriptionInfoV1Listener = interface
   ['IWpImageDescriptionInfoV1Listener']
     procedure wp_image_description_info_v1_done(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1);
-    procedure wp_image_description_info_v1_icc_file(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1; aIcc: Integer; aIccSize: DWord);
+    procedure wp_image_description_info_v1_icc_file(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1; aIcc: TWaylandFdStream; aIccSize: DWord);
     procedure wp_image_description_info_v1_primaries(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1; aRX: Integer; aRY: Integer; aGX: Integer; aGY: Integer; aBX: Integer; aBY: Integer; aWX: Integer; aWY: Integer);
     procedure wp_image_description_info_v1_primaries_named(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1; aPrimaries: TWpColorManagerV1.TPrimaries);
     procedure wp_image_description_info_v1_tf_power(AWpImageDescriptionInfoV1: TWpImageDescriptionInfoV1; aEexp: DWord);
@@ -792,11 +792,11 @@ end;
 
 procedure TWpImageDescriptionInfoV1.HandleIccFile(var AMsg: TWaylandEventMessage);
 var
-  lIcc: Integer;
+  lIcc: TWaylandFdStream;
   lIccSize: DWord;
   lListenerIdx: Integer;
 begin
-  lIcc := AMsg.NextFd;
+  lIcc := AMsg.NextFdStream;
   lIccSize := AMsg.Args.ReadDWord;
   if Assigned(OnIccFile) then OnIccFile(Self,lIcc,lIccSize);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_image_description_info_v1_icc_file(Self,lIcc,lIccSize);

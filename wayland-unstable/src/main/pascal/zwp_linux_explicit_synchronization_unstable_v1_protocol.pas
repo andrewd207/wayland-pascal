@@ -80,7 +80,7 @@ type
   { TWpLinuxBufferReleaseV1 }
   TWpLinuxBufferReleaseV1 = class(TWaylandBase)
   public type
-    TFencedReleaseEvent = procedure(Sender: TWpLinuxBufferReleaseV1; aFence: Integer) of object;
+    TFencedReleaseEvent = procedure(Sender: TWpLinuxBufferReleaseV1; aFence: TWaylandFdStream) of object;
     TImmediateReleaseEvent = procedure(Sender: TWpLinuxBufferReleaseV1) of object;
   protected
     class function GetInterfaceVersion: Integer; override;
@@ -104,7 +104,7 @@ type
 
   IWpLinuxBufferReleaseV1Listener = interface
   ['IWpLinuxBufferReleaseV1Listener']
-    procedure wp_linux_buffer_release_v1_fenced_release(AWpLinuxBufferReleaseV1: TWpLinuxBufferReleaseV1; aFence: Integer);
+    procedure wp_linux_buffer_release_v1_fenced_release(AWpLinuxBufferReleaseV1: TWpLinuxBufferReleaseV1; aFence: TWaylandFdStream);
     procedure wp_linux_buffer_release_v1_immediate_release(AWpLinuxBufferReleaseV1: TWpLinuxBufferReleaseV1);
   end;
 
@@ -189,10 +189,10 @@ end;
 
 procedure TWpLinuxBufferReleaseV1.HandleFencedRelease(var AMsg: TWaylandEventMessage);
 var
-  lFence: Integer;
+  lFence: TWaylandFdStream;
   lListenerIdx: Integer;
 begin
-  lFence := AMsg.NextFd;
+  lFence := AMsg.NextFdStream;
   if Assigned(OnFencedRelease) then OnFencedRelease(Self,lFence);
   for lListenerIdx := 0 to High(FListeners) do FListeners[lListenerIdx].wp_linux_buffer_release_v1_fenced_release(Self,lFence);
   AMsg.SetHandled;
