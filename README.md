@@ -2,6 +2,13 @@
 
 A Free Pascal Wayland protocol binding, plus the code generator that produces it.
 
+This is a **direct wire-protocol binding**: it speaks the Wayland protocol itself
+over the compositor socket and does **not** link `libwayland` (no
+`libwayland-client`, no `libwayland-cursor`). Marshalling, the event/object
+dispatch, fd passing, the shm pool and the cursor-theme (XCursor) loader are all
+implemented in pure Pascal on top of the FPC RTL — the only runtime dependency is
+a running Wayland compositor.
+
 ## Layout
 
 The project is split by dependency footprint so the runtime binding stays free
