@@ -10,7 +10,7 @@ program canvas_demo;
 
 uses
   {$IFDEF UNIX}cthreads, BaseUnix,{$ENDIF}
-  SysUtils, fpg_wayland_classes, wayland, wayland_canvas;
+  SysUtils, Types, fpg_wayland_classes, wayland, wayland_canvas;
 
 type
   TDemo = class
@@ -28,6 +28,7 @@ var
   lBuf: TfpgwBuffer;
   c: TWaylandCanvas;
   i: Integer;
+  lStar: array[0..4] of TPoint;
 begin
   lBuf := Window.NextBuffer;
   if lBuf = nil then
@@ -36,8 +37,8 @@ begin
   try
     c.Clear(RGB(24, 24, 32));                          { dark background }
 
-    c.FillRect(20, 20, 120, 80, RGB(60, 120, 200));    { filled rectangle }
-    c.Rectangle(20, 20, 120, 80, RGB(255, 255, 255));  { white outline      }
+    c.FillRoundRect(20, 20, 120, 80, 16, 16, RGB(60, 120, 200)); { rounded rect }
+    c.RoundRect(20, 20, 120, 80, 16, 16, RGB(255, 255, 255));    { white outline }
 
     c.FillCircle(240, 70, 45, RGB(220, 80, 80));       { filled circle }
     c.Circle(240, 70, 45, RGB(255, 255, 255));
@@ -48,6 +49,14 @@ begin
     { a little fan of lines }
     for i := 0 to 8 do
       c.Line(220, 160, 220 + i * 12, 260, RGB(230, 200, 90));
+
+    { a five-pointed star drawn as a closed polygon }
+    lStar[0] := Point(300, 150);
+    lStar[1] := Point(318, 205);
+    lStar[2] := Point(263, 171);
+    lStar[3] := Point(337, 171);
+    lStar[4] := Point(282, 205);
+    c.Polygon(lStar, RGB(230, 220, 120));
 
     c.Line(0, 0, c.Width - 1, c.Height - 1, RGB(120, 120, 140)); { diagonal }
   finally

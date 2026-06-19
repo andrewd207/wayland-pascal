@@ -21,7 +21,7 @@ unit wayland_canvas;
 interface
 
 uses
-  Classes, SysUtils, FPImage;
+  Classes, SysUtils, Types, FPImage;
 
 type
   // 0xAARRGGBB as a host DWord (little-endian bytes B,G,R,A = wl_shm ARGB8888).
@@ -55,6 +55,17 @@ type
     procedure VLine(X, Y, H: Integer; AColor: TCanvasColor);
     procedure Line(X1, Y1, X2, Y2: Integer; AColor: TCanvasColor);
     procedure Rectangle(X, Y, W, H: Integer; AColor: TCanvasColor);
+    // Connect consecutive points with straight lines. Polyline leaves the path
+    // open; Polygon also draws the closing edge from the last point to the first.
+    procedure Polyline(const APoints: array of TPoint; AColor: TCanvasColor);
+    procedure Polygon(const APoints: array of TPoint; AColor: TCanvasColor);
+
+    { --- rounded rectangles --- }
+    // Rectangle (X,Y,W,H) with quarter-ellipse corners of radii (RX,RY). Radii
+    // are clamped to half the width/height; a zero radius falls back to the
+    // square Rectangle/FillRect.
+    procedure RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+    procedure FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
 
     { --- ellipses / circles --- }
     procedure Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
@@ -209,6 +220,120 @@ begin
   HLine(X, Y + H - 1, W, AColor);
   VLine(X, Y, H, AColor);
   VLine(X + W - 1, Y, H, AColor);
+end;
+
+procedure TWaylandCanvas.Polyline(const APoints: array of TPoint; AColor: TCanvasColor);
+var
+  i: Integer;
+begin
+  for i := Low(APoints) to High(APoints) - 1 do
+    Line(APoints[i].X, APoints[i].Y, APoints[i + 1].X, APoints[i + 1].Y, AColor);
+end;
+
+procedure TWaylandCanvas.Polygon(const APoints: array of TPoint; AColor: TCanvasColor);
+begin
+  if Length(APoints) < 2 then
+    Exit;
+  Polyline(APoints, AColor);
+  // closing edge
+  Line(APoints[High(APoints)].X, APoints[High(APoints)].Y,
+       APoints[Low(APoints)].X, APoints[Low(APoints)].Y, AColor);
+end;
+
+procedure TWaylandCanvas.RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+var
+  x0, y0: Integer;
+
+  procedure PlotCorners(px, py: Integer); // place one arc point at all 4 corners
+  begin
+    PutPixel(x0 + RX - px, y0 + RY - py, AColor);              // top-left
+    PutPixel(x0 + W - 1 - RX + px, y0 + RY - py, AColor);      // top-right
+    PutPixel(x0 + RX - px, y0 + H - 1 - RY + py, AColor);      // bottom-left
+    PutPixel(x0 + W - 1 - RX + px, y0 + H - 1 - RY + py, AColor); // bottom-right
+  end;
+
+var
+  px, py: Integer;
+  rx2, ry2, twoRx2, twoRy2, p, dx, dy: Int64;
+begin
+  if (W <= 0) or (H <= 0) then
+    Exit;
+  if RX * 2 > W then RX := W div 2;
+  if RY * 2 > H then RY := H div 2;
+  if (RX <= 0) or (RY <= 0) then
+  begin
+    Rectangle(X, Y, W, H, AColor);
+    Exit;
+  end;
+  x0 := X; y0 := Y;
+  // straight edges between the corner arcs
+  HLine(X + RX, Y, W - 2 * RX, AColor);
+  HLine(X + RX, Y + H - 1, W - 2 * RX, AColor);
+  VLine(X, Y + RY, H - 2 * RY, AColor);
+  VLine(X + W - 1, Y + RY, H - 2 * RY, AColor);
+  // midpoint quarter-ellipse, mirrored onto each corner
+  rx2 := Int64(RX) * RX;
+  ry2 := Int64(RY) * RY;
+  twoRx2 := 2 * rx2;
+  twoRy2 := 2 * ry2;
+  px := 0; py := RY;
+  dx := 0; dy := twoRx2 * py;
+  p := Round(ry2 - (rx2 * RY) + (0.25 * rx2));
+  PlotCorners(px, py);
+  while dx < dy do
+  begin
+    Inc(px);
+    dx := dx + twoRy2;
+    if p < 0 then
+      p := p + ry2 + dx
+    else
+    begin
+      Dec(py);
+      dy := dy - twoRx2;
+      p := p + ry2 + dx - dy;
+    end;
+    PlotCorners(px, py);
+  end;
+  p := Round(ry2 * (px + 0.5) * (px + 0.5) + rx2 * (py - 1) * (py - 1) - rx2 * ry2);
+  while py > 0 do
+  begin
+    Dec(py);
+    dy := dy - twoRx2;
+    if p > 0 then
+      p := p + rx2 - dy
+    else
+    begin
+      Inc(px);
+      dx := dx + twoRy2;
+      p := p + rx2 - dy + dx;
+    end;
+    PlotCorners(px, py);
+  end;
+end;
+
+procedure TWaylandCanvas.FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+var
+  dy, hx, inset: Integer;
+begin
+  if (W <= 0) or (H <= 0) then
+    Exit;
+  if RX * 2 > W then RX := W div 2;
+  if RY * 2 > H then RY := H div 2;
+  if (RX <= 0) or (RY <= 0) then
+  begin
+    FillRect(X, Y, W, H, AColor);
+    Exit;
+  end;
+  // full-width middle band
+  FillRect(X, Y + RY, W, H - 2 * RY, AColor);
+  // rounded top/bottom bands: per row, inset by the corner ellipse's half-width
+  for dy := 0 to RY - 1 do
+  begin
+    hx := Round(RX * Sqrt(1 - Sqr((RY - dy - 0.5) / RY)));
+    inset := RX - hx;
+    HLine(X + inset, Y + dy, W - 2 * inset, AColor);          // top
+    HLine(X + inset, Y + H - 1 - dy, W - 2 * inset, AColor);  // bottom
+  end;
 end;
 
 procedure TWaylandCanvas.Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);

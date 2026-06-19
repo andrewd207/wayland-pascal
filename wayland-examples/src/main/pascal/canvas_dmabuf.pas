@@ -17,41 +17,13 @@ program canvas_dmabuf;
 {$PackRecords c}
 
 uses
-  cthreads, BaseUnix, ctypes, SysUtils,
+  cthreads, BaseUnix, ctypes, SysUtils, Types,
   Wayland_Core, wayland, linux_dmabuf_v1_protocol, xdg_shell_protocol,
-  wayland_canvas;
+  wayland_canvas, wayland_dmabuf;
 
 const
   WIN_W = 360;
   WIN_H = 280;
-
-  MFD_CLOEXEC       = $0001;
-  MFD_ALLOW_SEALING = $0002;
-  F_ADD_SEALS       = 1033;
-  F_SEAL_SHRINK     = $0002;
-
-  // ioctl request numbers (generic _IOC encoding: dir<<30 | size<<16 | type<<8 | nr)
-  UDMABUF_CREATE     = (1 shl 30) or (24 shl 16) or (Ord('u') shl 8) or $42; // _IOW('u',0x42, sizeof(udmabuf_create))
-  DMA_BUF_IOCTL_SYNC = (1 shl 30) or (8  shl 16) or (Ord('b') shl 8) or 0;   // _IOW('b',0, sizeof(__u64))
-  DMA_BUF_SYNC_WRITE = 2;
-  DMA_BUF_SYNC_RW    = 3;
-  DMA_BUF_SYNC_START = 0;
-  DMA_BUF_SYNC_END   = 4;
-
-  DRM_FORMAT_ARGB8888 = $34325241; // 'AR24'
-
-type
-  Tudmabuf_create = record
-    memfd: cuint32;
-    flags: cuint32;
-    offset: cuint64;
-    size: cuint64;
-  end;
-  Tdma_buf_sync = record
-    flags: cuint64;
-  end;
-
-function memfd_create(name: PChar; flags: cuint): cint; cdecl; external 'c' name 'memfd_create';
 
 type
   TApp = class
@@ -65,10 +37,7 @@ type
     Toplevel: TXdgToplevel;
     Buffer: TWlBuffer;
 
-    MemFd: cint;
-    DmabufFd: cint;
-    Pixels: PByte;
-    Size: csize_t;
+    Buf: TWaylandUdmabuf;   { the CPU-mapped dma-buf (shared helper) }
     Stride: Integer;
 
     Quit: Boolean;
@@ -85,7 +54,14 @@ type
     procedure DrawScene;
     procedure Present;
     procedure Run;
+    destructor Destroy; override;
   end;
+
+destructor TApp.Destroy;
+begin
+  Buf.Free;   { munmaps + closes the memfd/dma-buf fds }
+  inherited Destroy;
+end;
 
 procedure TApp.OnError(Sender: TWlDisplay; aObjectId: Cardinal; aCode: DWord; aMessage: String);
 begin
@@ -133,93 +109,51 @@ begin
 end;
 
 function TApp.AllocUdmabuf: Boolean;
-var
-  lCreate: Tudmabuf_create;
-  lUdmabuf: cint;
-  p: Pointer;
 begin
   Result := False;
+  if not TWaylandUdmabuf.Available then
+  begin
+    WriteLn('/dev/udmabuf not available (need the kvm group / udmabuf module)');
+    Exit;
+  end;
   // GPU dma-buf import (e.g. mutter's EGL path) generally needs the linear stride
-  // 256-byte aligned; pad rows up to that. The canvas is told the real stride, so
-  // pixels still land correctly.
-  Stride := ((WIN_W * 4 + 255) div 256) * 256;
-  // udmabuf requires the memfd size to be a multiple of the page size; round up
-  // (the canvas only uses the first Stride*WIN_H bytes).
-  Size := ((csize_t(Stride) * WIN_H + 4095) div 4096) * 4096;
-
-  MemFd := memfd_create('wayl-canvas', MFD_CLOEXEC or MFD_ALLOW_SEALING);
-  if MemFd < 0 then
-  begin
-    WriteLn('memfd_create failed: ', fpgeterrno);
-    Exit;
-  end;
-  if fpftruncate(MemFd, Size) <> 0 then
-  begin
-    WriteLn('ftruncate failed: ', fpgeterrno);
-    Exit;
-  end;
-  // udmabuf requires the memfd be sealed against shrinking.
-  if FpFcntl(MemFd, F_ADD_SEALS, F_SEAL_SHRINK) <> 0 then
-  begin
-    WriteLn('F_ADD_SEALS failed: ', fpgeterrno);
-    Exit;
-  end;
-
-  lUdmabuf := FpOpen('/dev/udmabuf', O_RDWR);
-  if lUdmabuf < 0 then
-  begin
-    WriteLn('open /dev/udmabuf failed: ', fpgeterrno, ' (need the kvm group / udmabuf module)');
-    Exit;
-  end;
-  FillChar(lCreate, SizeOf(lCreate), 0);
-  lCreate.memfd := MemFd;
-  lCreate.size := Size;
-  DmabufFd := FpIOCtl(lUdmabuf, UDMABUF_CREATE, @lCreate);
-  FpClose(lUdmabuf);
-  if DmabufFd < 0 then
-  begin
-    WriteLn('UDMABUF_CREATE failed: ', fpgeterrno);
-    Exit;
-  end;
-
-  // CPU access via the memfd mapping (same pages as the dma-buf).
-  p := Fpmmap(nil, Size, PROT_READ or PROT_WRITE, MAP_SHARED, MemFd, 0);
-  if p = MAP_FAILED then
-  begin
-    WriteLn('mmap failed: ', fpgeterrno);
-    Exit;
-  end;
-  Pixels := PByte(p);
-  Result := True;
+  // 256-byte aligned; the helper rounds for us. The canvas is told the real
+  // stride, so pixels still land correctly.
+  Stride := TWaylandUdmabuf.RoundStride(WIN_W * 4);
+  Buf := TWaylandUdmabuf.Create;
+  Result := Buf.Alloc(csize_t(Stride) * WIN_H);
+  if not Result then
+    WriteLn('udmabuf alloc failed: ', fpgeterrno);
 end;
 
 procedure TApp.DrawScene;
 var
   c: TWaylandCanvas;
-  lSync: Tdma_buf_sync;
   i: Integer;
+  lZig: array[0..4] of TPoint;
 begin
   // Bracket CPU writes with dma-buf sync so the compositor sees coherent pixels.
-  lSync.flags := DMA_BUF_SYNC_START or DMA_BUF_SYNC_RW;
-  FpIOCtl(DmabufFd, DMA_BUF_IOCTL_SYNC, @lSync);
+  Buf.BeginCpuAccess;
   try
-    c := TWaylandCanvas.Create(Pixels, WIN_W, WIN_H, Stride);
+    c := TWaylandCanvas.Create(Buf.Data, WIN_W, WIN_H, Stride);
     try
       c.Clear(RGB(32, 28, 24));
-      c.FillRect(20, 20, 120, 80, RGB(200, 120, 60));
-      c.Rectangle(20, 20, 120, 80, RGB(255, 255, 255));
+      c.FillRoundRect(20, 20, 120, 80, 18, 18, RGB(200, 120, 60));
+      c.RoundRect(20, 20, 120, 80, 18, 18, RGB(255, 255, 255));
       c.FillCircle(250, 70, 45, RGB(80, 160, 220));
       c.Circle(250, 70, 45, RGB(255, 255, 255));
       c.FillEllipse(120, 200, 80, 40, RGB(150, 110, 200));
       c.Ellipse(120, 200, 80, 40, RGB(255, 255, 255));
       for i := 0 to 8 do
         c.Line(230, 150, 230 + i * 12, 250, RGB(230, 220, 120));
+      for i := 0 to High(lZig) do
+        lZig[i] := Point(220 + i * 30, 150 + (i and 1) * 40);
+      c.Polyline(lZig, RGB(120, 230, 160));
     finally
       c.Free;
     end;
   finally
-    lSync.flags := DMA_BUF_SYNC_END or DMA_BUF_SYNC_RW;
-    FpIOCtl(DmabufFd, DMA_BUF_IOCTL_SYNC, @lSync);
+    Buf.EndCpuAccess;
   end;
 end;
 
@@ -231,7 +165,7 @@ begin
   DrawScene;
   // LINEAR modifier (0) so the compositor reads our row-major pixels directly.
   lParams := Dmabuf.CreateParams;
-  lParams.Add(DmabufFd, 0, 0, Stride, 0, 0);
+  lParams.Add(Buf.DmabufFd, 0, 0, Stride, 0, 0);
   lFlags.Value := 0;
   Buffer := lParams.CreateImmed(WIN_W, WIN_H, DRM_FORMAT_ARGB8888, lFlags);
   lParams.Free;

@@ -14,11 +14,12 @@ uses
   // equivalent to wayland_cursor yet).
   wayland_strings, wayland_stream, Wayland_Core,
   wayland_errors, wayland_queue, wayland_internal_interfaces,
-  wayland, wayland_shm_impl, unix_fd_socket,
+  wayland, wayland_shm_impl, unix_fd_socket, wayland_dmabuf,
   xcursor,
   xdg_shell_protocol
   ,xdg_decoration_unstable_v1_protocol
   ,viewporter_protocol
+  ,linux_dmabuf_v1_protocol
   ;
 
 type
@@ -27,6 +28,8 @@ type
   TfpgwCursor = class;
   TfpgwShellSurfaceCommon = class;
   TfpgwShellSurfaceClass = class of TfpgwShellSurfaceCommon;
+  TfpgwBufferPool = class;
+  TfpgwBufferPoolClass = class of TfpgwBufferPool;
   TfpgwDataOffer = class;
   TfpgwDataSource = class;
 
@@ -92,6 +95,7 @@ type
                        IXdgWmBaseListener)
   private
     FSurfaceClass: TfpgwShellSurfaceClass;
+    FBufferPoolClass: TfpgwBufferPoolClass;  { shm by default; dma-buf when available }
     FCapabilities: LongWord;
     FDisplay: TWlDisplay;
     FQueue: TWaylandMessageQueue;
@@ -103,6 +107,7 @@ type
     FSeat: TWlSeat;
     FShell: TWlShell;
     FShm: TWlShm;
+    FDmabuf: TWpLinuxDmabufV1;
     FXDGShell: TXdgWmBase;
     FMouse: TWlPointer;
     FKeyboard: TWlKeyboard;
@@ -196,6 +201,7 @@ type
     property Viewporter: TWpViewporter read FViewporter;
     property Shell: TWlShell read FShell;
     property Shm: TWlShm read FShm;
+    property Dmabuf: TWpLinuxDmabufV1 read FDmabuf;
     property Seat: TWlSeat read FSeat;
     property Formats: LongWord read FFormats;
     property Mouse: TWlPointer read FMouse;
@@ -333,20 +339,54 @@ type
     property  OnCancelled: TNotifyEvent read FOnCancelled write FOnCancelled;
   end;
 
-  { TfpgwSharedPool }
-
-  TfpgwSharedPool = class
-  private
+  { TfpgwBufferPool — abstraction over how a window buffer's pixels are backed.
+    Mirrors the shell abstraction (TfpgwShellSurfaceCommon with concrete
+    wl_shell/xdg-shell subclasses): a common base with concrete wl_shm and
+    dma-buf backends, chosen per display by TfpgwDisplay.FBufferPoolClass.
+    Each TfpgwBuffer owns one pool instance. }
+  TfpgwBufferPool = class
+  protected
     FDisplay: TfpgwDisplay;
+    FStride: Integer;          { bytes per row of the most recent GetBuffer }
+  public
+    constructor Create(ADisplay: TfpgwDisplay); virtual;
+    { Allocate (or reallocate) a buffer of these dimensions; returns the
+      wl_buffer and a CPU-writable pointer to its pixels. }
+    function GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat; out AData: Pointer): TWlBuffer; virtual; abstract;
+    { Cache-coherency bracketing around CPU writes (no-op for shm; the dma-buf
+      backend issues DMA_BUF_IOCTL_SYNC). }
+    procedure BeginAccess; virtual;
+    procedure EndAccess; virtual;
+    property Stride: Integer read FStride;
+  end;
+
+  { TfpgwShmPool — wl_shm backend: a growable anonymous shared-memory pool.
+    (Formerly TfpgwSharedPool.) }
+  TfpgwShmPool = class(TfpgwBufferPool)
+  private
     FPool: TWlShmPool;
     FData: Pointer;
     FFd: LongWord;
     FAllocated: LongWord;
     procedure GrowPool(ANewSize: LongWord);
   public
-    constructor Create(ADisplay: TfpgwDisplay);
     destructor  Destroy; override;
-    function GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat; out AData: Pointer): TWlBuffer;
+    function GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat; out AData: Pointer): TWlBuffer; override;
+  end;
+
+  { TfpgwDmabufPool — zwp_linux_dmabuf_v1 backend over a CPU-mapped udmabuf.
+    Faster than shm: the compositor can import/scan out the dma-buf directly.
+    Presented LINEAR + DRM ARGB8888/XRGB8888, with a 256-aligned stride. }
+  TfpgwDmabufPool = class(TfpgwBufferPool)
+  private
+    FBuf: TWaylandUdmabuf;
+    FWidth, FHeight: Integer;
+  public
+    constructor Create(ADisplay: TfpgwDisplay); override;
+    destructor  Destroy; override;
+    function GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat; out AData: Pointer): TWlBuffer; override;
+    procedure BeginAccess; override;
+    procedure EndAccess; override;
   end;
 
   { TfpgwBuffer }
@@ -361,7 +401,7 @@ type
     FNext: TfpgwBuffer;
     FWidth: Integer;
     FRect: TRect;
-    FPool: TfpgwSharedPool;
+    FPool: TfpgwBufferPool;
     procedure FreeBuffer;
     function GetAllocated(AWidth, AHeight: Integer): Boolean;
     function GetStride: Integer;
@@ -781,13 +821,26 @@ begin
   //inherited Create(AOwner, ADisplay, nil, 0,0, AChildWidth+L+R, AChildHeight+T+B, nil);
 end;
 
-{ TfpgwSharedPool }
+{ TfpgwBufferPool }
 
-const
-  MREMAP_MAYMOVE = 1;
-  MREMAP_FIXED = 2;
+constructor TfpgwBufferPool.Create(ADisplay: TfpgwDisplay);
+begin
+  FDisplay := ADisplay;
+end;
 
-procedure TfpgwSharedPool.GrowPool(ANewSize: LongWord);
+procedure TfpgwBufferPool.BeginAccess;
+begin
+  // no-op; the dma-buf backend overrides this
+end;
+
+procedure TfpgwBufferPool.EndAccess;
+begin
+  // no-op; the dma-buf backend overrides this
+end;
+
+{ TfpgwShmPool }
+
+procedure TfpgwShmPool.GrowPool(ANewSize: LongWord);
 var
   lFd: Integer;
 begin
@@ -803,12 +856,7 @@ begin
   FAllocated:=ANewSize;
 end;
 
-constructor TfpgwSharedPool.Create(ADisplay: TfpgwDisplay);
-begin
-  FDisplay := ADisplay;
-end;
-
-destructor TfpgwSharedPool.Destroy;
+destructor TfpgwShmPool.Destroy;
 begin
   if Assigned(FPool) then
   begin
@@ -817,18 +865,76 @@ begin
   inherited Destroy;
 end;
 
-function TfpgwSharedPool.GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat;
+function TfpgwShmPool.GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat;
   out AData: Pointer): TWlBuffer;
 var
   lNeededBytes: Integer;
 begin
+  FStride := AWidth * 4;
   lNeededBytes:=AWidth*AHeight*4;
 
   if FAllocated < lNeededBytes then
      GrowPool(lNeededBytes+((AWidth+50)*50*4));
 
-  Result := FPool.CreateBuffer(0, AWidth, AHeight, AWidth*4, AFormat);
+  Result := FPool.CreateBuffer(0, AWidth, AHeight, FStride, AFormat);
   AData:=FData;
+end;
+
+{ TfpgwDmabufPool }
+
+constructor TfpgwDmabufPool.Create(ADisplay: TfpgwDisplay);
+begin
+  inherited Create(ADisplay);
+  FBuf := TWaylandUdmabuf.Create;
+end;
+
+destructor TfpgwDmabufPool.Destroy;
+begin
+  FBuf.Free;   { munmaps and closes the memfd/dma-buf fds }
+  inherited Destroy;
+end;
+
+function TfpgwDmabufPool.GetBuffer(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat;
+  out AData: Pointer): TWlBuffer;
+var
+  lParams: TWpLinuxBufferParamsV1;
+  lFlags: TWpLinuxBufferParamsV1.TFlags;
+  lDrmFormat: DWord;
+begin
+  { GPU import wants a 256-byte-aligned LINEAR stride; size the udmabuf to the
+    padded stride. The reported Stride is the padded one so the caller's drawing
+    (and TfpgwBuffer.Stride) lands on the right row boundaries. }
+  FStride := TWaylandUdmabuf.RoundStride(AWidth * 4);
+  FWidth := AWidth;
+  FHeight := AHeight;
+  if not FBuf.Alloc(csize_t(FStride) * AHeight) then
+    raise Exception.Create('TfpgwDmabufPool: failed to allocate udmabuf');
+  AData := FBuf.Data;
+
+  { wl_shm's ARGB8888/XRGB8888 are sentinel values (0/1), not DRM fourccs; map
+    them. Any other format already carries its fourcc as the enum value. }
+  case AFormat of
+    TWlShm.TFormat.foArgb8888: lDrmFormat := DRM_FORMAT_ARGB8888;
+    TWlShm.TFormat.foXrgb8888: lDrmFormat := DRM_FORMAT_XRGB8888;
+  else
+    lDrmFormat := DWord(Ord(AFormat));
+  end;
+
+  lParams := FDisplay.FDmabuf.CreateParams;
+  lParams.Add(FBuf.DmabufFd, 0, 0, FStride, 0, 0); { plane 0, offset 0, LINEAR (mod 0) }
+  lFlags.Value := 0;
+  Result := lParams.CreateImmed(AWidth, AHeight, lDrmFormat, lFlags);
+  lParams.Free;
+end;
+
+procedure TfpgwDmabufPool.BeginAccess;
+begin
+  FBuf.BeginCpuAccess;
+end;
+
+procedure TfpgwDmabufPool.EndAccess;
+begin
+  FBuf.EndCpuAccess;
 end;
 
 
@@ -1409,7 +1515,8 @@ end;
 constructor TfpgwBuffer.Create(ADisplay: TfpgwDisplay);
 begin
   FDisplay := ADisplay;
-  FPool := TfpgwSharedPool.Create(FDisplay);
+  { Backend chosen by the display (dma-buf when available, else wl_shm). }
+  FPool := FDisplay.FBufferPoolClass.Create(FDisplay);
 end;
 
 procedure TfpgwBuffer.FreeBuffer;
@@ -1431,7 +1538,9 @@ end;
 
 function TfpgwBuffer.GetStride: Integer;
 begin
-  Result := FWidth *4;
+  { The pool decides the stride (wl_shm packs tightly at Width*4; the dma-buf
+    backend pads rows to a 256-byte boundary). }
+  Result := FPool.Stride;
 end;
 
 destructor TfpgwBuffer.Destroy;
@@ -1459,8 +1568,8 @@ begin
   FBuffer := FPool.GetBuffer(FWidth, FHeight, AFormat, FData);
   FBuffer.AddListener(Self);
 
-  // unneeded
-  FillDWord(FData^, FWidth * FHeight, $FEFEFEFE);
+  // clear to opaque black (stride-aware: rows may be padded by the backend)
+  FillDWord(FData^, (GetStride div 4) * FHeight, $FF000000);
 end;
 
 { TfpgwWindow }
@@ -1516,6 +1625,9 @@ begin
     //WriteLn(Format('Allocate buffer: %d:%d', [GetWidth,GetHeight]));
     Result.Allocate(GetWidth, GetHeight, TWlShm.TFormat.foArgb8888);
   end;
+
+  { Open CPU access for this frame's drawing (no-op for shm; dma-buf sync). }
+  Result.FPool.BeginAccess;
 
   // useful for debugging
   //FillDWord(Result.Data^, Width*Height, $0000ff00);
@@ -1679,6 +1791,8 @@ begin
       //wl_surface_damage_buffer(FSurface, Left, Top, Width, Height);
     end;
 
+    { Close CPU access before the compositor reads (no-op for shm; dma-buf sync). }
+    Buffer.FPool.EndAccess;
     SurfaceShell.Surface.Attach(Buffer.FBuffer, 0, 0);
     buffer.FBusy:=True;
     FReadyBuffer := buffer.Next;
@@ -1759,6 +1873,15 @@ begin
         if Assigned(FKeyboard) then
           FKeyboard.AddListener(Self);
         SetupDataDevice;
+      end;
+    'zwp_linux_dmabuf_v1':
+      begin
+        { v3 is enough for the LINEAR + CreateImmed path we use. Prefer the
+          dma-buf backend (faster) only if /dev/udmabuf is actually usable;
+          otherwise stay on wl_shm. }
+        AWlRegistry.Bind(AName, AInterface, Min(AVersion, 3), TWpLinuxDmabufV1, FDmabuf);
+        if TWaylandUdmabuf.Available then
+          FBufferPoolClass := TfpgwDmabufPool;
       end;
     'wl_data_device_manager':
       begin
@@ -2395,6 +2518,9 @@ constructor TfpgwDisplay.Create(AOwner: TObject; AName: String);
 begin
   FOwner := AOwner;
   FRegList := TfpgwRegistryList.Create(True);
+  { Default to the wl_shm backend; the registry handler upgrades this to the
+    dma-buf backend if zwp_linux_dmabuf_v1 and /dev/udmabuf are available. }
+  FBufferPoolClass := TfpgwShmPool;
 
   { New binding: connect via TryCreateConnection (finds the compositor socket
     itself; the old per-name Connect is gone, so AName is currently unused). }
