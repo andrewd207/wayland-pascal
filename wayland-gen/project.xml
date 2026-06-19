@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-gen</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Code generator: reads Wayland protocol XML and emits the binding units.
+       Now RTL-only — the json_easy/tiOPF dependency was removed by vendoring a
+       small Pascal-source AST writer (vendor/pascal_writer.pas), so it builds
+       with pasbuild like the rest of the project (no Lazarus packages). -->
+  <build>
+    <projectType>application</projectType>
+    <mainSource>regen_units.lpr</mainSource>
+    <executableName>regen_units</executableName>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <moduleDependencies>
+    <module>vendor</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

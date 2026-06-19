@@ -8,13 +8,13 @@ unit wayland_unitwriter;
 interface
 
 uses
-  Classes, SysUtils, wayland_interface_reader, unit_and_object_writeer, jsonobjects, jsonparser;
+  Classes, SysUtils, wayland_interface_reader, pascal_writer;
 
 type
 
   { TWaylandUnitWriter }
 
-  TWaylandUnitWriter = class(TJsonBase)
+  TWaylandUnitWriter = class(TVendNode)
   private type
     TTypeVariety = (tvNormal, tvObject, tvNewObject, tvArray, tvEnum, tvFixed, tvFd);
   private

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-gen-vendor</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Vendored Pascal-source AST writer (pascal_writer), derived from json_easy
+       and re-based off the RTL so the code generator depends on no Lazarus
+       packages. RTL-only library; built before wayland-gen. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+  </build>
+</project>

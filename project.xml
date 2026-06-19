@@ -6,9 +6,9 @@
   <license>BSD-3-Clause</license>
 
   <!-- Aggregator. Builds the pasbuild modules (RTL-only). The code generator
-       (wayland-gen/) is NOT a module here: it depends on tiOPF / json_easy
-       (Lazarus packages, not in the pasbuild repository) and is built with
-       lazbuild. See README.md. -->
+       (wayland-gen/) is now RTL-only too — its former tiOPF / json_easy
+       dependency was removed by vendoring a small AST writer
+       (wayland-gen/vendor) — so it builds with pasbuild like everything else. -->
   <build>
     <packaging>pom</packaging>
   </build>
@@ -23,5 +23,9 @@
     <!-- Examples: excluded from the default build; built by `make examples`
          (or `pasbuild compile` with the all-modules flag). -->
     <module activeByDefault="false">wayland-examples</module>
+    <!-- Code generator + its vendored AST writer. Build-time tools, so excluded
+         from the default build; build explicitly to regenerate bindings. -->
+    <module activeByDefault="false">wayland-gen/vendor</module>
+    <module activeByDefault="false">wayland-gen</module>
   </modules>
 </project>

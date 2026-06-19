@@ -16,7 +16,7 @@ of heavy build-time dependencies:
 | `wayland-classes/` | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. Toolkit-friendly wrappers over the raw binding. | `wayland-rt` + protocol tiers | **pasbuild** |
 | `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | `wayland-rt`, `wayland-stable` | **pasbuild** |
 | `wayland-examples/` | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard). Not built by default. | `wayland-rt`, tiers, `wayland-classes` | **fpc** (`make examples`) |
-| `wayland-gen/` | Code generator: reads Wayland protocol XML, emits the binding units. | tiOPF + json_easy (Lazarus packages) | **lazbuild** |
+| `wayland-gen/` | Code generator: reads Wayland protocol XML, emits the binding units. Bundles a vendored AST writer in `wayland-gen/vendor/`. | FPC RTL only | **pasbuild** |
 
 Every protocol unit is named `<protocol>_protocol` (e.g. `xdg_shell_protocol`,
 `linux_dmabuf_v1_protocol`); the core `wayland` unit keeps its bare name as it is
@@ -24,10 +24,11 @@ integrated with the runtime. Class names drop the leading `z` of unstable
 interfaces (`zwp_linux_dmabuf_v1` → `TWpLinuxDmabufV1`). The generator resolves
 cross-protocol references automatically and emits the needed `uses` clause.
 
-The generator is intentionally *not* a pasbuild module: it depends on tiOPF and
-`json_easy`, which are Lazarus `.lpk` packages and not in the pasbuild
-repository. It is run rarely (only to regenerate bindings), so it keeps its own
-lazbuild project.
+The generator is RTL-only: its Pascal-source AST writer was vendored into
+`wayland-gen/vendor/` (re-based off the RTL) so it no longer depends on tiOPF or
+`json_easy`, and builds with pasbuild like the rest. It is registered in the
+aggregator as `activeByDefault="false"` (a build-time tool), so a plain
+`pasbuild compile` skips it.
 
 ## Build
 
@@ -50,10 +51,10 @@ make clean
 `make examples` builds every `wayland-examples/src/main/pascal/*.pas` into
 `wayland-examples/target/`.
 
-Code generator:
+Code generator (an `activeByDefault="false"` module, so build it explicitly):
 
 ```sh
-lazbuild wayland-gen/regen_units.lpi
+pasbuild compile -m wayland-gen   # builds wayland-gen/vendor then wayland-gen
 ```
 
 ## Regenerating the bindings
@@ -63,8 +64,8 @@ XML (plus the core `wayland.xml`) to build the interface→unit map, then writes
 `<outdir>/<protocol>_protocol.pas` for each. The core protocol:
 
 ```sh
-lazbuild wayland-gen/regen_units.lpi
-./wayland-gen/regen_units wayland-rt/src/main/pascal /usr/share/wayland/wayland.xml
+pasbuild compile -m wayland-gen
+./wayland-gen/target/regen_units wayland-rt/src/main/pascal /usr/share/wayland/wayland.xml
 ```
 
 All extension protocols (stable/unstable/staging) are regenerated together so

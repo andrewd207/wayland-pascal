@@ -9,11 +9,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROTO_DIR="${1:-/usr/share/wayland-protocols}"
-GEN="$ROOT/wayland-gen/regen_units"
+GEN="$ROOT/wayland-gen/target/regen_units"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-[ -x "$GEN" ] || { echo "build the generator first: lazbuild wayland-gen/regen_units.lpi" >&2; exit 1; }
+[ -x "$GEN" ] || { echo "build the generator first: pasbuild compile -m wayland-gen" >&2; exit 1; }
 
 # Generate every protocol into one temp dir (complete interface->unit map).
 mapfile -t XMLS < <(find "$PROTO_DIR"/stable "$PROTO_DIR"/unstable "$PROTO_DIR"/staging -name '*.xml' | sort)
