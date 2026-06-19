@@ -75,6 +75,8 @@ type
     // each edge pixel's existing alpha by its coverage. RGB is preserved. This
     // is how you give a window rounded, transparent corners (draw the window
     // opaque, then RoundCorners over it); the surface must not be marked opaque.
+    // Output is premultiplied (as wl_shm/dma-buf ARGB8888 requires): edge colours
+    // are scaled by coverage and fully-transparent pixels are zeroed.
     procedure RoundCorners(X, Y, W, H, R: Integer);
 
     { --- ellipses / circles --- }
@@ -373,12 +375,20 @@ begin
       cov := R + 0.5 - Sqrt(dx * dx + dy * dy);    // signed coverage at this pixel
       if cov >= 1 then
         Continue;                                  // inside the rounding: leave as-is
-      d := GetPixel(px, py);
       if cov <= 0 then
-        a := 0                                     // outside: transparent
-      else
-        a := Round(((d shr 24) and $FF) * cov);    // edge: scale existing alpha
-      PutPixel(px, py, (d and $00FFFFFF) or (TCanvasColor(a) shl 24));
+      begin
+        PutPixel(px, py, 0);                       // outside: fully transparent
+        Continue;
+      end;
+      // Edge pixel. wl_shm / dma-buf ARGB8888 is PREMULTIPLIED, so scale both the
+      // alpha AND the colour by coverage — otherwise a compositor reads the leftover
+      // RGB as additive and the "transparent" area shows the fill colour instead.
+      d := GetPixel(px, py);
+      a := Round(((d shr 24) and $FF) * cov);
+      PutPixel(px, py, ARGB(a,
+        Round(((d shr 16) and $FF) * cov),
+        Round(((d shr 8) and $FF) * cov),
+        Round((d and $FF) * cov)));
     end;
 end;
 
