@@ -157,10 +157,16 @@ type
     FObjectList: TWaylandObjectList;
     FNextId: Integer;
     FDisplay: TWaylandDisplayBase;
+    // Self-pipe used to interrupt a blocked MessagesPending/WaitEvent from
+    // another thread (see Wakeup). Read end is polled alongside the socket; the
+    // write end is signalled by Wakeup. -1 until the pipe is created.
+    FWakeupRead: cint;
+    FWakeupWrite: cint;
 
 
     function NextObjectId: Integer;
     procedure ReadNextMessage;
+    procedure CreateWakeupPipe;
   protected
     class function FindSocketName: String;
     procedure RegisterObject(AObject: IWaylandBase; AUseID: Integer = -1);
@@ -173,6 +179,19 @@ type
     procedure Run;
     procedure Quit;
     function WaitMessage(ATimeOut: Integer): Boolean;
+    // Non-consuming readiness check: True if at least one byte is waiting on the
+    // connection socket within ATimeoutMs (0 = poll and return immediately). Lets
+    // a caller integrate with its own event loop ("are there messages?" / "wait up
+    // to N ms for one") without us exposing the raw fd. Does not read or dispatch;
+    // follow a True result with WaitMessage to actually consume the message.
+    // A pending Wakeup also makes this return early, but returns False (a wakeup
+    // is not a protocol message) after draining the wakeup signal.
+    function MessagesPending(ATimeoutMs: Integer = 0): Boolean;
+    // Thread-safe: interrupt a MessagesPending/WaitEvent that is currently
+    // blocked (or about to block) so the caller's loop iterates promptly — e.g.
+    // after another thread posts work or requests a redraw. Safe to call from any
+    // thread; coalesces (many Wakeups before the next poll cost one wake).
+    procedure Wakeup;
     procedure SyncAndWait;
     destructor Destroy; override;
   end;
@@ -407,6 +426,23 @@ begin
   //FProtocol := TWIProtocolNode.Create('/usr/share/wayland/wayland.xml');
   FObjectList := TWaylandObjectList.Create;
   FObjectList.Sorted:=True;
+  CreateWakeupPipe;
+end;
+
+procedure TWaylandDisplayBase.CreateWakeupPipe;
+var
+  lPipe: TFilDes; // [0]=read end, [1]=write end
+begin
+  FWakeupRead := -1;
+  FWakeupWrite := -1;
+  if FpPipe(lPipe) <> 0 then
+    Exit; // wakeup unavailable; polls simply won't be interruptible
+  FWakeupRead := lPipe[0];
+  FWakeupWrite := lPipe[1];
+  // Non-blocking both ends: Wakeup must never block a worker thread, and the
+  // reader drains opportunistically without stalling the event loop.
+  FpFcntl(FWakeupRead, F_SETFL, FpFcntl(FWakeupRead, F_GETFL) or O_NONBLOCK);
+  FpFcntl(FWakeupWrite, F_SETFL, FpFcntl(FWakeupWrite, F_GETFL) or O_NONBLOCK);
 end;
 
 procedure TWaylandDisplayBase.Run;
@@ -457,10 +493,22 @@ begin
 
   if Header.Obj = 1 then
     lBaseObj := Self
-  else if FObjectList.Find(Header.Obj, lObjectIndex) then
-    lBaseObj := FObjectList.Data[lObjectIndex]
   else
-    lBaseObj := nil;
+  begin
+    // Look the target proxy up under the object-list lock so this is consistent
+    // with RegisterObject/ObjectDestroying running on another thread. The lock is
+    // released before dispatch, so a listener that creates/destroys objects (and
+    // re-enters the list) cannot deadlock on this non-recursive mutex.
+    EnterCriticalSection(FObjectListLock);
+    try
+      if FObjectList.Find(Header.Obj, lObjectIndex) then
+        lBaseObj := FObjectList.Data[lObjectIndex]
+      else
+        lBaseObj := nil;
+    finally
+      LeaveCriticalSection(FObjectListLock);
+    end;
+  end;
   //WriteLn('Object[',Header.Obj,'] = 0x', HexStr(pointer(lBaseObj)));
 
   if Assigned(lBaseObj) {and (lProxyObj.Obj is TWInterfaceNode)} then
@@ -505,6 +553,48 @@ begin
 
 end;
 
+function TWaylandDisplayBase.MessagesPending(ATimeoutMs: Integer = 0): Boolean;
+var
+  lPoll: array[0..1] of TPollfd;
+  lCount: Integer;
+  lDrain: array[0..63] of Byte;
+begin
+  lPoll[0].fd := FSocket.Handle;
+  lPoll[0].events := POLLIN;
+  lPoll[0].revents := 0;
+  lCount := 1;
+  if FWakeupRead >= 0 then
+  begin
+    lPoll[1].fd := FWakeupRead;
+    lPoll[1].events := POLLIN;
+    lPoll[1].revents := 0;
+    lCount := 2;
+  end;
+
+  if FpPoll(@lPoll[0], lCount, ATimeoutMs) <= 0 then
+    Exit(False); // timed out / interrupted: nothing ready
+
+  // A wakeup only serves to return early; drain every queued byte so it does not
+  // re-trigger the poll on the next pass, and report it as "no message".
+  if (lCount = 2) and ((lPoll[1].revents and POLLIN) <> 0) then
+    while FpRead(FWakeupRead, lDrain, SizeOf(lDrain)) > 0 do
+      ; // keep reading until EAGAIN
+
+  Result := (lPoll[0].revents and POLLIN) <> 0;
+end;
+
+procedure TWaylandDisplayBase.Wakeup;
+var
+  lByte: Byte;
+begin
+  if FWakeupWrite < 0 then
+    Exit;
+  lByte := 1;
+  // Non-blocking write; if the pipe is already full a wakeup is pending anyway,
+  // so an EAGAIN is harmless (coalesced). Atomic for a single byte across threads.
+  FpWrite(FWakeupWrite, lByte, 1);
+end;
+
 procedure TWaylandDisplayBase.SyncAndWait;
 var
   lCallback: TWlCallback;
@@ -517,6 +607,8 @@ end;
 
 destructor TWaylandDisplayBase.Destroy;
 begin
+  if FWakeupRead >= 0 then FpClose(FWakeupRead);
+  if FWakeupWrite >= 0 then FpClose(FWakeupWrite);
   FObjectList.Free;
   FSocket.Free;
   FRequestStream.Free;
@@ -635,13 +727,20 @@ var
   lObject: TObject = nil;
 begin
   // possibly notify we are destroying it to the server?
-  if FObjectList.Find(AObjectId, lOutIndex) then
-  begin
-    if AFromDestructor then
-      FObjectList.Extract(FObjectList.Items[lOutIndex], @lObject)
-    else
-      FObjectList.Delete(lOutIndex);
-  //  WriteLn('Extracted ', lObject.ClassName);
+  // Guard the list mutation with the same lock as RegisterObject/GetObject and
+  // the WaitMessage dispatch lookup, so removal is race-free across threads.
+  EnterCriticalSection(FObjectListLock);
+  try
+    if FObjectList.Find(AObjectId, lOutIndex) then
+    begin
+      if AFromDestructor then
+        FObjectList.Extract(FObjectList.Items[lOutIndex], @lObject)
+      else
+        FObjectList.Delete(lOutIndex);
+    //  WriteLn('Extracted ', lObject.ClassName);
+    end;
+  finally
+    LeaveCriticalSection(FObjectListLock);
   end;
 end;
 
