@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { wl_window_demo — minimal windowed client built on the wayland-classes
   abstraction (TfpgwDisplay / TfpgwWindow), on top of the pure-Pascal wayl
   binding. Opens a toplevel window, fills it with a solid colour, and runs the

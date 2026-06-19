@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { xcursor — pure-Pascal Xcursor theme loader.
 
   Replaces libwayland-cursor / libXcursor: locates a named cursor in an XCursor

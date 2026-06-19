@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { canvas_demo — draws a scene with TWaylandCanvas into an shm window buffer.
 
   Demonstrates the minimal software canvas (wayland_canvas) over the wayland-

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { wayland_dmabuf — a minimal CPU-mapped dma-buf via udmabuf.
 
   Wraps the udmabuf machinery used to obtain a dma-buf whose pages are also

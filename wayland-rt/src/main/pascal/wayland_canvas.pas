@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { wayland_canvas — a minimal, reusable software drawing canvas over a raw
   ARGB8888 pixel buffer.
 

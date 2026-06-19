@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { desktop_theme — read the running desktop environment's appearance so a client
   drawing its own decorations (CSD) can match the native look.
 

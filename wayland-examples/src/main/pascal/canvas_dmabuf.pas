@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { canvas_dmabuf — draw with TWaylandCanvas into a dma-buf and present it.
 
   Shows that the software canvas is buffer-source agnostic: instead of wl_shm,

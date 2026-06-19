@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { clipboard_test — exercises the wl_data_device (clipboard) path of the
   wayland-classes abstraction, which is where the out-of-band fd handling lives.
 

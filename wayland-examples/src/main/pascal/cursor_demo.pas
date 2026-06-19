@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { cursor_demo — load several named cursors, paint them in a grid, and change the
   pointer to whichever cell it is hovering.
 

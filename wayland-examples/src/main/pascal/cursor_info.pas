@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
+
 { cursor_info — dump the frames of a named cursor from an XCursor theme, using
   the pure-Pascal xcursor loader (no libXcursor / no Wayland connection needed).
 
