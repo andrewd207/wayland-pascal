@@ -6,11 +6,6 @@ unit unix_fd_socket;
 {$mode ObjFPC}{$H+}
 {$PackRecords c}
 
-{ $Define extern_sendfd}
-{$IFDEF extern_sendfd}
-{$link send_file.o}
-{$ENDIF}
-
 interface
 
 uses
@@ -21,9 +16,7 @@ const
   // single recvmsg. Wayland events carry at most a handful, so this is ample.
   WL_MAX_FDS_PER_RECV = 28;
 
-{$IFNDEF extern_sendfd}
 function SendFD(socket: cint; fd_to_send: cint; data: Pointer; datalen: cint): cint;
-{$ENDIF}
 function RecvFD(socket: cint): cint;
 
 // Receives up to ADataLen bytes into AData AND captures any SCM_RIGHTS file
@@ -37,10 +30,6 @@ function RecvWithFds(socket: cint; AData: Pointer; ADataLen: cint;
   AFds: pcint; AMaxFds: Integer; out AFdCount: Integer): ssize_t;
 
 function c_errno: Integer;
-
-{$IFDEF extern_sendfd}
-function sendfd(socket: cint; fd: cint; data: Pointer; datalen: cint): cint; cdecl; external name 'send_fd';
-{$ENDIF}
 
 implementation
 
@@ -110,7 +99,6 @@ begin
   Result:=PByte(Ptruint(cmsg) + SizeOf(cmsghdr));
 end;
 
-{$ifndef extern_sendfd}
 function SendFD(socket: cint; fd_to_send: cint; data: Pointer; datalen: cint
   ): cint;
 var
@@ -153,7 +141,6 @@ begin
   // Callers must check the result.
   Result := fpSendMsg(socket, @msg, 0);
 end;
-{$ENDIF}
 
 function RecvFD(socket: cint): cint;
 var
