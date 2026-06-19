@@ -414,6 +414,12 @@ type
     destructor Destroy; override;
     procedure SetPaintRect(AX, AY, AWidth, Aheight: Integer);
     procedure Allocate(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat{=foArgb8888});
+    { Bracket CPU writes to Data. No-op for the wl_shm backend; the dma-buf
+      backend issues DMA_BUF_IOCTL_SYNC (BeginCpuAccess/EndCpuAccess) so the
+      compositor/GPU sees a coherent buffer. Always pair Begin/EndAccess around
+      a frame's pixel writes. }
+    procedure BeginAccess;
+    procedure EndAccess;
     property Allocated[AWidth, AHeight: Integer]: Boolean read GetAllocated;
     property Busy: Boolean read FBusy write FBusy;
     property Data: Pointer read FData;
@@ -1631,6 +1637,18 @@ begin
   Frect.Top:=AY;
   FRect.Width:=AWidth;
   FRect.Height:=Aheight;
+end;
+
+procedure TfpgwBuffer.BeginAccess;
+begin
+  if Assigned(FPool) then
+    FPool.BeginAccess;
+end;
+
+procedure TfpgwBuffer.EndAccess;
+begin
+  if Assigned(FPool) then
+    FPool.EndAccess;
 end;
 
 procedure TfpgwBuffer.Allocate(AWidth, AHeight: Integer; AFormat: TWlShm.TFormat);

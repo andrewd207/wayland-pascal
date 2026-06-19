@@ -1084,22 +1084,26 @@ end;
 { TWaylandFixed }
 
 function TWaylandFixedHelper.AsFixed: Integer;
+const
+  { wl_fixed_t is a signed 24.8 fixed-point number: value * 256, two's
+    complement. Its representable range is [-2^23 .. 2^23 - 1/256]. }
+  cMax = 8388607.99609375;   { (2^23 - 1) + 255/256 }
+  cMin = -8388608.0;         { -2^23 }
 var
-  lInt: Integer;
-  lDec: Integer;
+  v: Double;
 begin
-  lInt := Trunc(Self);
-  if (lInt > $7FFFFF) then
-    lInt := $7FFFFF
-  else if lInt < -$800000 then
-    lInt := -$800000;
-
-  lDec := Round(Frac(Abs(Self)) * $100);
-  if lDec = $100 then
-    lDec := $FF;
-
-  lInt := (lInt shl 8) or lDec;
-  Result := lInt;
+  { value * 256, rounded. Do it directly in floating point: the old
+    (Trunc shl 8) or Round(Frac*256) construction was wrong for negative,
+    non-integer values — the OR-ed fractional bits don't combine with a
+    two's-complement negative integer part, so e.g. -0.5 came out POSITIVE.
+    That flipped the sign of small negative wl_fixed values (random
+    scroll-up direction, mangled negative coordinates). }
+  v := Self;
+  if v > cMax then
+    v := cMax
+  else if v < cMin then
+    v := cMin;
+  Result := Round(v * 256);
 end;
 
 function TWaylandFixedHelper.AsInteger: Integer;
@@ -1109,7 +1113,12 @@ end;
 
 class function TWaylandFixedHelper.FromFixed(AValue: Integer): TWaylandFixed;
 begin
-  Result := ((AValue shr 8) and $FFFFFF) + (AValue and $ff) / $100;
+  { wl_fixed_t is a signed 24.8 fixed-point integer (value * 256, two's
+    complement), so the value is simply AValue / 256. The old
+    ((AValue shr 8) and $FFFFFF) + (AValue and $ff)/256 was wrong for negative
+    values: 'shr' is a logical shift, so e.g. -2560 ($FFFFF600) decoded to
+    +16777206.0 instead of -10.0 — which is why scrolling up went haywire. }
+  Result := AValue / 256.0;
 end;
 
 
