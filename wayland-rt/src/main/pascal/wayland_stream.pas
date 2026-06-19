@@ -64,7 +64,11 @@ begin
   WriteDWord(Length(AString)+1);
   Write(AString[1], Length(AString));
   WriteByte(0); // null char
-  while (Size mod 4) <> 0 do
+  // Pad to a 32-bit boundary by Position, NOT Size: SendRequest reuses a pooled
+  // buffer, so Size can be the stale (larger) length of a previous request while
+  // we are mid-write here. Using Size mis-pads the string and corrupts the
+  // message framing for any string arg that follows a longer prior request.
+  while (Position mod 4) <> 0 do
     WriteByte(0); // Padding
 end;
 
