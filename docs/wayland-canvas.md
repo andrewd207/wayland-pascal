@@ -54,6 +54,7 @@ property Data: PByte;
                  Polygon(const APoints: array of TPoint; AColor)   { closed }
 { rounded }      RoundRect(X, Y, W, H, RX, RY, AColor)
                  FillRoundRect(X, Y, W, H, RX, RY, AColor)
+                 RoundCorners(X, Y, W, H, R)    { carve alpha: AA rounded, transparent corners }
 { ellipses }     Ellipse(CX, CY, RX, RY, AColor);  FillEllipse(...)
                  Circle(CX, CY, R, AColor);  FillCircle(...)
 { images }       CopyImage(AImage: TFPCustomImage; ADestX, ADestY)
@@ -63,6 +64,12 @@ property Data: PByte;
 `CopyImage` blits an fpimage `TFPCustomImage` 1:1 (no scaling), clipped to the
 canvas; the source's 16-bit channels are reduced to 8-bit and the alpha byte is
 copied verbatim.
+
+`RoundCorners` is the one primitive that touches the **alpha** channel: draw your
+window opaque, then `RoundCorners(0, 0, W, H, R)` carves anti-aliased rounded
+corners by setting the outside-corner pixels transparent and scaling edge pixels'
+alpha by coverage. The surface must not be marked opaque for the compositor to
+honour it — see the `themed_window` example.
 
 ## Colour helpers
 

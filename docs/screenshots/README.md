@@ -8,6 +8,7 @@ Images used by the root README's Screenshots section.
 | `canvas_demo.png` | `canvas_demo` — `TWaylandCanvas` shapes in an shm buffer |
 | `canvas_dmabuf.png` | `canvas_dmabuf` — the canvas in a CPU dma-buf |
 | `cursor_demo.png` | `cursor_demo` — the cursor grid (the highlighted cell is the hovered one) |
+| `themed_window.png` | `themed_window` — themed CSD title bar with rounded alpha corners (close button shown hovered) |
 
 These are **offline renders of exactly what each example draws** — produced by
 running the same `TWaylandCanvas` (and `xcursor`) code into a memory buffer and

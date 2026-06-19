@@ -69,6 +69,13 @@ type
     // square Rectangle/FillRect.
     procedure RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
     procedure FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+    // Round the corners of an already-drawn rectangular region by carving its
+    // ALPHA channel: pixels outside the radius-R rounded rect become fully
+    // transparent, and the (whole) rounded boundary is anti-aliased by scaling
+    // each edge pixel's existing alpha by its coverage. RGB is preserved. This
+    // is how you give a window rounded, transparent corners (draw the window
+    // opaque, then RoundCorners over it); the surface must not be marked opaque.
+    procedure RoundCorners(X, Y, W, H, R: Integer);
 
     { --- ellipses / circles --- }
     procedure Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
@@ -337,6 +344,42 @@ begin
     HLine(X + inset, Y + dy, W - 2 * inset, AColor);          // top
     HLine(X + inset, Y + H - 1 - dy, W - 2 * inset, AColor);  // bottom
   end;
+end;
+
+procedure TWaylandCanvas.RoundCorners(X, Y, W, H, R: Integer);
+var
+  px, py, nx, ny, a: Integer;
+  dx, dy, cov: Double;
+  d: TCanvasColor;
+begin
+  if (W <= 0) or (H <= 0) or (R <= 0) then
+    Exit;
+  if R * 2 > W then R := W div 2;
+  if R * 2 > H then R := H div 2;
+  // A rounded rect is the inner rectangle [X+R..X+W-1-R, Y+R..Y+H-1-R] inflated
+  // by R. For each pixel, the distance to that inner rectangle gives coverage:
+  // 0 distance = interior (full), up to R = the boundary (anti-aliased), beyond
+  // R = outside (transparent). Only the perimeter/corners are touched.
+  for py := Y to Y + H - 1 do
+    for px := X to X + W - 1 do
+    begin
+      nx := px;
+      if nx < X + R then nx := X + R else if nx > X + W - 1 - R then nx := X + W - 1 - R;
+      ny := py;
+      if ny < Y + R then ny := Y + R else if ny > Y + H - 1 - R then ny := Y + H - 1 - R;
+      dx := px - nx; dy := py - ny;
+      if (dx = 0) and (dy = 0) then
+        Continue;                                  // interior: fully covered
+      cov := R + 0.5 - Sqrt(dx * dx + dy * dy);    // signed coverage at this pixel
+      if cov >= 1 then
+        Continue;                                  // inside the rounding: leave as-is
+      d := GetPixel(px, py);
+      if cov <= 0 then
+        a := 0                                     // outside: transparent
+      else
+        a := Round(((d shr 24) and $FF) * cov);    // edge: scale existing alpha
+      PutPixel(px, py, (d and $00FFFFFF) or (TCanvasColor(a) shl 24));
+    end;
 end;
 
 procedure TWaylandCanvas.Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
