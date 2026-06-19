@@ -1,0 +1,128 @@
+THIRD-PARTY NOTICES
+===================
+
+This project's Wayland protocol bindings are generated (by wayland-gen) from the
+upstream Wayland protocol descriptions:
+
+  - the core protocol:   wayland.xml            (from the `wayland` project)
+  - extension protocols: wayland-protocols/     (stable, unstable, staging)
+
+The generated Pascal units — wayland-rt/.../wayland.pas and every
+wayland-{stable,unstable,staging}/.../*_protocol.pas — are derived works of those
+XML descriptions. The descriptions are licensed under the MIT (Expat) license by
+their respective authors; the generated bindings are therefore distributed in
+accordance with that license, in addition to this project's own BSD-3-Clause
+license (see LICENSE) which covers the generator and the runtime.
+
+The MIT license requires that the copyright notices below and the permission
+notice that follows be retained. They are reproduced here from the upstream
+protocol XML. The authoritative notice for each protocol is the <copyright>
+block in its source XML.
+
+Copyright holders (aggregated from the upstream protocol XML):
+
+  Copyright © 2008-2011 Kristian Høgsberg
+  Copyright © 2008-2013 Kristian Høgsberg
+  Copyright © 2010-2011 Intel Corporation
+  Copyright © 2010-2013 Intel Corporation
+  Copyright © 2012-2013 Collabora, Ltd.
+  Copyright © 2012, 2013 Intel Corporation
+  Copyright © 2013-2014 Collabora, Ltd.
+  Copyright © 2013-2016 Collabora, Ltd.
+  Copyright © 2013      Jasper St. Pierre
+  Copyright © 2013      Rafael Antognolli
+  Copyright © 2014, 2015 Collabora, Ltd.
+  Copyright © 2014      Jonas Ådahl
+  Copyright 2014 © Stephen "Lyude" Chandler Paul
+  Copyright © 2015, 2016 Jan Arne Petersen
+  Copyright © 2015, 2016 Red Hat
+  Copyright © 2015-2016 Red Hat Inc.
+  Copyright 2015-2016 © Red Hat, Inc.
+  Copyright © 2015-2017 Red Hat Inc.
+  Copyright © 2015-2017 Samsung Electronics Co., Ltd
+  Copyright 2015-2024 © Red Hat, Inc.
+  Copyright © 2015 Jason Ekstrand
+  Copyright © 2015 Jonas Ådahl
+  Copyright © 2015 Martin Gräßlin
+  Copyright © 2015      Red Hat Inc.
+  Copyright © 2015 Samsung Electronics Co., Ltd
+  Copyright © 2016, 2023 Red Hat
+  Copyright 2016 The Chromium Authors.
+  Copyright © 2016 Yong Bakos
+  Copyright © 2017, 2018 Red Hat, Inc.
+  Copyright © 2017 Collabora, Ltd.
+  Copyright 2017 Intel Corporation
+  Copyright © 2017 Red Hat Inc.
+  Copyright 2018 Collabora, Ltd
+  Copyright © 2018 Ilia Bozhinov
+  Copyright © 2018 NXP
+  Copyright © 2018       Purism SPC
+  Copyright © 2018 Simon Ser
+  Copyright 2018 The Chromium Authors
+  Copyright © 2019 Christopher Billington
+  Copyright 2019 Erwin Burema
+  Copyright © 2019 Ivan Molodetskikh
+  Copyright 2019 Sebastian Wick
+  Copyright © 2019 Status Research & Development GmbH.
+  Copyright © 2020 - 2023 Andri Yngvason
+  Copyright 2020-2024 Collabora, Ltd.
+  Copyright © 2020 Aleix Pol Gonzalez <aleixpol@kde.org>
+  Copyright 2020 AMD
+  Copyright © 2020 Carlos Garnacho <carlosg@gnome.org>
+  Copyright © 2020 Ilia Bozhinov
+  Copyright © 2020 Isaac Freund
+  Copyright © 2021-2023 Andri Yngvason
+  Copyright © 2021 Emmanuel Gil Peyrot
+  Copyright 2021 Isaac Freund
+  Copyright © 2021 Simon Ser
+  Copyright 2021 Simon Ser
+  Copyright © 2021 Xaver Hugl
+  Copyright 2022-2025 Red Hat, Inc.
+  Copyright © 2022 Andri Yngvason
+  Copyright 2022 Collabora, Ltd.
+  Copyright © 2022 Joshua Ashton
+  Copyright © 2022 Kenny Levinsen
+  Copyright 2022 Red Hat, Inc.
+  Copyright © 2022 Simon Ser
+  Copyright 2022 Simon Ser
+  Copyright © 2022 Victoria Brekenfeld
+  Copyright © 2022 wb9688
+  Copyright © 2022 Xaver Hugl
+  Copyright © 2023-2024 Matthias Klumpp
+  Copyright © 2023 Carlos Garnacho
+  Copyright 2023 David Redondo
+  Copyright © 2023 i509VCB
+  Copyright 2023 Simon Ser
+  Copyright © 2023 Valve Corporation
+  Copyright ©      2024 David Edmundson
+  Copyright © 2024 Matthias Klumpp
+  Copyright © 2024 Neal Gompa
+  Copyright © 2024 Simon Ser
+  Copyright © 2024 Vlad Zahorodnii
+  Copyright © 2024 Xaver Hugl
+  Copyright 2024 Xaver Hugl
+  Copyright (C) 2015 Marco Martin
+  Copyright (C) 2015 Martin Gräßlin
+  Copyright (C) 2020 Vlad Zahorodnii
+  Copyright (C) 2024 Xaver Hugl
+
+MIT License (Expat) — applies to the upstream protocol descriptions:
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice (including the next
+  paragraph) shall be included in all copies or substantial portions of the
+  Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
