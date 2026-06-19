@@ -597,6 +597,7 @@ type
       content rather than the frame. Consumer sets it after creation. }
     FContentOffsetX, FContentOffsetY: Integer;
     FConfigured: Boolean;  { first xdg configure received + acked }
+    FButtonPressSerial: DWord;  { serial of the last pointer PRESS over this window }
   public
     constructor Create(AOwner: TObject; ADisplay: TfpgwDisplay; AParent:TfpgwWindow; ALeft, ATop, AWidth, AHeight: Integer; APopupFor: TfpgwWindow; APopupGrab: Boolean = False; AGrabSerial: DWord = 0);
     destructor  Destroy; override;
@@ -628,6 +629,11 @@ type
       A buffer must not be attached before this (xdg-shell requirement), or the
       compositor will not map the surface. }
     property  Configured: Boolean read FConfigured write FConfigured;
+    { Serial of the most recent pointer-button PRESS delivered while this window
+      held the pointer. Cached here so interactive requests that need a recent
+      serial (SurfaceShell.Move/Resize/ShowWindowMenu) can read it straight off
+      the window without reaching back to the display. }
+    property  ButtonPressSerial: DWord read FButtonPressSerial;
   end;
 
   { TfpgwWindowDecorator }
@@ -2016,7 +2022,12 @@ var
 begin
   FEventSerial:=ASerial;
   if AState = TWlPointer.TButtonState.buPressed then
+  begin
     FButtonPressSerial := ASerial;
+    { also cache on the window so it is available without the display detour }
+    if Assigned(FActiveMouseWin) then
+      FActiveMouseWin.FButtonPressSerial := ASerial;
+  end;
   {if Assigned(FActiveMouseWin) and Assigned(FActiveMouseWin.FDecorations) then
   begin
     lHandled:=FActiveMouseWin.FDecorations.MouseButton(ASerial, ATime, AButton, AState);
