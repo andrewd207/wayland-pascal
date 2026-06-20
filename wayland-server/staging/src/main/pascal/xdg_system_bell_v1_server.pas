@@ -96,4 +96,7 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_system_bell_v1', TXdgSystemBellV1);
+
 end.

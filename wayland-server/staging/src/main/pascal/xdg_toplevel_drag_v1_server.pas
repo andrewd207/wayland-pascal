@@ -179,4 +179,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_toplevel_drag_manager_v1', TXdgToplevelDragManagerV1);
+  RegisterServerInterface('xdg_toplevel_drag_v1', TXdgToplevelDragV1);
+
 end.

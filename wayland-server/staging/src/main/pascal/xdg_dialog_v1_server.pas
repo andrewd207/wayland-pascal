@@ -186,4 +186,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_wm_dialog_v1', TXdgWmDialogV1);
+  RegisterServerInterface('xdg_dialog_v1', TXdgDialogV1);
+
 end.

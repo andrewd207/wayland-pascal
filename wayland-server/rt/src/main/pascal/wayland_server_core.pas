@@ -282,6 +282,14 @@ type
   // server-side counterpart of Wayland_Core.WlObjectId, for nullable object args.
   function WlResourceId(AResource: TWaylandServerResource): DWord;
 
+  // Interface-name -> server resource class registry. Each generated server unit
+  // self-registers its classes in its initialization section, so once a unit is
+  // in scope you can resolve any interface name (e.g. from a wl_registry.bind) to
+  // the class that implements it — without a hand-maintained table. Population is
+  // initialization-time (single-threaded); lookups after that are read-only.
+  procedure RegisterServerInterface(const AName: String; AClass: TWaylandServerResourceClass);
+  function FindServerInterface(const AName: String): TWaylandServerResourceClass;
+
 implementation
 
 uses
@@ -308,6 +316,30 @@ begin
     Result := 0
   else
     Result := AResource.Id;
+end;
+
+var
+  // name -> class; Objects[] holds the metaclass pointer. Sorted for fast lookup.
+  GServerInterfaces: TStringList;
+
+procedure RegisterServerInterface(const AName: String; AClass: TWaylandServerResourceClass);
+var
+  i: Integer;
+begin
+  if GServerInterfaces.Find(AName, i) then
+    GServerInterfaces.Objects[i] := TObject(Pointer(AClass)) // last registration wins
+  else
+    GServerInterfaces.AddObject(AName, TObject(Pointer(AClass)));
+end;
+
+function FindServerInterface(const AName: String): TWaylandServerResourceClass;
+var
+  i: Integer;
+begin
+  if GServerInterfaces.Find(AName, i) then
+    Result := TWaylandServerResourceClass(Pointer(GServerInterfaces.Objects[i]))
+  else
+    Result := nil;
 end;
 
 { TWaylandFixedHelper }
@@ -1027,5 +1059,12 @@ procedure TWaylandServerDisplay.Quit;
 begin
   FQuit := True;
 end;
+
+initialization
+  GServerInterfaces := TStringList.Create;
+  GServerInterfaces.Sorted := True;
+  GServerInterfaces.Duplicates := dupIgnore;
+finalization
+  GServerInterfaces.Free;
 
 end.

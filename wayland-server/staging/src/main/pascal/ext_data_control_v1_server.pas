@@ -409,4 +409,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_data_control_manager_v1', TExtDataControlManagerV1);
+  RegisterServerInterface('ext_data_control_device_v1', TExtDataControlDeviceV1);
+  RegisterServerInterface('ext_data_control_source_v1', TExtDataControlSourceV1);
+  RegisterServerInterface('ext_data_control_offer_v1', TExtDataControlOfferV1);
+
 end.

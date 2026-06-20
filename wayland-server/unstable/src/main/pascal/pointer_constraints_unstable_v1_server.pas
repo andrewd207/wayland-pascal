@@ -326,4 +326,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_pointer_constraints_v1', TWpPointerConstraintsV1);
+  RegisterServerInterface('zwp_locked_pointer_v1', TWpLockedPointerV1);
+  RegisterServerInterface('zwp_confined_pointer_v1', TWpConfinedPointerV1);
+
 end.

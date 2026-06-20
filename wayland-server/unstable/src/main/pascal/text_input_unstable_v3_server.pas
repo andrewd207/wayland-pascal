@@ -331,4 +331,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_text_input_v3', TWpTextInputV3);
+  RegisterServerInterface('zwp_text_input_manager_v3', TWpTextInputManagerV3);
+
 end.

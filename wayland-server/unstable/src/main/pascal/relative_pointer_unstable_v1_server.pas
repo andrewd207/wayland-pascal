@@ -165,4 +165,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_relative_pointer_manager_v1', TWpRelativePointerManagerV1);
+  RegisterServerInterface('zwp_relative_pointer_v1', TWpRelativePointerV1);
+
 end.

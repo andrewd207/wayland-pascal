@@ -467,4 +467,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_tablet_manager_v1', TWpTabletManagerV1);
+  RegisterServerInterface('zwp_tablet_seat_v1', TWpTabletSeatV1);
+  RegisterServerInterface('zwp_tablet_tool_v1', TWpTabletToolV1);
+  RegisterServerInterface('zwp_tablet_v1', TWpTabletV1);
+
 end.

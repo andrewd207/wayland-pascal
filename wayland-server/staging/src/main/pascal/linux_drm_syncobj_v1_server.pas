@@ -276,4 +276,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_linux_drm_syncobj_manager_v1', TWpLinuxDrmSyncobjManagerV1);
+  RegisterServerInterface('wp_linux_drm_syncobj_timeline_v1', TWpLinuxDrmSyncobjTimelineV1);
+  RegisterServerInterface('wp_linux_drm_syncobj_surface_v1', TWpLinuxDrmSyncobjSurfaceV1);
+
 end.

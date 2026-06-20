@@ -930,4 +930,11 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_wm_base', TXdgWmBase);
+  RegisterServerInterface('xdg_positioner', TXdgPositioner);
+  RegisterServerInterface('xdg_surface', TXdgSurface);
+  RegisterServerInterface('xdg_toplevel', TXdgToplevel);
+  RegisterServerInterface('xdg_popup', TXdgPopup);
+
 end.

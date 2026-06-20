@@ -246,4 +246,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_activation_v1', TXdgActivationV1);
+  RegisterServerInterface('xdg_activation_token_v1', TXdgActivationTokenV1);
+
 end.

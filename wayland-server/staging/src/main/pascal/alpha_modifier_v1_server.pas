@@ -175,4 +175,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_alpha_modifier_v1', TWpAlphaModifierV1);
+  RegisterServerInterface('wp_alpha_modifier_surface_v1', TWpAlphaModifierSurfaceV1);
+
 end.

@@ -916,4 +916,14 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_tablet_manager_v2', TWpTabletManagerV2);
+  RegisterServerInterface('zwp_tablet_seat_v2', TWpTabletSeatV2);
+  RegisterServerInterface('zwp_tablet_tool_v2', TWpTabletToolV2);
+  RegisterServerInterface('zwp_tablet_v2', TWpTabletV2);
+  RegisterServerInterface('zwp_tablet_pad_ring_v2', TWpTabletPadRingV2);
+  RegisterServerInterface('zwp_tablet_pad_strip_v2', TWpTabletPadStripV2);
+  RegisterServerInterface('zwp_tablet_pad_group_v2', TWpTabletPadGroupV2);
+  RegisterServerInterface('zwp_tablet_pad_v2', TWpTabletPadV2);
+
 end.

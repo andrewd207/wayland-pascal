@@ -201,4 +201,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_foreign_toplevel_list_v1', TExtForeignToplevelListV1);
+  RegisterServerInterface('ext_foreign_toplevel_handle_v1', TExtForeignToplevelHandleV1);
+
 end.

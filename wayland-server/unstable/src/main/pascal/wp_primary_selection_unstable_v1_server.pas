@@ -381,4 +381,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_primary_selection_device_manager_v1', TWpPrimarySelectionDeviceManagerV1);
+  RegisterServerInterface('zwp_primary_selection_device_v1', TWpPrimarySelectionDeviceV1);
+  RegisterServerInterface('zwp_primary_selection_offer_v1', TWpPrimarySelectionOfferV1);
+  RegisterServerInterface('zwp_primary_selection_source_v1', TWpPrimarySelectionSourceV1);
+
 end.

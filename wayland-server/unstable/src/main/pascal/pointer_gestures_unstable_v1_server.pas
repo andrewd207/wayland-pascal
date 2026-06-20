@@ -365,4 +365,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_pointer_gestures_v1', TWpPointerGesturesV1);
+  RegisterServerInterface('zwp_pointer_gesture_swipe_v1', TWpPointerGestureSwipeV1);
+  RegisterServerInterface('zwp_pointer_gesture_pinch_v1', TWpPointerGesturePinchV1);
+  RegisterServerInterface('zwp_pointer_gesture_hold_v1', TWpPointerGestureHoldV1);
+
 end.

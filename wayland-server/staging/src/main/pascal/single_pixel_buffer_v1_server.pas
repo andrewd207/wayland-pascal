@@ -104,4 +104,7 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_single_pixel_buffer_manager_v1', TWpSinglePixelBufferManagerV1);
+
 end.

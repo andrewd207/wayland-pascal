@@ -175,4 +175,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_content_type_manager_v1', TWpContentTypeManagerV1);
+  RegisterServerInterface('wp_content_type_v1', TWpContentTypeV1);
+
 end.

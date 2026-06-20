@@ -222,4 +222,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_toplevel_icon_manager_v1', TXdgToplevelIconManagerV1);
+  RegisterServerInterface('xdg_toplevel_icon_v1', TXdgToplevelIconV1);
+
 end.

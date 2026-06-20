@@ -234,4 +234,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_image_capture_source_v1', TExtImageCaptureSourceV1);
+  RegisterServerInterface('ext_output_image_capture_source_manager_v1', TExtOutputImageCaptureSourceManagerV1);
+  RegisterServerInterface('ext_foreign_toplevel_image_capture_source_manager_v1', TExtForeignToplevelImageCaptureSourceManagerV1);
+
 end.

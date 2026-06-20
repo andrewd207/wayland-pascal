@@ -409,4 +409,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_linux_dmabuf_v1', TWpLinuxDmabufV1);
+  RegisterServerInterface('zwp_linux_buffer_params_v1', TWpLinuxBufferParamsV1);
+  RegisterServerInterface('zwp_linux_dmabuf_feedback_v1', TWpLinuxDmabufFeedbackV1);
+
 end.

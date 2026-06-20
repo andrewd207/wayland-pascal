@@ -245,4 +245,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_linux_explicit_synchronization_v1', TWpLinuxExplicitSynchronizationV1);
+  RegisterServerInterface('zwp_linux_surface_synchronization_v1', TWpLinuxSurfaceSynchronizationV1);
+  RegisterServerInterface('zwp_linux_buffer_release_v1', TWpLinuxBufferReleaseV1);
+
 end.

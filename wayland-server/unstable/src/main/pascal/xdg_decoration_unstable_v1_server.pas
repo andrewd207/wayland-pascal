@@ -197,4 +197,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zxdg_decoration_manager_v1', TXdgDecorationManagerV1);
+  RegisterServerInterface('zxdg_toplevel_decoration_v1', TXdgToplevelDecorationV1);
+
 end.

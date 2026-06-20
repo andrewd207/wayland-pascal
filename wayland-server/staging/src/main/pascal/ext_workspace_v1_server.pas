@@ -415,4 +415,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_workspace_manager_v1', TExtWorkspaceManagerV1);
+  RegisterServerInterface('ext_workspace_group_handle_v1', TExtWorkspaceGroupHandleV1);
+  RegisterServerInterface('ext_workspace_handle_v1', TExtWorkspaceHandleV1);
+
 end.

@@ -288,4 +288,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_session_lock_manager_v1', TExtSessionLockManagerV1);
+  RegisterServerInterface('ext_session_lock_v1', TExtSessionLockV1);
+  RegisterServerInterface('ext_session_lock_surface_v1', TExtSessionLockSurfaceV1);
+
 end.

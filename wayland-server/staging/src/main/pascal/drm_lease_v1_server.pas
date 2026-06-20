@@ -366,4 +366,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_drm_lease_device_v1', TWpDrmLeaseDeviceV1);
+  RegisterServerInterface('wp_drm_lease_connector_v1', TWpDrmLeaseConnectorV1);
+  RegisterServerInterface('wp_drm_lease_request_v1', TWpDrmLeaseRequestV1);
+  RegisterServerInterface('wp_drm_lease_v1', TWpDrmLeaseV1);
+
 end.

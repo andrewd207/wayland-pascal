@@ -325,4 +325,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zxdg_exporter_v1', TXdgExporterV1);
+  RegisterServerInterface('zxdg_importer_v1', TXdgImporterV1);
+  RegisterServerInterface('zxdg_exported_v1', TXdgExportedV1);
+  RegisterServerInterface('zxdg_imported_v1', TXdgImportedV1);
+
 end.

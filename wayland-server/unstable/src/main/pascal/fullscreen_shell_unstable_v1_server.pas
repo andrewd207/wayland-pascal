@@ -193,4 +193,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_fullscreen_shell_v1', TWpFullscreenShellV1);
+  RegisterServerInterface('zwp_fullscreen_shell_mode_feedback_v1', TWpFullscreenShellModeFeedbackV1);
+
 end.

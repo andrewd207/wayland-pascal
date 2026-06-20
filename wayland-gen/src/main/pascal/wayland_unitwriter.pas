@@ -948,6 +948,11 @@ begin
 
   lWritingIndex := FWritingInterfaces.Add(AInterface.Name);
 
+  // Self-register the class so its interface name resolves to it at runtime
+  // (e.g. a proxy seeding a wl_registry.bind without a hand-written table).
+  FUnit.AddInitLine(Format('RegisterServerInterface(%s, %s);',
+    [QuotedStr(AInterface.Name), lClassName]));
+
   lParentClass := 'TWaylandServerResource';
 
   lIntfAttr := TAttributeNode.CreateNew(nil);

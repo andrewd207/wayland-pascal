@@ -189,4 +189,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_background_effect_manager_v1', TExtBackgroundEffectManagerV1);
+  RegisterServerInterface('ext_background_effect_surface_v1', TExtBackgroundEffectSurfaceV1);
+
 end.

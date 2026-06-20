@@ -187,4 +187,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_fifo_manager_v1', TWpFifoManagerV1);
+  RegisterServerInterface('wp_fifo_v1', TWpFifoV1);
+
 end.

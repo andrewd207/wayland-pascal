@@ -414,4 +414,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_text_input_v1', TWpTextInputV1);
+  RegisterServerInterface('zwp_text_input_manager_v1', TWpTextInputManagerV1);
+
 end.

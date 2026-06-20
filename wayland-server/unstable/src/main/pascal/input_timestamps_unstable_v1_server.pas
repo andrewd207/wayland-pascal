@@ -201,4 +201,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_input_timestamps_manager_v1', TWpInputTimestampsManagerV1);
+  RegisterServerInterface('zwp_input_timestamps_v1', TWpInputTimestampsV1);
+
 end.

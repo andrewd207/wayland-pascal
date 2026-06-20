@@ -159,4 +159,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_xwayland_keyboard_grab_manager_v1', TWpXwaylandKeyboardGrabManagerV1);
+  RegisterServerInterface('zwp_xwayland_keyboard_grab_v1', TWpXwaylandKeyboardGrabV1);
+
 end.

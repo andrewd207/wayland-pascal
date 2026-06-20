@@ -1015,4 +1015,14 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_color_manager_v1', TWpColorManagerV1);
+  RegisterServerInterface('wp_color_management_output_v1', TWpColorManagementOutputV1);
+  RegisterServerInterface('wp_color_management_surface_v1', TWpColorManagementSurfaceV1);
+  RegisterServerInterface('wp_color_management_surface_feedback_v1', TWpColorManagementSurfaceFeedbackV1);
+  RegisterServerInterface('wp_image_description_creator_icc_v1', TWpImageDescriptionCreatorIccV1);
+  RegisterServerInterface('wp_image_description_creator_params_v1', TWpImageDescriptionCreatorParamsV1);
+  RegisterServerInterface('wp_image_description_v1', TWpImageDescriptionV1);
+  RegisterServerInterface('wp_image_description_info_v1', TWpImageDescriptionInfoV1);
+
 end.

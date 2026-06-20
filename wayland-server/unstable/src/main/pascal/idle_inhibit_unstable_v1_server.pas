@@ -157,4 +157,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_idle_inhibit_manager_v1', TWpIdleInhibitManagerV1);
+  RegisterServerInterface('zwp_idle_inhibitor_v1', TWpIdleInhibitorV1);
+
 end.

@@ -563,4 +563,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_input_method_context_v1', TWpInputMethodContextV1);
+  RegisterServerInterface('zwp_input_method_v1', TWpInputMethodV1);
+  RegisterServerInterface('zwp_input_panel_v1', TWpInputPanelV1);
+  RegisterServerInterface('zwp_input_panel_surface_v1', TWpInputPanelSurfaceV1);
+
 end.

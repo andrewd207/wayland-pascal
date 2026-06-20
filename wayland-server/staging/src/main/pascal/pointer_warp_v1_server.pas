@@ -104,4 +104,7 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_pointer_warp_v1', TWpPointerWarpV1);
+
 end.

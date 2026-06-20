@@ -189,4 +189,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zxdg_output_manager_v1', TXdgOutputManagerV1);
+  RegisterServerInterface('zxdg_output_v1', TXdgOutputV1);
+
 end.

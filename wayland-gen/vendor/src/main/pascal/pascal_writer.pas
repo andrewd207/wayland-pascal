@@ -643,18 +643,24 @@ type
     FImplentationNode: TImplementationNode;
     FInterfaceNode: TInterfaceNode;
     FModeSwitches: TModeSwitchList;
+    FInitLines: TStringList; // lazily created; emitted as an initialization section
     procedure SetImplentationNode(AValue: TImplementationNode);
     procedure SetInterfaceNode(AValue: TInterfaceNode);
     procedure SetName(AValue: String);
     procedure WriteModeSwitches(AStream: TStream);
     procedure WriteInterface(AStream: TStream);
     procedure WriteImplementation(AStream: TStream);
+    procedure WriteInitialization(AStream: TStream);
   published
     property Name: String read FName write SetName;
     property ModeSwitches: TModeSwitchList read FModeSwitches write FModeSwitches;
     property InterfaceNode: TInterfaceNode read FInterfaceNode write SetInterfaceNode;
     property ImplentationNode: TImplementationNode read FImplentationNode write SetImplentationNode;
   public
+    // Add a statement to the unit's initialization section. The first call lazily
+    // creates the section; a unit with no init lines emits none (so output is
+    // unchanged for units that never call this).
+    procedure AddInitLine(const ALine: String);
     procedure WriteToStream(AStream: TStream); override;
   end;
 
@@ -2226,6 +2232,24 @@ begin
   FImplentationNode.WriteToStream(AStream);
 end;
 
+procedure TUnitNode.AddInitLine(const ALine: String);
+begin
+  if FInitLines = nil then
+    FInitLines := TStringList.Create;
+  FInitLines.Add(ALine);
+end;
+
+procedure TUnitNode.WriteInitialization(AStream: TStream);
+var
+  i: Integer;
+begin
+  if (FInitLines = nil) or (FInitLines.Count = 0) then
+    Exit;
+  WriteLine(AStream, LineEnding + 'initialization');
+  for i := 0 to FInitLines.Count - 1 do
+    WriteLine(AStream, '  ' + FInitLines[i]);
+end;
+
 procedure TUnitNode.WriteToStream(AStream: TStream);
 var
   lLine: RawByteString;
@@ -2237,6 +2261,7 @@ begin
   WriteModeSwitches(AStream);
   WriteInterface(AStream);
   WriteImplementation(AStream);
+  WriteInitialization(AStream);
 
 
   lLine := Format('%send.', [LineEnding]);

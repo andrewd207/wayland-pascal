@@ -862,4 +862,11 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zxdg_shell_v6', TXdgShellV6);
+  RegisterServerInterface('zxdg_positioner_v6', TXdgPositionerV6);
+  RegisterServerInterface('zxdg_surface_v6', TXdgSurfaceV6);
+  RegisterServerInterface('zxdg_toplevel_v6', TXdgToplevelV6);
+  RegisterServerInterface('zxdg_popup_v6', TXdgPopupV6);
+
 end.

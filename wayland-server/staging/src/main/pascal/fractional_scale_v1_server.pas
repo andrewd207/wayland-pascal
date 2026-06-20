@@ -166,4 +166,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_fractional_scale_manager_v1', TWpFractionalScaleManagerV1);
+  RegisterServerInterface('wp_fractional_scale_v1', TWpFractionalScaleV1);
+
 end.

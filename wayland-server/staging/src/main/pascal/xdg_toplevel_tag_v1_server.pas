@@ -116,4 +116,7 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_toplevel_tag_manager_v1', TXdgToplevelTagManagerV1);
+
 end.

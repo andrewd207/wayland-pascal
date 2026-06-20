@@ -18,12 +18,15 @@ Two things happen to every byte:
    `RecvWithFds` / `SendWithFds` from `wayland-common`.
 2. **Tee through the server binding.** Each *client → compositor* chunk is also
    fed into a per-connection `TWaylandServerClient.FeedRequests`, so our generated
-   `wayland_server` handlers decode and dispatch the live request stream. A small
-   interface→class table seeds bound globals (`wl_compositor`, `wl_shm`,
-   `wl_seat`, `xdg_wm_base`, …) so deeper requests (`create_surface`,
-   `get_xdg_surface`, …) dispatch through our handlers too. The tee never sends
-   anything, so it cannot perturb the session — if our binding mis-parses real
-   traffic it surfaces here, and if it parses cleanly the app keeps running.
+   `wayland_server` handlers decode and dispatch the live request stream. On each
+   `wl_registry.bind` the proxy resolves the interface name to its server class
+   via `FindServerInterface` (every generated interface self-registers — the proxy
+   links `wayland_server_all`) and seeds the bound global, so deeper requests
+   (`create_surface`, `get_xdg_surface`, `get_keyboard`, …) dispatch through our
+   handlers too — near-total request coverage, no hand-maintained table. The tee
+   never sends anything, so it cannot perturb the session: if our binding
+   mis-parses real traffic it surfaces here, and if it parses cleanly the app
+   keeps running.
 
 ## Safety
 
@@ -33,10 +36,13 @@ clobber the real compositor's socket. It only unlinks/binds its own name.
 ## Build & run
 
 ```sh
-# build (needs the server runtime + the xdg-shell server tier)
+# build (needs all server tiers: it links wayland_server_all so every interface
+# self-registers and any bound global can be resolved by name)
 fpc -Mobjfpc -Sh -O1 \
   -Fuwayland-server/rt/src/main/pascal \
   -Fuwayland-server/stable/src/main/pascal \
+  -Fuwayland-server/unstable/src/main/pascal \
+  -Fuwayland-server/staging/src/main/pascal \
   -Fuwayland-common/src/main/pascal \
   -FU/tmp/wlproxy-units -owlproxy wayland-server/proxy/wlproxy.pas
 

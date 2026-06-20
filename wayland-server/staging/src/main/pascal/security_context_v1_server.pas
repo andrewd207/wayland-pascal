@@ -223,4 +223,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_security_context_manager_v1', TWpSecurityContextManagerV1);
+  RegisterServerInterface('wp_security_context_v1', TWpSecurityContextV1);
+
 end.

@@ -177,4 +177,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_presentation', TWpPresentation);
+  RegisterServerInterface('wp_presentation_feedback', TWpPresentationFeedback);
+
 end.

@@ -174,4 +174,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('zwp_keyboard_shortcuts_inhibit_manager_v1', TWpKeyboardShortcutsInhibitManagerV1);
+  RegisterServerInterface('zwp_keyboard_shortcuts_inhibitor_v1', TWpKeyboardShortcutsInhibitorV1);
+
 end.

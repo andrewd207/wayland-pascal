@@ -528,4 +528,9 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xdg_shell', TXdgShell);
+  RegisterServerInterface('xdg_surface', TXdgSurface);
+  RegisterServerInterface('xdg_popup', TXdgPopup);
+
 end.

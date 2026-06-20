@@ -23,7 +23,11 @@ uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, BaseUnix, ctypes, sockets, ssockets,
   unix_fd_socket, wayland_stream,
-  wayland_server_core, wayland_queue, wayland_server, xdg_shell_server;
+  wayland_server_core, wayland_queue,
+  wayland_server, xdg_shell_server,
+  // Links every generated server interface so each self-registers — the bind
+  // handler can then resolve ANY interface name via FindServerInterface.
+  wayland_server_all;
 
 const
   BUFSZ  = 65536;          // a whole max-size wayland message fits in one chunk
@@ -80,22 +84,25 @@ end;
 
 procedure TProxy.OnBind(Sender: TWlRegistry; aName: DWord; aInterface: String; aVersion: DWord; aId: DWord);
 var
-  c: TWaylandServerClient;
+  cls: TWaylandServerResourceClass;
+  r: TWaylandServerResource;
 begin
-  WriteLn('[tee] bind ', aInterface, ' v', aVersion, ' -> id ', aId);
-  c := Sender.Client;
-  // Seed the bound global as a real resource so requests TO it dispatch through
-  // our handlers. The new_id requests those globals serve (get_keyboard,
+  // Resolve the interface name to its server class via the global registry (every
+  // generated interface self-registers — see the wayland_server_all uses above),
+  // and seed the bound global as a real resource so requests TO it dispatch
+  // through our handlers. The new_id requests those globals serve (get_keyboard,
   // create_surface, get_xdg_surface, ...) then auto-create their children.
-  case aInterface of
-    'wl_compositor':           TWlCompositor.Create(c, aId, aVersion).OnCreateSurface := @OnCreateSurface;
-    'wl_subcompositor':        TWlSubcompositor.Create(c, aId, aVersion);
-    'wl_shm':                  TWlShm.Create(c, aId, aVersion);
-    'wl_seat':                 TWlSeat.Create(c, aId, aVersion);
-    'wl_output':               TWlOutput.Create(c, aId, aVersion);
-    'wl_data_device_manager':  TWlDataDeviceManager.Create(c, aId, aVersion);
-    'xdg_wm_base':             TXdgWmBase.Create(c, aId, aVersion).OnGetXdgSurface := @OnGetXdgSurface;
+  cls := FindServerInterface(aInterface);
+  if cls = nil then
+  begin
+    WriteLn('[tee] bind ', aInterface, ' v', aVersion, ' -> id ', aId, '  (not in our protocols; tee skips it)');
+    Exit;
   end;
+  WriteLn('[tee] bind ', aInterface, ' v', aVersion, ' -> id ', aId, '  (', cls.ClassName, ')');
+  r := cls.Create(Sender.Client, aId, aVersion);
+  // Wire logging on the couple of globals whose children we want to announce.
+  if r is TWlCompositor then TWlCompositor(r).OnCreateSurface := @OnCreateSurface
+  else if r is TXdgWmBase then TXdgWmBase(r).OnGetXdgSurface := @OnGetXdgSurface;
 end;
 
 procedure TProxy.OnCreateSurface(Sender: TWlCompositor; aId: TWlSurface);

@@ -195,4 +195,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_cursor_shape_manager_v1', TWpCursorShapeManagerV1);
+  RegisterServerInterface('wp_cursor_shape_device_v1', TWpCursorShapeDeviceV1);
+
 end.

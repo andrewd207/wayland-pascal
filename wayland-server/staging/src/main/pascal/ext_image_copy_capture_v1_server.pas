@@ -488,4 +488,10 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_image_copy_capture_manager_v1', TExtImageCopyCaptureManagerV1);
+  RegisterServerInterface('ext_image_copy_capture_session_v1', TExtImageCopyCaptureSessionV1);
+  RegisterServerInterface('ext_image_copy_capture_frame_v1', TExtImageCopyCaptureFrameV1);
+  RegisterServerInterface('ext_image_copy_capture_cursor_session_v1', TExtImageCopyCaptureCursorSessionV1);
+
 end.

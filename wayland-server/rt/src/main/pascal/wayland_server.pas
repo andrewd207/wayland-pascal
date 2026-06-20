@@ -2577,4 +2577,28 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wl_display', TWlDisplay);
+  RegisterServerInterface('wl_registry', TWlRegistry);
+  RegisterServerInterface('wl_callback', TWlCallback);
+  RegisterServerInterface('wl_compositor', TWlCompositor);
+  RegisterServerInterface('wl_shm_pool', TWlShmPool);
+  RegisterServerInterface('wl_shm', TWlShm);
+  RegisterServerInterface('wl_buffer', TWlBuffer);
+  RegisterServerInterface('wl_data_offer', TWlDataOffer);
+  RegisterServerInterface('wl_data_device_manager', TWlDataDeviceManager);
+  RegisterServerInterface('wl_data_source', TWlDataSource);
+  RegisterServerInterface('wl_data_device', TWlDataDevice);
+  RegisterServerInterface('wl_shell', TWlShell);
+  RegisterServerInterface('wl_shell_surface', TWlShellSurface);
+  RegisterServerInterface('wl_surface', TWlSurface);
+  RegisterServerInterface('wl_output', TWlOutput);
+  RegisterServerInterface('wl_seat', TWlSeat);
+  RegisterServerInterface('wl_pointer', TWlPointer);
+  RegisterServerInterface('wl_keyboard', TWlKeyboard);
+  RegisterServerInterface('wl_touch', TWlTouch);
+  RegisterServerInterface('wl_region', TWlRegion);
+  RegisterServerInterface('wl_subcompositor', TWlSubcompositor);
+  RegisterServerInterface('wl_subsurface', TWlSubsurface);
+
 end.

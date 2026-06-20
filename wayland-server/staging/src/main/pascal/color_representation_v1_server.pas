@@ -233,4 +233,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_color_representation_manager_v1', TWpColorRepresentationManagerV1);
+  RegisterServerInterface('wp_color_representation_surface_v1', TWpColorRepresentationSurfaceV1);
+
 end.

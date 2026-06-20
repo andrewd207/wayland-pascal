@@ -169,4 +169,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_transient_seat_manager_v1', TExtTransientSeatManagerV1);
+  RegisterServerInterface('ext_transient_seat_v1', TExtTransientSeatV1);
+
 end.

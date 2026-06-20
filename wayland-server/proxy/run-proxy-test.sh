@@ -14,6 +14,8 @@ FLAGS="-Mobjfpc -Sh -O1"
 COMMON="$ROOT/wayland-common/src/main/pascal"
 SRT="$ROOT/wayland-server/rt/src/main/pascal"
 SST="$ROOT/wayland-server/stable/src/main/pascal"
+SUN="$ROOT/wayland-server/unstable/src/main/pascal"
+SSG="$ROOT/wayland-server/staging/src/main/pascal"
 CRT="$ROOT/wayland-client/rt/src/main/pascal"
 RT=$(mktemp -d); B=$(mktemp -d)
 trap 'rm -rf "$RT" "$B"' EXIT
@@ -22,7 +24,7 @@ echo ">> compiling smoke_server, smoke_client, wlproxy"
 mkdir -p "$B/a" "$B/b" "$B/c"
 "$FPC" $FLAGS -Fu"$SRT" -Fu"$COMMON" -FU"$B/a" -FE"$B" "$ROOT/wayland-server/smoke/smoke_server.pas" >/dev/null
 "$FPC" $FLAGS -Fu"$CRT" -Fu"$COMMON" -FU"$B/b" -FE"$B" "$ROOT/wayland-server/smoke/smoke_client.pas" >/dev/null
-"$FPC" $FLAGS -Fu"$SRT" -Fu"$SST" -Fu"$COMMON" -FU"$B/c" -FE"$B" "$ROOT/wayland-server/proxy/wlproxy.pas" >/dev/null
+"$FPC" $FLAGS -Fu"$SRT" -Fu"$SST" -Fu"$SUN" -Fu"$SSG" -Fu"$COMMON" -FU"$B/c" -FE"$B" "$ROOT/wayland-server/proxy/wlproxy.pas" >/dev/null
 
 export XDG_RUNTIME_DIR="$RT"
 echo ">> isolated XDG_RUNTIME_DIR=$RT (real compositor untouched)"

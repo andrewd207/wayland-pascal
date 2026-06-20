@@ -179,4 +179,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_commit_timing_manager_v1', TWpCommitTimingManagerV1);
+  RegisterServerInterface('wp_commit_timer_v1', TWpCommitTimerV1);
+
 end.

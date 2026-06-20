@@ -177,4 +177,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('xwayland_shell_v1', TXwaylandShellV1);
+  RegisterServerInterface('xwayland_surface_v1', TXwaylandSurfaceV1);
+
 end.

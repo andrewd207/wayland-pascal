@@ -193,4 +193,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('ext_idle_notifier_v1', TExtIdleNotifierV1);
+  RegisterServerInterface('ext_idle_notification_v1', TExtIdleNotificationV1);
+
 end.

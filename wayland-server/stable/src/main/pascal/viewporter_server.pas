@@ -199,4 +199,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_viewporter', TWpViewporter);
+  RegisterServerInterface('wp_viewport', TWpViewport);
+
 end.

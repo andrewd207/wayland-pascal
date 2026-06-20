@@ -175,4 +175,8 @@ begin
 end;
 
 
+initialization
+  RegisterServerInterface('wp_tearing_control_manager_v1', TWpTearingControlManagerV1);
+  RegisterServerInterface('wp_tearing_control_v1', TWpTearingControlV1);
+
 end.
