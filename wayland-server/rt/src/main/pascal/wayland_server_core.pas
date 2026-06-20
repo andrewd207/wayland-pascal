@@ -73,6 +73,9 @@ uses
   wayland_stream, wayland_queue;
 
 const
+  // wl_display is always object id 1 on every connection — the implicit root the
+  // client talks to before it has bound anything else.
+  WL_DISPLAY_OBJECT_ID = DWord(1);
   // Server-allocated object ids live in the upper range [0xff000000 .. 0xffffffff];
   // client-allocated ids occupy [1 .. 0xfeffffff]. (wl_display is always id 1,
   // created by the client side, so the server's first allocation starts here.)
@@ -202,6 +205,12 @@ type
     procedure RegisterResource(AResource: TWaylandServerResource; AId: DWord);
     procedure RemoveResource(AId: DWord; AFromDestructor: Boolean);
     function GetObject(AId: DWord): TWaylandServerResource;
+    // Create the connection's root wl_display resource at the well-known id 1
+    // (ADisplayClass is the generated TWlDisplay server class). Every client must
+    // have exactly one; raises if id 1 is already bound. Return it to wire up its
+    // request handlers (e.g. OnGetRegistry). The runtime can't name TWlDisplay
+    // itself (it lives in a generated unit above this one), hence the class arg.
+    function BindDisplay(ADisplayClass: TWaylandServerResourceClass; AVersion: Integer = 1): TWaylandServerResource;
     // Marshal one message (an event) onto this client's socket.
     procedure SendMessage(AObjectId: DWord; AOpcode: Word; Args: array of const; AFdIndex: Integer = -1);
     // Pull whatever is currently readable off the socket and dispatch every
@@ -225,6 +234,7 @@ type
     FClients: TWaylandServerClientList;
     FClientsLock: TRTLCriticalSection; // guards FClients add/remove/enumerate
     FQuit: Boolean;
+    FDisplayClass: TWaylandServerResourceClass;
     FOnConnect: TWaylandClientEvent;
     FOnDisconnect: TWaylandClientEvent;
     procedure AcceptClient;
@@ -252,6 +262,11 @@ type
     procedure UnlockClients;
     property SocketPath: String read FSocketPath;
     property Clients: TWaylandServerClientList read FClients;
+    // When set, every accepted client gets its wl_display bound at id 1
+    // automatically (via TWaylandServerClient.BindDisplay) BEFORE OnConnect
+    // fires, so a handler can just fetch it with GetObject(WL_DISPLAY_OBJECT_ID)
+    // and wire up its requests. Leave nil to bind it yourself in OnConnect.
+    property DisplayClass: TWaylandServerResourceClass read FDisplayClass write FDisplayClass;
     property OnConnect: TWaylandClientEvent read FOnConnect write FOnConnect;
     property OnDisconnect: TWaylandClientEvent read FOnDisconnect write FOnDisconnect;
   end;
@@ -526,6 +541,16 @@ begin
   finally
     LeaveCriticalSection(FObjLock);
   end;
+end;
+
+function TWaylandServerClient.BindDisplay(ADisplayClass: TWaylandServerResourceClass;
+  AVersion: Integer): TWaylandServerResource;
+begin
+  if GetObject(WL_DISPLAY_OBJECT_ID) <> nil then
+    raise EWaylandServer.Create('wl_display (id 1) is already bound on this client');
+  // The constructor is virtual and registers the resource at the given id, so
+  // this lands ADisplayClass at id 1 in the client's object map.
+  Result := ADisplayClass.Create(Self, WL_DISPLAY_OBJECT_ID, AVersion);
 end;
 
 procedure TWaylandServerClient.SendMessage(AObjectId: DWord; AOpcode: Word;
@@ -891,6 +916,10 @@ begin
   finally
     LeaveCriticalSection(FClientsLock);
   end;
+  // Auto-bind the root wl_display before OnConnect, so the handler can fetch it
+  // (GetObject(WL_DISPLAY_OBJECT_ID)) instead of open-coding id 1.
+  if Assigned(FDisplayClass) then
+    lClient.BindDisplay(FDisplayClass);
   if Assigned(FOnConnect) then
     FOnConnect(lClient);
 end;

@@ -25,8 +25,10 @@ procedure TApp.OnConnect(AClient: TWaylandServerClient);
 var
   lDisplay: TWlDisplay;
 begin
-  WriteLn('[server] client connected; binding wl_display at id 1');
-  lDisplay := TWlDisplay.Create(AClient, 1, 1); // owned by the client's object map
+  WriteLn('[server] client connected; wiring wl_display');
+  // wl_display was auto-bound at id 1 by the display's DisplayClass setting
+  // (see below); just fetch it and attach the request handler.
+  lDisplay := AClient.GetObject(WL_DISPLAY_OBJECT_ID) as TWlDisplay;
   lDisplay.OnGetRegistry := @OnGetRegistry;
 end;
 
@@ -37,6 +39,7 @@ var
 begin
   app := TApp.Create;
   d := TWaylandServerDisplay.Create;
+  d.DisplayClass := TWlDisplay; // auto-bind wl_display at id 1 per client
   d.OnConnect := @app.OnConnect;
   WriteLn('[server] listening on ', d.AddSocket('wayland-0'));
   Flush(Output);
