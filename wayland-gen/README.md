@@ -45,7 +45,7 @@ name). Each emitted unit carries an SPDX header.
 Regenerate just the core protocol into the runtime module:
 
 ```sh
-./wayland-gen/target/regen_units wayland-rt/src/main/pascal /usr/share/wayland/wayland.xml
+./wayland-gen/target/regen_units wayland-client/rt/src/main/pascal /usr/share/wayland/wayland.xml
 ```
 
 Regenerate **all** tiers at once (stable + unstable + staging + core), then split

@@ -29,16 +29,23 @@ From the [examples](wayland-examples/README.md):
 The project is split by dependency footprint so the runtime binding stays free
 of heavy build-time dependencies:
 
+The library modules are grouped under a `wayland-client/` pom (with a
+`wayland-server/` pom to come), over a shared `wayland-common/` transport.
+
 | Directory | What | Dependencies | Built with |
 |---|---|---|---|
-| `wayland-rt/` | Runtime Wayland binding (library). Hand-written core + generated `wayland.pas` (core protocol). Also ships `wayland_canvas`, a minimal software canvas ([docs](docs/wayland-canvas.md)). | FPC RTL only | **pasbuild** |
-| `wayland-stable/` | Stable wayland-protocols, generated as `<protocol>_protocol` units (xdg-shell, linux-dmabuf, viewporter, …). | `wayland-rt` | **pasbuild** |
-| `wayland-unstable/` | Unstable (`z*`) wayland-protocols. | `wayland-rt`, `wayland-stable` | **pasbuild** |
-| `wayland-staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | `wayland-rt`, `wayland-stable`, `wayland-unstable` | **pasbuild** |
-| [`wayland-classes/`](wayland-classes/README.md) | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. Toolkit-friendly wrappers over the raw binding. ([API docs](docs/wayland-classes/index.md).) | `wayland-rt` + protocol tiers | **pasbuild** |
-| `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | `wayland-rt`, `wayland-stable` | **pasbuild** |
-| [`wayland-examples/`](wayland-examples/README.md) | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard). Not built by default. | `wayland-rt`, tiers, `wayland-classes` | **fpc** (`make examples`) |
+| `wayland-common/` | Shared, direction-agnostic transport: the Unix-socket + fd plumbing, the wire codec, the object base (`TWaylandBase` + message dispatch), event-message/fd-stream types, and the xkbcommon bindings. Not built standalone; each `*-rt` compiles it in via a `../../wayland-common` unit path. | FPC RTL only | (compiled into each `*-rt`) |
+| `wayland-client/rt/` | Client runtime: generated `wayland.pas` (core protocol proxies) + the RTL-only utilities `wayland_canvas` ([docs](docs/wayland-canvas.md)) and `wayland_dmabuf`. | `wayland-common` (unit path) | **pasbuild** |
+| `wayland-client/stable/` | Stable wayland-protocols, generated as `<protocol>_protocol` units (xdg-shell, linux-dmabuf, viewporter, …). | `wayland-client/rt` | **pasbuild** |
+| `wayland-client/unstable/` | Unstable (`z*`) wayland-protocols. | rt, stable | **pasbuild** |
+| `wayland-client/staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | rt, stable, unstable | **pasbuild** |
+| [`wayland-client/classes/`](wayland-client/classes/README.md) | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. ([API docs](docs/wayland-classes/index.md).) | rt + protocol tiers | **pasbuild** |
+| `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | client rt + stable + staging | **pasbuild** |
+| [`wayland-examples/`](wayland-examples/README.md) | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard, themed CSD window). Not built by default. | client rt + tiers + classes | **fpc** (`make examples`) |
 | [`wayland-gen/`](wayland-gen/README.md) | Code generator: reads Wayland protocol XML, emits the binding units. Bundles a vendored AST writer in `wayland-gen/vendor/`. | FPC RTL only | **pasbuild** |
+
+The module **names** are unchanged (`wayland-rt`, `wayland-stable`, …,
+`wayland-classes`) — only their directories moved under `wayland-client/`.
 
 Every protocol unit is named `<protocol>_protocol` (e.g. `xdg_shell_protocol`,
 `linux_dmabuf_v1_protocol`); the core `wayland` unit keeps its bare name as it is
@@ -87,7 +94,7 @@ XML (plus the core `wayland.xml`) to build the interface→unit map, then writes
 
 ```sh
 pasbuild compile -m wayland-gen
-./wayland-gen/target/regen_units wayland-rt/src/main/pascal /usr/share/wayland/wayland.xml
+./wayland-gen/target/regen_units wayland-client/rt/src/main/pascal /usr/share/wayland/wayland.xml
 ```
 
 All extension protocols (stable/unstable/staging) are regenerated together so

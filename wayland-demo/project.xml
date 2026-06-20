@@ -15,9 +15,9 @@
   </build>
 
   <moduleDependencies>
-    <module>../wayland-rt</module>
-    <module>../wayland-stable</module>
-    <module>../wayland-staging</module>
+    <module>../wayland-client/rt</module>
+    <module>../wayland-client/stable</module>
+    <module>../wayland-client/staging</module>
   </moduleDependencies>
 
   <profiles>

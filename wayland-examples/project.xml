@@ -19,11 +19,11 @@
   </build>
 
   <moduleDependencies>
-    <module>../wayland-rt</module>
-    <module>../wayland-stable</module>
-    <module>../wayland-unstable</module>
-    <module>../wayland-staging</module>
-    <module>../wayland-classes</module>
+    <module>../wayland-client/rt</module>
+    <module>../wayland-client/stable</module>
+    <module>../wayland-client/unstable</module>
+    <module>../wayland-client/staging</module>
+    <module>../wayland-client/classes</module>
   </moduleDependencies>
 
   <profiles>

@@ -19,9 +19,9 @@ trap 'rm -rf "$TMP"' EXIT
 mapfile -t XMLS < <(find "$PROTO_DIR"/stable "$PROTO_DIR"/unstable "$PROTO_DIR"/staging -name '*.xml' | sort)
 "$GEN" "$TMP" "${XMLS[@]}"
 
-# Distribute each generated unit into wayland-<tier>/src/main/pascal by source tier.
+# Distribute each generated unit into wayland-client/<tier>/src/main/pascal by source tier.
 for tier in stable unstable staging; do
-  dest="$ROOT/wayland-$tier/src/main/pascal"
+  dest="$ROOT/wayland-client/$tier/src/main/pascal"
   mkdir -p "$dest"
   while IFS= read -r xml; do
     name="$(grep -o '<protocol name="[^"]*"' "$xml" | head -1 | sed 's/.*name="//;s/"//')"

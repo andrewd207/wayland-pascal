@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
-  <name>wayland-rt</name>
+  <name>wayland-unstable</name>
   <!-- version inherited from aggregator -->
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Runtime Wayland binding. RTL-only: no tiOPF / json_easy dependency.
-       The generated units (wayland.pas, xdg_shell.pas) live here too; they are
-       produced by the separate wayland-gen tool (lazbuild). -->
+  <!-- Unstable wayland-protocols (zwp_/zxdg_ etc.), generated as
+       <protocol>_protocol units. Some reference stable protocols (e.g.
+       xdg_decoration -> xdg_shell), so it depends on wayland-stable too. -->
   <build>
     <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
   </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+    <module>../stable</module>
+  </moduleDependencies>
 
   <profiles>
     <profile>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-client</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Aggregator for the client-side stack: the generated client-core proxies
+       (rt), the protocol tiers, and the OOP convenience layer (classes). All
+       build on the shared wayland-common transport. -->
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>rt</module>
+    <module>stable</module>
+    <module>unstable</module>
+    <module>staging</module>
+    <module>classes</module>
+  </modules>
+</project>

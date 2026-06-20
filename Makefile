@@ -18,16 +18,17 @@ PASBUILD := $(shell command -v pasbuild 2>/dev/null)
 # Module source directories — the fpc fallback's unit search path. This mirrors
 # the -Fu list pasbuild passes (it points at each dependency's target/units; we
 # point at the sources so a from-scratch fpc build needs no prebuilt units).
-RT_SRC       := $(ROOT)/wayland-rt/src/main/pascal
-STABLE_SRC   := $(ROOT)/wayland-stable/src/main/pascal
-UNSTABLE_SRC := $(ROOT)/wayland-unstable/src/main/pascal
-STAGING_SRC  := $(ROOT)/wayland-staging/src/main/pascal
-CLASSES_SRC  := $(ROOT)/wayland-classes/src/main/pascal
+COMMON_SRC   := $(ROOT)/wayland-common/src/main/pascal
+RT_SRC       := $(ROOT)/wayland-client/rt/src/main/pascal
+STABLE_SRC   := $(ROOT)/wayland-client/stable/src/main/pascal
+UNSTABLE_SRC := $(ROOT)/wayland-client/unstable/src/main/pascal
+STAGING_SRC  := $(ROOT)/wayland-client/staging/src/main/pascal
+CLASSES_SRC  := $(ROOT)/wayland-client/classes/src/main/pascal
 DEMO_SRC     := $(ROOT)/wayland-demo/src/main/pascal
 EX_SRC       := $(ROOT)/wayland-examples/src/main/pascal
 
-# Unit search paths for the library stack (rt -> stable/unstable/staging -> classes).
-UNITPATHS := -Fu$(RT_SRC) -Fu$(STABLE_SRC) -Fu$(UNSTABLE_SRC) -Fu$(STAGING_SRC) -Fu$(CLASSES_SRC)
+# Unit search paths for the library stack (common -> rt -> stable/unstable/staging -> classes).
+UNITPATHS := -Fu$(COMMON_SRC) -Fu$(RT_SRC) -Fu$(STABLE_SRC) -Fu$(UNSTABLE_SRC) -Fu$(STAGING_SRC) -Fu$(CLASSES_SRC)
 # Match pasbuild's default flags (mode objfpc, long strings, -O1).
 FPCFLAGS  := -Mobjfpc -Sh -O1
 
@@ -72,6 +73,7 @@ clean:
 ifneq ($(PASBUILD),)
 	-$(PASBUILD) clean
 endif
-	rm -rf $(ROOT)/wayland-rt/target $(ROOT)/wayland-stable/target \
-	       $(ROOT)/wayland-unstable/target $(ROOT)/wayland-staging/target \
-	       $(ROOT)/wayland-classes/target $(DEMO_OUT) $(EX_OUT)
+	rm -rf $(ROOT)/wayland-common/target \
+	       $(ROOT)/wayland-client/rt/target $(ROOT)/wayland-client/stable/target \
+	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
+	       $(ROOT)/wayland-client/classes/target $(DEMO_OUT) $(EX_OUT)

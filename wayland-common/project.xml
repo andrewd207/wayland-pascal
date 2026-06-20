@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-common</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Shared, direction-agnostic Wayland runtime: the Unix-socket + fd transport,
+       the wire codec, the object base (TWaylandBase + message dispatch), the
+       event-message + fd-stream types, the software canvas, the udmabuf helper,
+       and the xkbcommon bindings. Used by BOTH the client (wayland-rt) and the
+       server (wayland-server-rt) runtimes.
+
+       It is not built standalone (activeByDefault="false" in the aggregator);
+       each *-rt module compiles these units in via a ../../wayland-common
+       unitPaths entry, so they land in that module's unit output. RTL-only. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

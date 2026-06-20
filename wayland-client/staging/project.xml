@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
-  <name>wayland-unstable</name>
+  <name>wayland-staging</name>
   <!-- version inherited from aggregator -->
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Unstable wayland-protocols (zwp_/zxdg_ etc.), generated as
-       <protocol>_protocol units. Some reference stable protocols (e.g.
-       xdg_decoration -> xdg_shell), so it depends on wayland-stable too. -->
+  <!-- Staging wayland-protocols (ext_/wp_ v1), generated as
+       <protocol>_protocol units. Some reference stable and unstable protocols
+       (e.g. cursor_shape -> tablet_unstable_v2, xdg_dialog -> xdg_shell), so it
+       depends on both. -->
   <build>
     <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
   </build>
 
   <moduleDependencies>
-    <module>../wayland-rt</module>
-    <module>../wayland-stable</module>
+    <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
   </moduleDependencies>
 
   <profiles>

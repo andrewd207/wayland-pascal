@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
-  <name>wayland-stable</name>
+  <name>wayland-rt</name>
   <!-- version inherited from aggregator -->
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Stable wayland-protocols, generated as <protocol>_protocol units by the
-       wayland-gen tool. Depends only on the core runtime. -->
+  <!-- Client runtime: the generated client-core proxies (wayland.pas). The
+       shared transport/codec lives in the wayland-common module; we compile it
+       in via the unitPaths entry below (fpc compiles those units on demand) so
+       wayland-common need not be a built dependency. Downstream client modules
+       depend on this module and pick up the common units transitively. -->
   <build>
     <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+      <path>../../wayland-common/src/main/pascal</path>
+    </unitPaths>
   </build>
-
-  <moduleDependencies>
-    <module>../wayland-rt</module>
-  </moduleDependencies>
 
   <profiles>
     <profile>

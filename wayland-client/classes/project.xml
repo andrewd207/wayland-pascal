@@ -5,18 +5,18 @@
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Higher-level OOP convenience classes built on top of the runtime
-       binding. RTL-only: depends only on the core runtime (wayland-rt). -->
+  <!-- Higher-level OOP convenience classes built on top of the runtime binding.
+       RTL-only: depends on the client runtime (rt) + protocol tiers. -->
   <build>
     <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
   </build>
 
   <moduleDependencies>
-    <module>../wayland-rt</module>
-    <module>../wayland-stable</module>
-    <module>../wayland-unstable</module>
-    <module>../wayland-staging</module>
+    <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
+    <module>../staging</module>
   </moduleDependencies>
 
   <profiles>
