@@ -76,6 +76,10 @@ const
   // wl_display is always object id 1 on every connection — the implicit root the
   // client talks to before it has bound anything else.
   WL_DISPLAY_OBJECT_ID = DWord(1);
+  // wl_display.delete_id event opcode. Part of core wayland's frozen ABI
+  // (wl_display events: error=0, delete_id=1), so it is safe to hard-code here —
+  // the runtime sends it without naming the generated TWlDisplay class.
+  WL_DISPLAY_DELETE_ID_OPCODE = 1;
   // Server-allocated object ids live in the upper range [0xff000000 .. 0xffffffff];
   // client-allocated ids occupy [1 .. 0xfeffffff]. (wl_display is always id 1,
   // created by the client side, so the server's first allocation starts here.)
@@ -156,9 +160,13 @@ type
     FId: DWord;
     FVersion: Integer;
     FUserData: Pointer;
-  protected
+  public
+    // The protocol interface name / max version this class implements. Public so
+    // a higher layer (e.g. the classes layer's AddGlobal) can query a class
+    // without an instance. Overridden by every generated resource class.
     class function GetInterfaceName: String; virtual; abstract;
     class function GetInterfaceVersion: Integer; virtual; abstract;
+  protected
     function GetInterfaceAttribute: TWLIntfAttribute;
     // Marshal an event to this resource's client. AFdIndex marks the single
     // arg (if any) carried out-of-band as an fd. Mirrors the client's SendRequest.
@@ -588,6 +596,13 @@ begin
   finally
     LeaveCriticalSection(FObjLock);
   end;
+  // Acknowledge to the client that a CLIENT-allocated id is now free to reuse
+  // (wl_display.delete_id). Required by the protocol — a client that destroys an
+  // object waits for this before recycling the id. Server-range ids
+  // (>= WL_SERVER_ID_BASE) are never recycled by the client, so skip those.
+  // Sent after releasing FObjLock (SendMessage takes FSendLock; never nested).
+  if AId < WL_SERVER_ID_BASE then
+    SendMessage(WL_DISPLAY_OBJECT_ID, WL_DISPLAY_DELETE_ID_OPCODE, [Integer(AId)]);
 end;
 
 function TWaylandServerClient.GetObject(AId: DWord): TWaylandServerResource;

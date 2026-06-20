@@ -18,5 +18,6 @@
     <module>stable</module>
     <module>unstable</module>
     <module>staging</module>
+    <module>classes</module>
   </modules>
 </project>
