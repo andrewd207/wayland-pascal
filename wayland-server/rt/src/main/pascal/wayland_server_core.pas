@@ -156,6 +156,10 @@ type
     // request opcode) to the matching `message`-tagged handler. A request with
     // no handler is a protocol error (unhandled).
     procedure Dispatch(var message); override;
+    // Same value as the Id property; a method form the generator can call without
+    // risking a name clash with a protocol member literally named "id" (which
+    // becomes a method on the resource class and would shadow the property).
+    function GetObjectId: DWord;
     property Client: TWaylandServerClient read FClient;
     property Id: DWord read FId;
     property Version: Integer read FVersion;
@@ -403,6 +407,11 @@ function TWaylandServerResource.NewResource(AClass: TWaylandServerResourceClass;
   AVersion: Integer): TWaylandServerResource;
 begin
   Result := AClass.Create(FClient, FClient.AllocServerId, AVersion);
+end;
+
+function TWaylandServerResource.GetObjectId: DWord;
+begin
+  Result := FId;
 end;
 
 procedure TWaylandServerResource.Dispatch(var message);

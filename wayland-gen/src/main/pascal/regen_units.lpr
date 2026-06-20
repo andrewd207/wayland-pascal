@@ -16,12 +16,22 @@ const
 
 var
   GMap: TStringList; // raw interface name -> defining unit name
+  GServer: Boolean = False; // emit server-side bindings
 
 // Unit-name convention: the core protocol keeps its bare 'wayland' name (it is
 // integrated with the runtime); every other protocol gets a '_protocol' suffix.
+// Server bindings use a parallel '_server' naming so they never collide with the
+// client units (core -> 'wayland_server', others -> '<name>_server').
 function ProtocolUnitName(const AName: String): String;
 begin
-  if AName = 'wayland' then
+  if GServer then
+  begin
+    if AName = 'wayland' then
+      Result := 'wayland_server'
+    else
+      Result := AName + '_server';
+  end
+  else if AName = 'wayland' then
     Result := 'wayland'
   else
     Result := AName + '_protocol';
@@ -63,7 +73,7 @@ begin
   try
     lUnitName := ProtocolUnitName(lProtocol.Name);
     lOutFile := IncludeTrailingPathDelimiter(AOutDir) + lUnitName + '.pas';
-    lWriter.WriteUnit(lProtocol, lStream, False, lUnitName);
+    lWriter.WriteUnit(lProtocol, lStream, False, lUnitName, GServer);
     lStream.SaveToFile(lOutFile);
     WriteLn('Wrote ', lOutFile, ' (', lStream.Size, ' bytes) from ', AXml);
   finally
@@ -73,29 +83,47 @@ begin
 end;
 
 var
-  i: Integer;
+  i, lFirstXml: Integer;
   lOutDir: String;
+  lArgs: array of String;
+  s: String;
 begin
-  // usage: regen_units <outdir> <xml> [<xml> ...]
+  // usage: regen_units [--server] <outdir> <xml> [<xml> ...]
   // All given XMLs (plus the core wayland.xml) are scanned to build the
   // interface->unit map, then each given XML is generated into <outdir>.
-  if ParamCount < 2 then
+  // --server emits the server-side bindings ('_server' units) instead of the
+  // client proxies.
+  lArgs := nil;
+  for i := 1 to ParamCount do
   begin
-    WriteLn('usage: regen_units <outdir> <protocol.xml> [<protocol.xml> ...]');
+    s := ParamStr(i);
+    if s = '--server' then
+      GServer := True
+    else
+    begin
+      SetLength(lArgs, Length(lArgs)+1);
+      lArgs[High(lArgs)] := s;
+    end;
+  end;
+
+  if Length(lArgs) < 2 then
+  begin
+    WriteLn('usage: regen_units [--server] <outdir> <protocol.xml> [<protocol.xml> ...]');
     Halt(1);
   end;
 
-  lOutDir := ParamStr(1);
+  lOutDir := lArgs[0];
+  lFirstXml := 1;
   if not DirectoryExists(lOutDir) then ForceDirectories(lOutDir);
 
   GMap := TStringList.Create;
   try
     ScanProtocol(CoreWaylandXml);
-    for i := 2 to ParamCount do
-      ScanProtocol(ParamStr(i));
+    for i := lFirstXml to High(lArgs) do
+      ScanProtocol(lArgs[i]);
 
-    for i := 2 to ParamCount do
-      Generate(ParamStr(i), lOutDir);
+    for i := lFirstXml to High(lArgs) do
+      Generate(lArgs[i], lOutDir);
   finally
     GMap.Free;
   end;
