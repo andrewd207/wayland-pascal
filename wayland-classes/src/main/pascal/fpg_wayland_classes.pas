@@ -1628,6 +1628,13 @@ end;
 
 destructor TfpgwBuffer.Destroy;
 begin
+  { Free the wl_buffer FIRST: TWlBuffer.Destroy sends wl_buffer.destroy and
+    unregisters the proxy from the display's object list, so a later
+    wl_buffer.release event can no longer resolve to this (freed) object and
+    dispatch HandleRelease into our dangling listener. Leaking it here caused a
+    SIGSEGV in TWlBuffer.HandleRelease when a window (e.g. the About dialog) was
+    closed while the compositor still held a buffer. }
+  FreeBuffer;
   FPool.Free;
 end;
 
