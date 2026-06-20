@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-server-unstable</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Unstable wayland-protocols (zwp_/zxdg_ etc.), generated as
+       <protocol>_server units. Some reference stable protocols (e.g.
+       xdg_decoration -> xdg_shell), so it depends on wayland-server-stable too. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+    <module>../stable</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

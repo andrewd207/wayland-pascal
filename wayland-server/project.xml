@@ -5,16 +5,18 @@
   <author>Andrew Haines</author>
   <license>BSD-3-Clause</license>
 
-  <!-- Aggregator for the server-side stack. For now just the hand-written
-       runtime base (rt); the generated server protocol tiers
-       (wayland-server-stable / -unstable / -staging) come once the generator
-       grows a server mode. Like the client stack it builds on the shared
-       wayland-common transport. -->
+  <!-- Aggregator for the server-side stack: the hand-written runtime base (rt,
+       which also carries the generated server core wayland_server.pas) plus the
+       generated server protocol tiers. Like the client stack it builds on the
+       shared wayland-common transport. -->
   <build>
     <packaging>pom</packaging>
   </build>
 
   <modules>
     <module>rt</module>
+    <module>stable</module>
+    <module>unstable</module>
+    <module>staging</module>
   </modules>
 </project>

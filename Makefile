@@ -77,4 +77,6 @@ endif
 	       $(ROOT)/wayland-client/rt/target $(ROOT)/wayland-client/stable/target \
 	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
 	       $(ROOT)/wayland-client/classes/target \
-	       $(ROOT)/wayland-server/rt/target $(DEMO_OUT) $(EX_OUT)
+	       $(ROOT)/wayland-server/rt/target $(ROOT)/wayland-server/stable/target \
+	       $(ROOT)/wayland-server/unstable/target $(ROOT)/wayland-server/staging/target \
+	       $(DEMO_OUT) $(EX_OUT)

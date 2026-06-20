@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-server-staging</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Staging wayland-protocols (ext_/wp_ v1), generated as <protocol>_server
+       units. Some reference stable and unstable protocols (e.g.
+       cursor_shape -> tablet_unstable_v2, xdg_dialog -> xdg_shell), so it
+       depends on both. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

@@ -33,7 +33,7 @@ The executable lands at `wayland-gen/target/regen_units`.
 ## Run
 
 ```
-regen_units <outdir> <protocol.xml> [<protocol.xml> ...]
+regen_units [--server] <outdir> <protocol.xml> [<protocol.xml> ...]
 ```
 
 Every given XML — plus the core `/usr/share/wayland/wayland.xml`, always scanned —
@@ -41,6 +41,13 @@ is read to build a complete interface→unit map (so cross-protocol references e
 the right `uses` clause), then each given XML is written as
 `<outdir>/<protocol>_protocol.pas` (the core protocol keeps its bare `wayland`
 name). Each emitted unit carries an SPDX header.
+
+With `--server`, the **server-side** binding is emitted instead: the direction is
+swapped (requests become incoming `message` handlers + an `I<Class>Requests`
+interface; events become outgoing `SendEvent` methods on `TWaylandServerResource`
+subclasses), and units use a parallel `_server` namespace
+(`<protocol>_server.pas`, core `wayland_server.pas`) so they never collide with
+the client units.
 
 Regenerate just the core protocol into the runtime module:
 

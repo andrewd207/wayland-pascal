@@ -40,7 +40,8 @@ The library modules are grouped under a `wayland-client/` pom and a
 | `wayland-client/unstable/` | Unstable (`z*`) wayland-protocols. | rt, stable | **pasbuild** |
 | `wayland-client/staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | rt, stable, unstable | **pasbuild** |
 | [`wayland-client/classes/`](wayland-client/classes/README.md) | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. ([API docs](docs/wayland-classes/index.md).) | rt + protocol tiers | **pasbuild** |
-| `wayland-server/rt/` | Server runtime base (`wayland_server_core`): `TWaylandServerResource` (a server-side protocol object, requests routed to `message` handlers), `TWaylandServerClient` (per-connection object map + server-range id allocation + receive loop), `TWaylandServerDisplay` (listening socket + accept/poll loop). The generated server protocol tiers will build on this once the generator grows a server mode. | `wayland-common` (unit path) | **pasbuild** |
+| `wayland-server/rt/` | Server runtime base (`wayland_server_core`): `TWaylandServerResource` (a server-side protocol object, requests routed to `message` handlers), `TWaylandServerClient` (per-connection object map + server-range id allocation + receive loop), `TWaylandServerDisplay` (listening socket + accept/poll loop). Also carries the generated server core `wayland_server.pas`. | `wayland-common` (unit path) | **pasbuild** |
+| `wayland-server/stable/`, `unstable/`, `staging/` | The wayland-protocols, generated as server-side `<protocol>_server` units (the direction-swapped mirror of the client tiers: requests arrive as `message` handlers + an `I<Class>Requests` interface, events are sent via `SendEvent`). | server rt (+ lower tiers) | **pasbuild** |
 | `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | client rt + stable + staging | **pasbuild** |
 | [`wayland-examples/`](wayland-examples/README.md) | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard, themed CSD window). Not built by default. | client rt + tiers + classes | **fpc** (`make examples`) |
 | [`wayland-gen/`](wayland-gen/README.md) | Code generator: reads Wayland protocol XML, emits the binding units. Bundles a vendored AST writer in `wayland-gen/vendor/`. | FPC RTL only | **pasbuild** |
@@ -100,7 +101,9 @@ pasbuild compile -m wayland-gen
 
 All extension protocols (stable/unstable/staging) are regenerated together so
 cross-protocol references resolve, then split into their tier package by source
-directory — see `scripts/regen-all.sh`.
+directory — see `scripts/regen-all.sh`, which regenerates **both** the client
+(`<protocol>_protocol`) and the server (`<protocol>_server`, plus the core
+`wayland_server.pas`) bindings. The server pass is `regen_units --server`.
 
 The reader rejects non-protocol XML (it validates the root element is
 `<protocol>`). `docs/wayland_fpc-fpdoc.xml` is FPDoc documentation, **not**
