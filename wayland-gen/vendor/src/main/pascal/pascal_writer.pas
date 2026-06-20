@@ -371,6 +371,7 @@ type
     FRoutineSpecialType: TRoutineSpecialType;
     FRoutineType: TRoutineType;
     FClassPrefix: String; // only set by TRoutineImpl
+    FAttribute: String;   // optional custom-attribute line, e.g. '[TSince(3)]'
   published
     function AddParameter(AName, AType: String): TParameterNode;
     procedure SetReturnValue(AValue: String);
@@ -383,6 +384,9 @@ type
     property IsOverride: Boolean read FIsOverride write FIsOverride;
     property Message: String read FMessage write FMessage;
     property IsType: Boolean read FIsType write FIsType; // TRoutine = procedure(args)[of object]
+    // A custom-attribute line emitted before the declaration (interface side
+    // only, never on the proc-type or the implementation). Empty => none.
+    property AttributeText: String read FAttribute write FAttribute;
   end;
 
 
@@ -1355,6 +1359,10 @@ begin
     lLine:= Format('%s = %s%s%s%s;', [lRoutineName, lRoutineType, lParams, lReturnType, lPostfix]);
   end;
 
+  // Custom attribute (e.g. [TSince(3)]) on the interface-side declaration only —
+  // not on the implementation (FClassPrefix set) nor on a proc-type.
+  if (FAttribute <> '') and (FClassPrefix = '') and not IsType then
+    WriteLine(AStream, FAttribute);
 
   WriteLine(AStream, lLine);
 

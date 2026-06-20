@@ -67,10 +67,16 @@ type
   TWiNamedWithDescNode = class(TWiNamedNode)
   private
     FDescription: TWIDescriptionNode;
+    function GetSince: Integer;
   protected
     function HandleNode(ANode: TDOMElement): Boolean; override;
   published
     property Description: TWIDescriptionNode read FDescription;
+  public
+    // The interface version a request/event/entry was introduced in (the XML
+    // 'since' attribute). Absent => 1 (present since the interface's first
+    // version). Used to version-gate server event emission.
+    property Since: Integer read GetSince;
   end;
 
   { TWIArgNode }
@@ -348,6 +354,11 @@ begin
 end;
 
 { TWiNamedWithDescNode }
+
+function TWiNamedWithDescNode.GetSince: Integer;
+begin
+  Result := StrToIntDef(FNode.GetAttribute('since'), 1);
+end;
 
 function TWiNamedWithDescNode.HandleNode(ANode: TDOMElement): Boolean;
 begin

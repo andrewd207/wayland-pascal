@@ -418,7 +418,9 @@ type
     property OnSetActions: TSetActionsEvent read FOnSetActionsPriv write FOnSetActionsPriv;
   public
     procedure Offer(aMimeType: String);
+    [TSince(3)]
     procedure SourceActions(aSourceActions: TWlDataDeviceManager.TDndAction);
+    [TSince(3)]
     procedure Action(aDndAction: TWlDataDeviceManager.TDndAction);
   private
     FListeners: array of IWlDataOfferRequests;
@@ -467,8 +469,11 @@ type
     procedure Target(aMimeType: String);
     procedure Send(aMimeType: String; aFd: Integer);
     procedure Cancelled;
+    [TSince(3)]
     procedure DndDropPerformed;
+    [TSince(3)]
     procedure DndFinished;
+    [TSince(3)]
     procedure Action(aDndAction: TWlDataDeviceManager.TDndAction);
   private
     FListeners: array of IWlDataSourceRequests;
@@ -694,9 +699,13 @@ type
   public
     procedure Geometry(aX: Integer; aY: Integer; aPhysicalWidth: Integer; aPhysicalHeight: Integer; aSubpixel: TSubpixel; aMake: String; aModel: String; aTransform: TTransform);
     procedure Mode(aFlags: TMode; aWidth: Integer; aHeight: Integer; aRefresh: Integer);
+    [TSince(2)]
     procedure Done;
+    [TSince(2)]
     procedure Scale(aFactor: Integer);
+    [TSince(4)]
     procedure Name(aName: String);
+    [TSince(4)]
     procedure Description(aDescription: String);
   private
     FListeners: array of IWlOutputRequests;
@@ -770,7 +779,9 @@ type
   public
     procedure Enter(aOutput: TWlOutput);
     procedure Leave(aOutput: TWlOutput);
+    [TSince(6)]
     procedure PreferredBufferScale(aFactor: Integer);
+    [TSince(6)]
     procedure PreferredBufferTransform(aTransform: TWlOutput.TTransform);
   private
     FListeners: array of IWlSurfaceRequests;
@@ -835,6 +846,7 @@ type
     property OnRelease: TReleaseEvent read FOnReleasePriv write FOnReleasePriv;
   public
     procedure Capabilities(aCapabilities: TCapability);
+    [TSince(2)]
     procedure Name(aName: String);
   private
     FListeners: array of IWlSeatRequests;
@@ -884,11 +896,17 @@ type
     procedure Motion(aTime: DWord; aSurfaceX: TWaylandFixed; aSurfaceY: TWaylandFixed);
     procedure Button(aSerial: DWord; aTime: DWord; aButton: DWord; aState: TButtonState);
     procedure Axis(aTime: DWord; aAxis: TAxis; aValue: TWaylandFixed);
+    [TSince(5)]
     procedure Frame;
+    [TSince(5)]
     procedure AxisSource(aAxisSource: TAxisSource);
+    [TSince(5)]
     procedure AxisStop(aTime: DWord; aAxis: TAxis);
+    [TSince(5)]
     procedure AxisDiscrete(aAxis: TAxis; aDiscrete: Integer);
+    [TSince(8)]
     procedure AxisValue120(aAxis: TAxis; aValue120: Integer);
+    [TSince(9)]
     procedure AxisRelativeDirection(aAxis: TAxis; aDirection: TAxisRelativeDirection);
   private
     FListeners: array of IWlPointerRequests;
@@ -929,6 +947,7 @@ type
     procedure Leave(aSerial: DWord; aSurface: TWlSurface);
     procedure Key(aSerial: DWord; aTime: DWord; aKey: DWord; aState: TKeyState);
     procedure Modifiers(aSerial: DWord; aModsDepressed: DWord; aModsLatched: DWord; aModsLocked: DWord; aGroup: DWord);
+    [TSince(4)]
     procedure RepeatInfo(aRate: Integer; aDelay: Integer);
   private
     FListeners: array of IWlKeyboardRequests;
@@ -966,7 +985,9 @@ type
     procedure Motion(aTime: DWord; aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
     procedure Frame;
     procedure Cancel;
+    [TSince(6)]
     procedure Shape(aId: Integer; aMajor: TWaylandFixed; aMinor: TWaylandFixed);
+    [TSince(6)]
     procedure Orientation(aId: Integer; aOrientation: TWaylandFixed);
   private
     FListeners: array of IWlTouchRequests;
@@ -1507,12 +1528,18 @@ end;
 
 procedure TWlDataOffer.SourceActions(aSourceActions: TWlDataDeviceManager.TDndAction);
 begin
-  SendEvent(Ord(TEvents.EV_SOURCE_ACTIONS), [DWord(aSourceActions)]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_SOURCE_ACTIONS), [DWord(aSourceActions)]);
+  end;
 end;
 
 procedure TWlDataOffer.Action(aDndAction: TWlDataDeviceManager.TDndAction);
 begin
-  SendEvent(Ord(TEvents.EV_ACTION), [DWord(aDndAction)]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_ACTION), [DWord(aDndAction)]);
+  end;
 end;
 
 function TWlDataOffer.AddListener(AIntf: IWlDataOfferRequests): LongInt;
@@ -1580,17 +1607,26 @@ end;
 
 procedure TWlDataSource.DndDropPerformed;
 begin
-  SendEvent(Ord(TEvents.EV_DND_DROP_PERFORMED), []);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_DND_DROP_PERFORMED), []);
+  end;
 end;
 
 procedure TWlDataSource.DndFinished;
 begin
-  SendEvent(Ord(TEvents.EV_DND_FINISHED), []);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_DND_FINISHED), []);
+  end;
 end;
 
 procedure TWlDataSource.Action(aDndAction: TWlDataDeviceManager.TDndAction);
 begin
-  SendEvent(Ord(TEvents.EV_ACTION), [DWord(aDndAction)]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_ACTION), [DWord(aDndAction)]);
+  end;
 end;
 
 function TWlDataSource.AddListener(AIntf: IWlDataSourceRequests): LongInt;
@@ -2008,22 +2044,34 @@ end;
 
 procedure TWlOutput.Done;
 begin
-  SendEvent(Ord(TEvents.EV_DONE), []);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_DONE), []);
+  end;
 end;
 
 procedure TWlOutput.Scale(aFactor: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_SCALE), [aFactor]);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_SCALE), [aFactor]);
+  end;
 end;
 
 procedure TWlOutput.Name(aName: String);
 begin
-  SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  if Version >= 4 then
+  begin
+    SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  end;
 end;
 
 procedure TWlOutput.Description(aDescription: String);
 begin
-  SendEvent(Ord(TEvents.EV_DESCRIPTION), [aDescription]);
+  if Version >= 4 then
+  begin
+    SendEvent(Ord(TEvents.EV_DESCRIPTION), [aDescription]);
+  end;
 end;
 
 function TWlOutput.AddListener(AIntf: IWlOutputRequests): LongInt;
@@ -2097,12 +2145,18 @@ end;
 
 procedure TWlSurface.PreferredBufferScale(aFactor: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_PREFERRED_BUFFER_SCALE), [aFactor]);
+  if Version >= 6 then
+  begin
+    SendEvent(Ord(TEvents.EV_PREFERRED_BUFFER_SCALE), [aFactor]);
+  end;
 end;
 
 procedure TWlSurface.PreferredBufferTransform(aTransform: TWlOutput.TTransform);
 begin
-  SendEvent(Ord(TEvents.EV_PREFERRED_BUFFER_TRANSFORM), [DWord(aTransform)]);
+  if Version >= 6 then
+  begin
+    SendEvent(Ord(TEvents.EV_PREFERRED_BUFFER_TRANSFORM), [DWord(aTransform)]);
+  end;
 end;
 
 function TWlSurface.AddListener(AIntf: IWlSurfaceRequests): LongInt;
@@ -2171,7 +2225,10 @@ end;
 
 procedure TWlSeat.Name(aName: String);
 begin
-  SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  end;
 end;
 
 function TWlSeat.AddListener(AIntf: IWlSeatRequests): LongInt;
@@ -2244,32 +2301,50 @@ end;
 
 procedure TWlPointer.Frame;
 begin
-  SendEvent(Ord(TEvents.EV_FRAME), []);
+  if Version >= 5 then
+  begin
+    SendEvent(Ord(TEvents.EV_FRAME), []);
+  end;
 end;
 
 procedure TWlPointer.AxisSource(aAxisSource: TAxisSource);
 begin
-  SendEvent(Ord(TEvents.EV_AXIS_SOURCE), [DWord(aAxisSource)]);
+  if Version >= 5 then
+  begin
+    SendEvent(Ord(TEvents.EV_AXIS_SOURCE), [DWord(aAxisSource)]);
+  end;
 end;
 
 procedure TWlPointer.AxisStop(aTime: DWord; aAxis: TAxis);
 begin
-  SendEvent(Ord(TEvents.EV_AXIS_STOP), [aTime,DWord(aAxis)]);
+  if Version >= 5 then
+  begin
+    SendEvent(Ord(TEvents.EV_AXIS_STOP), [aTime,DWord(aAxis)]);
+  end;
 end;
 
 procedure TWlPointer.AxisDiscrete(aAxis: TAxis; aDiscrete: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_AXIS_DISCRETE), [DWord(aAxis),aDiscrete]);
+  if Version >= 5 then
+  begin
+    SendEvent(Ord(TEvents.EV_AXIS_DISCRETE), [DWord(aAxis),aDiscrete]);
+  end;
 end;
 
 procedure TWlPointer.AxisValue120(aAxis: TAxis; aValue120: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_AXIS_VALUE120), [DWord(aAxis),aValue120]);
+  if Version >= 8 then
+  begin
+    SendEvent(Ord(TEvents.EV_AXIS_VALUE120), [DWord(aAxis),aValue120]);
+  end;
 end;
 
 procedure TWlPointer.AxisRelativeDirection(aAxis: TAxis; aDirection: TAxisRelativeDirection);
 begin
-  SendEvent(Ord(TEvents.EV_AXIS_RELATIVE_DIRECTION), [DWord(aAxis),DWord(aDirection)]);
+  if Version >= 9 then
+  begin
+    SendEvent(Ord(TEvents.EV_AXIS_RELATIVE_DIRECTION), [DWord(aAxis),DWord(aDirection)]);
+  end;
 end;
 
 function TWlPointer.AddListener(AIntf: IWlPointerRequests): LongInt;
@@ -2325,7 +2400,10 @@ end;
 
 procedure TWlKeyboard.RepeatInfo(aRate: Integer; aDelay: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_REPEAT_INFO), [aRate,aDelay]);
+  if Version >= 4 then
+  begin
+    SendEvent(Ord(TEvents.EV_REPEAT_INFO), [aRate,aDelay]);
+  end;
 end;
 
 function TWlKeyboard.AddListener(AIntf: IWlKeyboardRequests): LongInt;
@@ -2381,12 +2459,18 @@ end;
 
 procedure TWlTouch.Shape(aId: Integer; aMajor: TWaylandFixed; aMinor: TWaylandFixed);
 begin
-  SendEvent(Ord(TEvents.EV_SHAPE), [aId,aMajor.AsFixed,aMinor.AsFixed]);
+  if Version >= 6 then
+  begin
+    SendEvent(Ord(TEvents.EV_SHAPE), [aId,aMajor.AsFixed,aMinor.AsFixed]);
+  end;
 end;
 
 procedure TWlTouch.Orientation(aId: Integer; aOrientation: TWaylandFixed);
 begin
-  SendEvent(Ord(TEvents.EV_ORIENTATION), [aId,aOrientation.AsFixed]);
+  if Version >= 6 then
+  begin
+    SendEvent(Ord(TEvents.EV_ORIENTATION), [aId,aOrientation.AsFixed]);
+  end;
 end;
 
 function TWlTouch.AddListener(AIntf: IWlTouchRequests): LongInt;

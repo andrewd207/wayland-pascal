@@ -81,7 +81,9 @@ type
     procedure LogicalPosition(aX: Integer; aY: Integer);
     procedure LogicalSize(aWidth: Integer; aHeight: Integer);
     procedure Done;
+    [TSince(2)]
     procedure Name(aName: String);
+    [TSince(2)]
     procedure Description(aDescription: String);
   private
     FListeners: array of IXdgOutputV1Requests;
@@ -173,12 +175,18 @@ end;
 
 procedure TXdgOutputV1.Name(aName: String);
 begin
-  SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_NAME), [aName]);
+  end;
 end;
 
 procedure TXdgOutputV1.Description(aDescription: String);
 begin
-  SendEvent(Ord(TEvents.EV_DESCRIPTION), [aDescription]);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_DESCRIPTION), [aDescription]);
+  end;
 end;
 
 function TXdgOutputV1.AddListener(AIntf: IXdgOutputV1Requests): LongInt;

@@ -304,7 +304,9 @@ type
   public
     procedure Configure(aWidth: Integer; aHeight: Integer; aStates: TBytes);
     procedure Close;
+    [TSince(4)]
     procedure ConfigureBounds(aWidth: Integer; aHeight: Integer);
+    [TSince(5)]
     procedure WmCapabilities(aCapabilities: TBytes);
   private
     FListeners: array of IXdgToplevelRequests;
@@ -361,6 +363,7 @@ type
   public
     procedure Configure(aX: Integer; aY: Integer; aWidth: Integer; aHeight: Integer);
     procedure PopupDone;
+    [TSince(3)]
     procedure Repositioned(aToken: DWord);
   private
     FListeners: array of IXdgPopupRequests;
@@ -847,12 +850,18 @@ end;
 
 procedure TXdgToplevel.ConfigureBounds(aWidth: Integer; aHeight: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_CONFIGURE_BOUNDS), [aWidth,aHeight]);
+  if Version >= 4 then
+  begin
+    SendEvent(Ord(TEvents.EV_CONFIGURE_BOUNDS), [aWidth,aHeight]);
+  end;
 end;
 
 procedure TXdgToplevel.WmCapabilities(aCapabilities: TBytes);
 begin
-  SendEvent(Ord(TEvents.EV_WM_CAPABILITIES), [Length(aCapabilities),Pointer(aCapabilities)]);
+  if Version >= 5 then
+  begin
+    SendEvent(Ord(TEvents.EV_WM_CAPABILITIES), [Length(aCapabilities),Pointer(aCapabilities)]);
+  end;
 end;
 
 function TXdgToplevel.AddListener(AIntf: IXdgToplevelRequests): LongInt;
@@ -919,7 +928,10 @@ end;
 
 procedure TXdgPopup.Repositioned(aToken: DWord);
 begin
-  SendEvent(Ord(TEvents.EV_REPOSITIONED), [aToken]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_REPOSITIONED), [aToken]);
+  end;
 end;
 
 function TXdgPopup.AddListener(AIntf: IXdgPopupRequests): LongInt;

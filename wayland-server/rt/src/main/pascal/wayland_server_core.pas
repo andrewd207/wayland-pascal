@@ -129,6 +129,21 @@ type
     property Event[AIndex: Integer]: String read GetEvent;
   end;
 
+  { TSince }
+
+  // Marks the interface version a generated event method was introduced in (the
+  // protocol 'since'). The generator emits it (and a matching `if Version >= N`
+  // guard) only for members with since > 1 — so a server never sends an event a
+  // resource's negotiated version is too old to understand. Available via RTTI
+  // for introspection/tooling.
+  TSince = class(TCustomAttribute)
+  private
+    FVersion: Integer;
+  public
+    constructor Create(AVersion: Integer);
+    property Version: Integer read FVersion;
+  end;
+
   // --- runtime --------------------------------------------------------------
 
   TWaylandServerResourceClass = class of TWaylandServerResource;
@@ -405,6 +420,14 @@ begin
     FRequests := ARequests.Split(',');
   if Length(Trim(AEvents)) > 0 then
     FEvents := AEvents.Split(',');
+end;
+
+{ TSince }
+
+constructor TSince.Create(AVersion: Integer);
+begin
+  inherited Create;
+  FVersion := AVersion;
 end;
 
 { TWaylandServerResource }

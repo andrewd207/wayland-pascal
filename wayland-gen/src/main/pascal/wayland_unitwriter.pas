@@ -1292,7 +1292,7 @@ var
   lArg, lReturnArg: TWIArgNode;
   lIntfProc: TRoutineNode;
   lType: TTypeVariety;
-  lTypeName, lParams, lName, lEventConst, lLookingFor, lFd: String;
+  lTypeName, lParams, lName, lEventConst, lLookingFor, lFd, lInd: String;
   lImplProc: TRoutineImplNode;
   lInterfaceXML: TWInterfaceNode;
 begin
@@ -1310,6 +1310,11 @@ begin
   if NeedsMethodSuffix(lName) then
     lName := lName + '_';
   lIntfProc := lPublic.AddRoutine(lIntfProcType, lName, '');
+  // Mark (and below, gate) events introduced after version 1, so a server never
+  // sends an event a resource's negotiated version is too old to receive. since=1
+  // events carry no attribute and no guard (the common case, no output churn).
+  if AEvent.Since > 1 then
+    lIntfProc.AttributeText := Format('[TSince(%d)]', [AEvent.Since]);
 
   if Assigned(lReturnArg) then
   begin
@@ -1356,10 +1361,23 @@ begin
   FUnit.ImplentationNode.Declarations.Add(lImplProc);
   lImplProc.RoutineDeclaration:= lIntfProc;
 
+  // Version gate: for since>1 events, wrap the body in `if Version >= N then`
+  // so it is a no-op on a resource bound to an older version. lInd indents the
+  // wrapped statements.
+  lInd := '';
+  if AEvent.Since > 1 then
+  begin
+    if Assigned(lReturnArg) then
+      lImplProc.BeginEnd.AddCodeLine('Result := nil;'); // gated function: define the result
+    lImplProc.BeginEnd.AddCodeLine(Format('if Version >= %d then', [AEvent.Since]));
+    lImplProc.BeginEnd.AddCodeLine('begin');
+    lInd := '  ';
+  end;
+
   if Assigned(lReturnArg) then
   begin
-    lImplProc.BeginEnd.AddCodeLine(Format('if aClassType = nil then aClassType := %s;', [lIntfProc.ReturnValue.Name]));
-    lImplProc.BeginEnd.AddCodeLine(Format('Result := %s(NewResource(aClassType, Version));', [lIntfProc.ReturnValue.Name]));
+    lImplProc.BeginEnd.AddCodeLine(Format('%sif aClassType = nil then aClassType := %s;', [lInd, lIntfProc.ReturnValue.Name]));
+    lImplProc.BeginEnd.AddCodeLine(Format('%sResult := %s(NewResource(aClassType, Version));', [lInd, lIntfProc.ReturnValue.Name]));
   end;
 
   lParams := '';
@@ -1397,7 +1415,9 @@ begin
   lParams:=Copy(lParams, 1, Length(lParams)-1); // eliminate trailing comma
 
   lEventConst := 'EV_'+UpperCase(AEvent.Name);
-  lImplProc.BeginEnd.AddCodeLine(Format('SendEvent(Ord(TEvents.%s), [%s]%s);', [lEventConst, lParams, lFd]));
+  lImplProc.BeginEnd.AddCodeLine(Format('%sSendEvent(Ord(TEvents.%s), [%s]%s);', [lInd, lEventConst, lParams, lFd]));
+  if AEvent.Since > 1 then
+    lImplProc.BeginEnd.AddCodeLine('end;');
 end;
 
 procedure WriteSPDXHeader(AStream: TStream);

@@ -61,6 +61,7 @@ type
     property OnGetSurfaceFeedback: TGetSurfaceFeedbackEvent read FOnGetSurfaceFeedbackPriv write FOnGetSurfaceFeedbackPriv;
   public
     procedure Format(aFormat: DWord);
+    [TSince(3)]
     procedure Modifier(aFormat: DWord; aModifierHi: DWord; aModifierLo: DWord);
   private
     FListeners: array of IWpLinuxDmabufV1Requests;
@@ -242,7 +243,10 @@ end;
 
 procedure TWpLinuxDmabufV1.Modifier(aFormat: DWord; aModifierHi: DWord; aModifierLo: DWord);
 begin
-  SendEvent(Ord(TEvents.EV_MODIFIER), [aFormat,aModifierHi,aModifierLo]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_MODIFIER), [aFormat,aModifierHi,aModifierLo]);
+  end;
 end;
 
 function TWpLinuxDmabufV1.AddListener(AIntf: IWpLinuxDmabufV1Requests): LongInt;

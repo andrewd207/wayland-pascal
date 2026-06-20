@@ -205,6 +205,7 @@ type
     procedure Path(aPath: String);
     procedure Done;
     procedure Removed;
+    [TSince(2)]
     procedure Bustype(aBustype: TBustype);
   private
     FListeners: array of IWpTabletV2Requests;
@@ -325,6 +326,7 @@ type
     procedure Modes(aModes: DWord);
     procedure Done;
     procedure ModeSwitch(aTime: DWord; aSerial: DWord; aMode: DWord);
+    [TSince(2)]
     function Dial(aClassType: TWpTabletPadDialV2Class = nil): TWpTabletPadDialV2;
   private
     FListeners: array of IWpTabletPadGroupV2Requests;
@@ -694,7 +696,10 @@ end;
 
 procedure TWpTabletV2.Bustype(aBustype: TBustype);
 begin
-  SendEvent(Ord(TEvents.EV_BUSTYPE), [DWord(aBustype)]);
+  if Version >= 2 then
+  begin
+    SendEvent(Ord(TEvents.EV_BUSTYPE), [DWord(aBustype)]);
+  end;
 end;
 
 function TWpTabletV2.AddListener(AIntf: IWpTabletV2Requests): LongInt;
@@ -877,9 +882,13 @@ end;
 
 function TWpTabletPadGroupV2.Dial(aClassType: TWpTabletPadDialV2Class = nil): TWpTabletPadDialV2;
 begin
-  if aClassType = nil then aClassType := TWpTabletPadDialV2;
-  Result := TWpTabletPadDialV2(NewResource(aClassType, Version));
-  SendEvent(Ord(TEvents.EV_DIAL), [Integer(Result.GetObjectId)]);
+  Result := nil;
+  if Version >= 2 then
+  begin
+    if aClassType = nil then aClassType := TWpTabletPadDialV2;
+    Result := TWpTabletPadDialV2(NewResource(aClassType, Version));
+    SendEvent(Ord(TEvents.EV_DIAL), [Integer(Result.GetObjectId)]);
+  end;
 end;
 
 function TWpTabletPadGroupV2.AddListener(AIntf: IWpTabletPadGroupV2Requests): LongInt;

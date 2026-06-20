@@ -164,7 +164,9 @@ type
   published
     property OnDestroy: TDestroyEvent read FOnDestroyPriv write FOnDestroyPriv;
   public
+    [TSince(3)]
     procedure Begin_(aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord);
+    [TSince(3)]
     procedure End_(aSerial: DWord; aTime: DWord; aCancelled: Integer);
   private
     FListeners: array of IWpPointerGestureHoldV1Requests;
@@ -349,12 +351,18 @@ end;
 
 procedure TWpPointerGestureHoldV1.Begin_(aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aFingers: DWord);
 begin
-  SendEvent(Ord(TEvents.EV_BEGIN), [aSerial,aTime,Integer(aSurface.GetObjectId),aFingers]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_BEGIN), [aSerial,aTime,Integer(aSurface.GetObjectId),aFingers]);
+  end;
 end;
 
 procedure TWpPointerGestureHoldV1.End_(aSerial: DWord; aTime: DWord; aCancelled: Integer);
 begin
-  SendEvent(Ord(TEvents.EV_END), [aSerial,aTime,aCancelled]);
+  if Version >= 3 then
+  begin
+    SendEvent(Ord(TEvents.EV_END), [aSerial,aTime,aCancelled]);
+  end;
 end;
 
 function TWpPointerGestureHoldV1.AddListener(AIntf: IWpPointerGestureHoldV1Requests): LongInt;
