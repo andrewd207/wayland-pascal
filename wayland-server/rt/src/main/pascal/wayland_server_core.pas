@@ -217,6 +217,13 @@ type
     // complete request in it; a partial tail stays buffered for the next call.
     // Returns False once the peer has closed (the caller should drop the client).
     function ProcessRequests: Boolean;
+    // Dispatch requests from bytes the caller has ALREADY read off the wire
+    // (with their out-of-band fds), instead of reading the socket here. The
+    // counterpart to ProcessRequests for when something else owns the socket read
+    // — e.g. a proxy that forwards the raw bytes onward and also tees them through
+    // the server binding for dispatch. A partial tail is buffered for the next
+    // call, exactly as ProcessRequests does.
+    procedure FeedRequests(AData: Pointer; ALen: Integer; AFds: pcint; AFdCount: Integer);
     property Display: TWaylandServerDisplay read FDisplay;
     property Socket: TUnixSocket read FSocket;
     property UserData: Pointer read FUserData write FUserData;
@@ -811,6 +818,33 @@ begin
     if not HasCompleteMessage then
       Exit(FRecvTail > FRecvHead); // keep alive only if a partial msg is pending
   Result := True;
+  while HasCompleteMessage do
+    DispatchBuffered;
+end;
+
+procedure TWaylandServerClient.FeedRequests(AData: Pointer; ALen: Integer;
+  AFds: pcint; AFdCount: Integer);
+var
+  i, lLeft: Integer;
+begin
+  // Compact the consumed prefix so the buffer doesn't grow without bound.
+  if FRecvHead > 0 then
+  begin
+    lLeft := FRecvTail - FRecvHead;
+    if lLeft > 0 then
+      Move(FRecvBuf[FRecvHead], FRecvBuf[0], lLeft);
+    FRecvTail := lLeft;
+    FRecvHead := 0;
+  end;
+  if Length(FRecvBuf) - FRecvTail < ALen then
+    SetLength(FRecvBuf, FRecvTail + ALen);
+  if ALen > 0 then
+  begin
+    Move(AData^, FRecvBuf[FRecvTail], ALen);
+    Inc(FRecvTail, ALen);
+  end;
+  for i := 0 to AFdCount - 1 do
+    PushRecvFd(AFds[i]);
   while HasCompleteMessage do
     DispatchBuffered;
 end;

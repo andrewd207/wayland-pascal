@@ -19,6 +19,15 @@ const
 function SendFD(socket: cint; fd_to_send: cint; data: Pointer; datalen: cint): cint;
 function RecvFD(socket: cint): cint;
 
+// Sends ADataLen bytes from AData AND attaches AFdCount file descriptors
+// (AFds[0..AFdCount-1]) out-of-band via SCM_RIGHTS, in one sendmsg. The send
+// counterpart of RecvWithFds (SendFD only carries a single fd). Returns the byte
+// count sent, or -1 on error (libc errno via c_errno). The fds are duplicated
+// into the kernel by sendmsg; the caller still owns its local copies and should
+// close them afterwards. Used to forward a recvmsg chunk verbatim (e.g. a proxy).
+function SendWithFds(socket: cint; AData: Pointer; ADataLen: cint;
+  AFds: pcint; AFdCount: Integer): ssize_t;
+
 // Receives up to ADataLen bytes into AData AND captures any SCM_RIGHTS file
 // descriptors carried out-of-band on the same datagram. Captured fds are written
 // to AFds[0..AFdCount-1] (up to AMaxFds; extras are silently dropped). Honors the
@@ -139,6 +148,40 @@ begin
 
   // Returns the number of bytes sent, or -1 on error (errno set by sendmsg).
   // Callers must check the result.
+  Result := fpSendMsg(socket, @msg, 0);
+end;
+
+function SendWithFds(socket: cint; AData: Pointer; ADataLen: cint;
+  AFds: pcint; AFdCount: Integer): ssize_t;
+var
+  msg: msghdr;
+  io: iovec;
+  cmsg: PCmsghdr;
+  ctrl: TBytes;
+  fdptr: pcint;
+  i: Integer;
+begin
+  FillChar(msg, SizeOf(msg), 0);
+  io.iov_base := AData;
+  io.iov_len := ADataLen;
+  msg.msg_iov := @io;
+  msg.msg_iovlen := 1;
+
+  if AFdCount > 0 then
+  begin
+    SetLength(ctrl, CMSG_SPACE(AFdCount * SizeOf(cint)));
+    FillChar(ctrl[0], Length(ctrl), 0);
+    msg.msg_control := @ctrl[0];
+    msg.msg_controllen := Length(ctrl);
+    cmsg := CMSG_FIRSTHDR(@msg);
+    cmsg^.cmsg_len := CMSG_LEN(AFdCount * SizeOf(cint));
+    cmsg^.cmsg_level := SOL_SOCKET;
+    cmsg^.cmsg_type := SCM_RIGHTS;
+    fdptr := pcint(CMSG_DATA(cmsg));
+    for i := 0 to AFdCount - 1 do
+      fdptr[i] := AFds[i];
+  end;
+
   Result := fpSendMsg(socket, @msg, 0);
 end;
 
