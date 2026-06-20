@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-server-rt</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Server runtime base: the hand-written resource / per-client / display
+       classes (wayland_server_core) that the generated server protocol units
+       will build on. The shared transport (socket + fd plumbing, wire stream,
+       event-message/fd-stream types) lives in wayland-common; we compile it in
+       via the unitPaths entry below, exactly as wayland-client/rt does, so
+       wayland-common need not be a built dependency. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+      <path>../../wayland-common/src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

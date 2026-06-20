@@ -19,6 +19,10 @@
     <module activeByDefault="false">wayland-common</module>
     <!-- Client-side stack (rt proxies + protocol tiers + classes). -->
     <module>wayland-client</module>
+    <!-- Server-side stack. For now just the hand-written runtime base (rt);
+         the generated server protocol tiers follow once the generator grows a
+         server mode. -->
+    <module>wayland-server</module>
     <module>wayland-demo</module>
     <!-- Examples: excluded from the default build; built by `make examples`
          (or `pasbuild compile` with the all-modules flag). -->

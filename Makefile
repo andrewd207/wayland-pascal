@@ -76,4 +76,5 @@ endif
 	rm -rf $(ROOT)/wayland-common/target \
 	       $(ROOT)/wayland-client/rt/target $(ROOT)/wayland-client/stable/target \
 	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
-	       $(ROOT)/wayland-client/classes/target $(DEMO_OUT) $(EX_OUT)
+	       $(ROOT)/wayland-client/classes/target \
+	       $(ROOT)/wayland-server/rt/target $(DEMO_OUT) $(EX_OUT)

@@ -29,8 +29,8 @@ From the [examples](wayland-examples/README.md):
 The project is split by dependency footprint so the runtime binding stays free
 of heavy build-time dependencies:
 
-The library modules are grouped under a `wayland-client/` pom (with a
-`wayland-server/` pom to come), over a shared `wayland-common/` transport.
+The library modules are grouped under a `wayland-client/` pom and a
+`wayland-server/` pom, both over a shared `wayland-common/` transport.
 
 | Directory | What | Dependencies | Built with |
 |---|---|---|---|
@@ -40,6 +40,7 @@ The library modules are grouped under a `wayland-client/` pom (with a
 | `wayland-client/unstable/` | Unstable (`z*`) wayland-protocols. | rt, stable | **pasbuild** |
 | `wayland-client/staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | rt, stable, unstable | **pasbuild** |
 | [`wayland-client/classes/`](wayland-client/classes/README.md) | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. ([API docs](docs/wayland-classes/index.md).) | rt + protocol tiers | **pasbuild** |
+| `wayland-server/rt/` | Server runtime base (`wayland_server_core`): `TWaylandServerResource` (a server-side protocol object, requests routed to `message` handlers), `TWaylandServerClient` (per-connection object map + server-range id allocation + receive loop), `TWaylandServerDisplay` (listening socket + accept/poll loop). The generated server protocol tiers will build on this once the generator grows a server mode. | `wayland-common` (unit path) | **pasbuild** |
 | `wayland-demo/` | Demo / dogfood app that connects to a live compositor. | client rt + stable + staging | **pasbuild** |
 | [`wayland-examples/`](wayland-examples/README.md) | Standalone example programs, one executable each (window, canvas, dma-buf, cursor grid, clipboard, themed CSD window). Not built by default. | client rt + tiers + classes | **fpc** (`make examples`) |
 | [`wayland-gen/`](wayland-gen/README.md) | Code generator: reads Wayland protocol XML, emits the binding units. Bundles a vendored AST writer in `wayland-gen/vendor/`. | FPC RTL only | **pasbuild** |
