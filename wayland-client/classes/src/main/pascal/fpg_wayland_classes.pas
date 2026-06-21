@@ -607,6 +607,10 @@ type
     FContentOffsetX, FContentOffsetY: Integer;
     FConfigured: Boolean;  { first xdg configure received + acked }
     FButtonPressSerial: DWord;  { serial of the last pointer PRESS over this window }
+    { Observers (e.g. a buffer manager that caches this handle) registered to be
+      told the instant this window is torn down, so they can drop their cached
+      reference before the surface/viewport proxies are freed. }
+    FFreeNotifies: array of TNotifyEvent;
   public
     constructor Create(AOwner: TObject; ADisplay: TfpgwDisplay; AParent:TfpgwWindow; ALeft, ATop, AWidth, AHeight: Integer; APopupFor: TfpgwWindow; APopupGrab: Boolean = False; AGrabSerial: DWord = 0);
     destructor  Destroy; override;
@@ -630,6 +634,12 @@ type
     property  OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
     property  OnConfigure: TfpgwShellConfigureEvent read FOnConfigure write FOnConfigure;
     property  OnClose: TNotifyEvent read FOnClose write FOnClose;
+    { Free-notification: an observer that caches this handle (e.g. a buffer
+      manager) registers here to be called with Sender=Self the moment Destroy
+      runs — before the surface/viewport proxies are freed — so it can drop its
+      cached reference. Idempotent add (no duplicate registrations). }
+    procedure AddFreeNotification(ANotify: TNotifyEvent);
+    procedure RemoveFreeNotification(ANotify: TNotifyEvent);
     property  Owner: TObject read FOwner;
     property  WindowState: DWord read FWindowState;
     property  ContentOffsetX: Integer read FContentOffsetX write FContentOffsetX;
@@ -1845,8 +1855,43 @@ begin
   FViewport.SetDestination(AWidth, AHeight);
 end;
 
-destructor TfpgwWindow.Destroy;
+procedure TfpgwWindow.AddFreeNotification(ANotify: TNotifyEvent);
+var
+  i: Integer;
 begin
+  for i := 0 to High(FFreeNotifies) do
+    if (TMethod(FFreeNotifies[i]).Code = TMethod(ANotify).Code)
+    and (TMethod(FFreeNotifies[i]).Data = TMethod(ANotify).Data) then
+      Exit;  { already registered }
+  SetLength(FFreeNotifies, Length(FFreeNotifies) + 1);
+  FFreeNotifies[High(FFreeNotifies)] := ANotify;
+end;
+
+procedure TfpgwWindow.RemoveFreeNotification(ANotify: TNotifyEvent);
+var
+  i, last: Integer;
+begin
+  last := High(FFreeNotifies);
+  for i := 0 to last do
+    if (TMethod(FFreeNotifies[i]).Code = TMethod(ANotify).Code)
+    and (TMethod(FFreeNotifies[i]).Data = TMethod(ANotify).Data) then
+    begin
+      FFreeNotifies[i] := FFreeNotifies[last];  { swap-remove; order irrelevant }
+      SetLength(FFreeNotifies, last);
+      Exit;
+    end;
+end;
+
+destructor TfpgwWindow.Destroy;
+var
+  i: Integer;
+begin
+  { Tell observers we're going away before any proxy is freed. A handler must
+    not mutate the list (it just drops its own ref). }
+  for i := 0 to High(FFreeNotifies) do
+    FFreeNotifies[i](Self);
+  FFreeNotifies := nil;
+
   FDisplay.RemoveUserData(FSurfaceShell.Surface);
   if Assigned(FViewport) then
     FViewport.Free;
