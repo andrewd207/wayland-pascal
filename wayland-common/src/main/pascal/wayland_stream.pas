@@ -43,10 +43,13 @@ var
   lLen: Cardinal;
 begin
   lLen := ReadDWord;
-  // lLen is the byte count including the null terminator, so it must be >= 1.
-  // Guard against underflow: lLen-1 on a Cardinal would wrap to ~4G otherwise.
+  // lLen is the byte count including the null terminator, so a non-null string
+  // is always >= 1. A length field of 0 is a NULL string — valid for allow-null
+  // args (e.g. wl_data_source.target(nil) when the pointer is over a region that
+  // accepted nothing). Decode it as an empty string; there is no content, null
+  // byte, or padding to consume (the 4-byte length field is already aligned).
   if lLen = 0 then
-    raise EWaylandError.CreateFmt(SErrStringTooShort, [lLen]);
+    Exit('');
   SetLength(Result, lLen-1);
   Read(Result[1], lLen-1);
   ReadByte; // null char
