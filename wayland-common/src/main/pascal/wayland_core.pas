@@ -250,7 +250,12 @@ type
 
 implementation
 uses
-  wayland_errors, wayland_strings, wayland, unix_fd_socket, ctypes;
+  wayland_errors, wayland_strings, wayland, unix_fd_socket, ctypes,
+  // Not used by wayland_core itself: referenced solely so FPC compiles the
+  // xkbcommon binding + helper into the runtime package, so `pasbuild install`
+  // ships their .ppu/.o for downstream consumers (e.g. the fpGUI Wayland
+  // backend) that don't otherwise trigger their compilation.
+  libxkbcommon, xkb_classes;
 
 const
   // Amount of socket data pulled per recvmsg into the receive buffer. Wayland's
