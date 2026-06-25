@@ -342,6 +342,33 @@ type
     property  OnCancelled: TNotifyEvent read FOnCancelled write FOnCancelled;
   end;
 
+  { TfpgwDragIcon — the surface the compositor moves with the pointer during a
+    drag (passed to StartDrag's icon arg). It owns a bare wl_surface + an shm
+    ARGB8888 buffer the caller paints into (Data, AStride bytes per row), then
+    Commit()s with a hotspot. Same surface+shm shape as the cursor. Free it
+    after the drag (the compositor releases the drag-icon role on drag end). }
+
+  TfpgwDragIcon = class
+  private
+    FDisplay: TfpgwDisplay;
+    FSurface: TWlSurface;
+    FBuffer: TWlBuffer;
+    FData: Pointer;
+    FWidth, FHeight, FStride: Integer;
+  public
+    constructor Create(ADisplay: TfpgwDisplay; AWidth, AHeight: Integer);
+    destructor  Destroy; override;
+    { Attach the painted buffer and commit, offsetting the surface so (AHotX,
+      AHotY) — the point the drag was grabbed at — sits under the pointer. }
+    procedure   Commit(AHotX, AHotY: Integer);
+    property    Surface: TWlSurface read FSurface;
+    { Tightly-packed ARGB8888 pixels (FStride = FWidth*4). }
+    property    Data: Pointer read FData;
+    property    Stride: Integer read FStride;
+    property    Width: Integer read FWidth;
+    property    Height: Integer read FHeight;
+  end;
+
   { TfpgwBufferPool — abstraction over how a window buffer's pixels are backed.
     Mirrors the shell abstraction (TfpgwShellSurfaceCommon with concrete
     wl_shell/xdg-shell subclasses): a common base with concrete wl_shm and
@@ -2688,6 +2715,47 @@ end;
 procedure TfpgwDataSource.wl_data_source_action(AWlDataSource: TWlDataSource; ADndAction: TWlDataDeviceManager.TDndAction);
 begin
   FDndAction := ADndAction;
+end;
+
+{ TfpgwDragIcon }
+
+constructor TfpgwDragIcon.Create(ADisplay: TfpgwDisplay; AWidth, AHeight: Integer);
+var
+  lFd: Integer;
+begin
+  FDisplay := ADisplay;
+  FWidth   := AWidth;
+  FHeight  := AHeight;
+  FStride  := AWidth * 4;   { wl_shm rows are tightly packed (as the cursor relies on) }
+  FSurface := FDisplay.Compositor.CreateSurface;
+  { CPU shm ARGB8888 buffer — same path as the cursor; not the dma-buf window
+    path. FData is the mmap'd pixel memory the caller paints. }
+  FBuffer  := FDisplay.Shm.AllocateShmBuffer(AWidth, AHeight,
+                TWlShm.TFormat.foArgb8888, FData, lFd);
+  { Start transparent so unpainted corners don't show stale mmap contents. }
+  if Assigned(FData) then
+    FillChar(FData^, FStride * FHeight, 0);
+end;
+
+destructor TfpgwDragIcon.Destroy;
+begin
+  if Assigned(FSurface) then
+    FSurface.Free;   { wl_surface.destroy }
+  if Assigned(FBuffer) then
+    FBuffer.Free;    { wl_buffer.destroy }
+  inherited Destroy;
+end;
+
+procedure TfpgwDragIcon.Commit(AHotX, AHotY: Integer);
+begin
+  if not (Assigned(FSurface) and Assigned(FBuffer)) then
+    Exit;
+  { wl_compositor binds at v1 here, so a non-zero attach offset is valid (the
+    v5 deprecation/offset-request split does not apply). Offsetting the buffer
+    by -hotspot puts the grab point under the pointer. }
+  FSurface.Attach(FBuffer, -AHotX, -AHotY);
+  FSurface.Damage(0, 0, FWidth, FHeight);
+  FSurface.Commit;
 end;
 
 function TfpgwDisplay.NextSerial: DWord;
