@@ -498,6 +498,11 @@ type
     procedure SetToplevel; virtual; abstract;
     procedure SetPopup(AParent: TfpgwWindow; AX, AY: Integer; AGrab: Boolean = False; AGrabSerial: DWord = 0); virtual; abstract;
     procedure SetSubSurface(AParent: TfpgwShellSurfaceCommon); virtual;
+    { Mark this toplevel as a transient child of AParent (nil clears it). The
+      compositor then keeps it stacked above the parent and groups them — the
+      xdg-shell equivalent of X11's transient-for, used for modal dialogs.
+      No-op for shells without the concept (wl_shell). }
+    procedure SetParent(AParent: TfpgwWindow); virtual;
     { Request compositor (server-side) decorations. Returns True if the
       compositor supports the xdg-decoration protocol and the request was
       made; False means the client must draw its own decorations. }
@@ -585,6 +590,7 @@ type
     procedure SetWindowGeometry(AX, AY, AWidth, AHeight: Integer); override;
     procedure SetMinSize(AWidth, AHeight: Integer); override;
     procedure SetMaxSize(AWidth, AHeight: Integer); override;
+    procedure SetParent(AParent: TfpgwWindow); override;
     property Toplevel: TXdgToplevel read FToplevel;
     property Popup: TXdgPopup read FPopup;
     property Surface: TXdgSurface read FXdgSurface;
@@ -1407,6 +1413,21 @@ begin
     FToplevel.SetMaxSize(AWidth, AHeight);
 end;
 
+procedure TfpgwXDGShellSurface.SetParent(AParent: TfpgwWindow);
+var
+  lParentTL: TXdgToplevel;
+begin
+  if not Assigned(FToplevel) then
+    Exit;
+  lParentTL := nil;
+  if Assigned(AParent) and Assigned(AParent.SurfaceShell)
+  and (AParent.SurfaceShell is TfpgwXDGShellSurface) then
+    lParentTL := TfpgwXDGShellSurface(AParent.SurfaceShell).FToplevel;
+  { nil unparents; otherwise the compositor treats this toplevel as a transient
+    child kept above the parent. }
+  FToplevel.SetParent(lParentTL);
+end;
+
 procedure TfpgwXDGShellSurface.Move(Serial: LongWord);
 begin
   if Assigned(FToplevel) then
@@ -1498,6 +1519,11 @@ end;
 procedure TfpgwShellSurfaceCommon.SetSubSurface(AParent: TfpgwShellSurfaceCommon);
 begin
   FSubSurface := FDisplay.SubCompositor.GetSubsurface(Surface, AParent.Surface);
+end;
+
+procedure TfpgwShellSurfaceCommon.SetParent(AParent: TfpgwWindow);
+begin
+  { No transient/parent concept for this shell (wl_shell). }
 end;
 
 function TfpgwShellSurfaceCommon.IsActive: Boolean;
