@@ -573,6 +573,13 @@ type
 
   TfpgwShellConfigureEvent = procedure(Sender: TObject; AEdges: LongWord; AWidth, AHeight: LongInt) of object;
 
+  { Fired when the compositor configures an xdg_popup. AX,AY are the popup's
+    final position relative to the parent window-geometry origin. The compositor
+    may have slid/flipped/resized it (per the positioner's constraint adjustment)
+    to keep it on a single output and on-screen, so this can differ from the
+    requested position — comparing the two tells you it was constrained. }
+  TfpgwPopupConfigureEvent = procedure(Sender: TObject; AX, AY, AWidth, AHeight: Integer) of object;
+
   TfpgwWindowDecorator = class;
 
   { TfpgwWindow }
@@ -592,6 +599,8 @@ type
     FClientWidth: Integer;
     FOnClose: TNotifyEvent;
     FOnConfigure: TfpgwShellConfigureEvent;
+    FOnPopupConfigure: TfpgwPopupConfigureEvent;
+    FPopupX, FPopupY: Integer;  { compositor-chosen popup position (parent-relative) }
     FOnPaint: TNotifyEvent;
     FOwner: TObject;
     FSurfaceShell: TfpgwShellSurfaceCommon;
@@ -633,6 +642,15 @@ type
     function  GetWidth: Integer;
     property  OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
     property  OnConfigure: TfpgwShellConfigureEvent read FOnConfigure write FOnConfigure;
+    { Fired on every xdg_popup.configure with the compositor's chosen geometry
+      (parent-relative). Use it to keep your popup's logical position in sync
+      with where the compositor actually placed it (it may have flipped/slid the
+      popup to keep it on-screen). }
+    property  OnPopupConfigure: TfpgwPopupConfigureEvent read FOnPopupConfigure write FOnPopupConfigure;
+    { Last compositor-chosen popup position (parent-relative), from
+      xdg_popup.configure. Only meaningful for popup windows. }
+    property  PopupX: Integer read FPopupX;
+    property  PopupY: Integer read FPopupY;
     property  OnClose: TNotifyEvent read FOnClose write FOnClose;
     { Free-notification: an observer that caches this handle (e.g. a buffer
       manager) registers here to be called with Sender=Self the moment Destroy
@@ -1134,6 +1152,13 @@ end;
 procedure TfpgwXDGShellSurface.xdg_popup_configure(AXdgPopup: TXdgPopup;
   AX: LongInt; AY: LongInt; AWidth: LongInt; AHeight: LongInt);
 begin
+  { Record the compositor-chosen position (parent-relative). It may differ from
+    what we requested if the positioner's constraint adjustment caused a
+    slide/flip/resize to keep the popup on-screen. }
+  FWin.FPopupX := AX;
+  FWin.FPopupY := AY;
+  if Assigned(FWin.FOnPopupConfigure) then
+    FWin.FOnPopupConfigure(FWin, AX, AY, AWidth, AHeight);
   { Trigger a repaint AFTER the popup is configured (xdg_surface_configure acks
     next). The buffer attached during Create's initial Redraw happens before the
     first configure/ack and is ignored by xdg, so without this the popup maps
@@ -1235,6 +1260,7 @@ end;
 procedure TfpgwXDGShellSurface.SetPopup(AParent: TfpgwWindow; AX, AY: Integer; AGrab: Boolean = False; AGrabSerial: DWord = 0);
 var
   lPositioner: TXdgPositioner;
+  lConstraint: TXdgPositioner.TConstraintAdjustment;
 begin
   lPositioner :=  FDisplay.FXDGShell.CreatePositioner;
   with lPositioner do
@@ -1248,6 +1274,20 @@ begin
       lands at the requested content position rather than over the frame. }
     SetOffset(AParent.ContentOffsetX, AParent.ContentOffsetY);
     SetGravity(TXdgPositioner.TGravity.grBottomright);
+    { Let the compositor keep the popup on-screen (and on ONE output — Wayland
+      never lets a constrained popup span two): flip to the opposite side first
+      (so a menu at the right edge opens leftward, at the bottom opens upward),
+      then slide, then resize as a last resort. Without this (the default
+      'none') a menu near a screen edge is placed partly off-screen. The final
+      placement comes back via xdg_popup.configure -> OnPopupConfigure. }
+    lConstraint.Value := 0;
+    lConstraint.FlipX  := True;
+    lConstraint.FlipY  := True;
+    lConstraint.SlideX := True;
+    lConstraint.SlideY := True;
+    lConstraint.ResizeX := True;
+    lConstraint.ResizeY := True;
+    SetConstraintAdjustment(lConstraint);
   end;
   FPopup:= FXdgSurface.GetPopup(TfpgwXDGShellSurface(AParent.SurfaceShell).FXdgSurface, lPositioner);
   FPopup.AddListener(Self);
