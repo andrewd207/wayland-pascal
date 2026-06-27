@@ -609,6 +609,7 @@ var
   lMessageRec: TWaylandEventMessage;
   lObjectIndex: Integer;
   lQueue: IWaylandEventQueue;
+  lDestIntf: IWaylandBase;
   lReadSize: Word;
   lFdCount, i: Integer;
 begin
@@ -702,10 +703,23 @@ begin
     // any unconsumed fds closed) by DispatchEvent once the event has been
     // dispatched (which may be deferred if it belongs to a queue other than the
     // display's), so we must NOT free it here.
-    lQueue := (lBaseObj as IWaylandBase).GetQueue;
-    lQueue.Enqueue(lMessageRec, lBaseObj);
+    // Pass the destination through an explicit interface local we finalize by
+    // hand. lBaseObj has no-op refcounting, so holding an interface to it does
+    // not keep it alive: a handler dispatched below can free it (e.g. an event
+    // that closes a window frees its backing wayland proxy). Were we to pass
+    // lBaseObj directly (or via 'as IWaylandBase'), the compiler-created
+    // interface temporary would be finalized at this function's epilogue —
+    // AFTER the dispatch — and fpc_intf_decr_ref would deref the freed object.
+    // GetQueue is called directly (it is protected, and we are in-unit) to
+    // avoid a second such temporary.
+    lDestIntf := lBaseObj;
+    lQueue := lBaseObj.GetQueue;
+    lQueue.Enqueue(lMessageRec, lDestIntf);
     if lQueue = FEventQueue then // the queue of the display
       Result := lQueue.DispatchEvent;
+    // The dispatch may have freed lDestIntf's object; clear it with a raw
+    // pointer write (no _Release) so scope-exit finalization cannot touch it.
+    Pointer(lDestIntf) := nil;
     lQueue := nil;
   end
   else
@@ -1199,7 +1213,14 @@ var
 begin
   New(NewNode);
   NewNode^.Data := Data;
-  NewNode^.Dest := Dest;
+  // Store the destination as a raw pointer, not a managed interface. The Wayland
+  // objects make _AddRef/_Release no-ops (they are manually freed, not
+  // refcounted), so an interface gives no lifetime guarantee — but the implicit
+  // incr/decr_ref the compiler emits would deref the object. A node can outlive
+  // its destination (a deferred event whose target a later handler frees), so
+  // any managed incr/decr on Dest later would crash on freed memory. Raw pointer
+  // moves (here, in Dequeue, and the nil below) keep the node danger-free.
+  Pointer(NewNode^.Dest) := Pointer(Dest);
   NewNode^.Next := nil;
   EnterCriticalSection(FLock);
   if FCount = 0 then
@@ -1231,8 +1252,13 @@ begin
       begin
         Dec(FCount);
         Data := FHead^.Data;
-        Dest := FHead^.Dest;
+        // Raw move of the destination (see Enqueue): never incr/decr_ref it, as
+        // the node may reference an object an earlier handler already freed.
+        Pointer(Dest) := Pointer(FHead^.Dest);
         Temp := FHead;
+        // Null the node's slot so Dispose below finalizes only Data (the managed
+        // dynamic arrays), never the (possibly dangling) Dest interface.
+        Pointer(Temp^.Dest) := nil;
         FHead := FHead^.Next;
         if FHead = nil then
         begin
