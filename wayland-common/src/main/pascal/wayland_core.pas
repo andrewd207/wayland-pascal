@@ -1253,18 +1253,30 @@ function TWaylandMessageQueue.DispatchEvent(ATimeOut: Integer): Boolean;
 var
   lData: TWaylandEventMessage;
   lDest: IWaylandBase;
+  lObj: TObject;
 begin
   Result := Dequeue(lData, lDest, ATimeOut);
   if Result then
-  try
-    (lDest as TObject).Dispatch(lData);
-  finally
-    // The stream was created by WaitMessage and ownership was transferred to
-    // the queue on enqueue; free it now that the event has been dispatched.
-    lData.Args.Free;
-    // Free the fd streams handed to the handler and close any fds it did not
-    // take ownership of.
-    lData.ReleaseFds;
+  begin
+    // Capture the implementing object while it is still alive. The handler we
+    // are about to dispatch may free this object (e.g. an event that closes a
+    // window frees its backing wayland proxy), and because TWaylandBase makes
+    // _AddRef/_Release no-ops, holding the interface does NOT keep it alive.
+    // Clear the managed interface slot now with a raw pointer write (no
+    // _Release) so the implicit finalizer at scope exit cannot dereference a
+    // possibly-freed object — which otherwise crashes inside fpc_intf_decr_ref.
+    lObj := lDest as TObject;
+    Pointer(lDest) := nil;
+    try
+      lObj.Dispatch(lData);
+    finally
+      // The stream was created by WaitMessage and ownership was transferred to
+      // the queue on enqueue; free it now that the event has been dispatched.
+      lData.Args.Free;
+      // Free the fd streams handed to the handler and close any fds it did not
+      // take ownership of.
+      lData.ReleaseFds;
+    end;
   end;
 end;
 
