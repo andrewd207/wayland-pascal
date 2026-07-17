@@ -2721,7 +2721,15 @@ begin
   begin
     s := FPayloads[i];
     if Length(s) > 0 then
-      AFd.WriteBuffer(s[1], Length(s));
+      { The receiver may close its read end before we finish writing (partial
+        paste, cancelled drag). With SIGPIPE ignored (see TfpgwDisplay.Create),
+        that surfaces as an EPIPE write error rather than a signal — there is
+        nothing more to do for a reader that has gone away, so swallow it. }
+      try
+        AFd.WriteBuffer(s[1], Length(s));
+      except
+        on E: EWriteError do ; { reader closed early — abandon the transfer }
+      end;
   end;
 end;
 
@@ -2812,6 +2820,13 @@ end;
 
 constructor TfpgwDisplay.Create(AOwner: TObject; AName: String);
 begin
+  { A data-source send writes our clipboard/DnD payload into a pipe the receiver
+    supplies. If the receiver closes its read end early (partial paste, cancelled
+    drag), the write raises SIGPIPE, whose default disposition kills the process.
+    Ignore it process-wide so the write instead fails with EPIPE, which
+    wl_data_source_send swallows. }
+  FpSignal(SigPipe, SignalHandler(SIG_IGN));
+
   FOwner := AOwner;
   FRegList := TfpgwRegistryList.Create(True);
   { Default to the wl_shm backend; the registry handler upgrades this to the
