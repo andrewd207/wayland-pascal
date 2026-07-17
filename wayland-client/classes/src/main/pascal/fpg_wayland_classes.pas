@@ -245,6 +245,11 @@ type
     procedure AddUserData(ALookup: Pointer; AData: TObject);
     function  GetUserData(ALookup: Pointer): Pointer;
     procedure RemoveUserData(Alookup: Pointer);
+    { Drop any cached reference to AWin (pointer/keyboard focus) so a later input
+      event cannot dereference a freed window. Called from TfpgwWindow.Destroy;
+      the compositor does not reliably deliver a leave before a client-destroyed
+      surface, so focus must be cleared explicitly. }
+    procedure ForgetWindow(AWin: TfpgwWindow);
     function  HasEvent(ATimeout: Integer=0; AWillRead: Boolean=False): Boolean;
     procedure WaitEvent(ATimeOut: Integer);
     { Thread-safe: wake a WaitEvent that is blocked (or about to block) in another
@@ -1985,6 +1990,11 @@ begin
     FFreeNotifies[i](Self);
   FFreeNotifies := nil;
 
+  { Drop any pointer/keyboard focus the display still holds on us, so a queued
+    motion/button/key event dispatched after this free cannot touch freed memory.
+    (A client-destroyed surface is not guaranteed a leave event.) }
+  FDisplay.ForgetWindow(Self);
+
   FDisplay.RemoveUserData(FSurfaceShell.Surface);
   if Assigned(FViewport) then
     FViewport.Free;
@@ -2894,6 +2904,14 @@ end;
 procedure TfpgwDisplay.RemoveUserData(Alookup: Pointer);
 begin
   FUserDataList.Remove(Alookup);
+end;
+
+procedure TfpgwDisplay.ForgetWindow(AWin: TfpgwWindow);
+begin
+  if FActiveMouseWin = AWin then
+    FActiveMouseWin := nil;
+  if FActiveKeyboardWin = AWin then
+    FActiveKeyboardWin := nil;
 end;
 
 function TfpgwDisplay.HasEvent(ATimeout: Integer = 0; AWillRead: Boolean = False): Boolean;
