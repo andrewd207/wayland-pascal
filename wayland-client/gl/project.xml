@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-gl</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- GPU-accelerated canvas backend. Vendored EGL/GL/FreeType bindings, a
+       surfaceless EGL context, a dmabuf-exporting render target, a FreeType
+       glyph atlas, and TWaylandGLCanvas — the OpenGL implementation of the
+       backend-agnostic TWaylandAccelCanvas declared in the rt module.
+
+       Unlike the rest of the stack this module is NOT RTL-only: it links
+       libEGL, libGL and libfreetype. It is therefore deliberately kept out of
+       the paths of code that only wants the software canvas — nothing in rt,
+       stable/unstable/staging or classes depends on it. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <!-- Only rt: this module produces dmabuf fds, strides and DRM fourccs, and
+       leaves turning those into wl_buffers to the caller, so it needs none of
+       the generated protocol tiers. -->
+  <moduleDependencies>
+    <module>../rt</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>
