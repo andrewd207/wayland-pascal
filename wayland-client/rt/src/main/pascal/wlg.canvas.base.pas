@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_accel_canvas — the drawing API for hardware-accelerated backends, and
+{ wlg.canvas.base — the drawing API for hardware-accelerated backends, and
   everything needed to reduce it to triangles.
 
-  TWaylandAccelCanvas is where the entire public vocabulary lives: transforms,
+  TwgCanvas is where the entire public vocabulary lives: transforms,
   clipping, pens and brushes, rectangles, ellipses, arcs, rounded rectangles,
   bezier paths, image blits and text. None of it is backend-specific. Every one
   of those primitives is tessellated HERE, in portable Pascal, down to a
@@ -18,13 +18,13 @@
 
   That is the whole contract. A backend has to know how to fill triangles with a
   per-vertex colour, optionally modulated by a texture — nothing else. The
-  OpenGL implementation is TWaylandGLCanvas in the wayland-gl module; a Vulkan
+  OpenGL implementation is TwgGLCanvas in the wayland-gl module; a Vulkan
   or a software rasteriser could sit behind the same five calls.
 
-  This is a SEPARATE class hierarchy from the software TWaylandCanvas in
-  wayland_canvas. That one is a direct pixel poker with integer coordinates and
+  This is a SEPARATE class hierarchy from the software TwgRasterCanvas in
+  wlg.canvas.raster. That one is a direct pixel poker with integer coordinates and
   replace semantics; this one has float coordinates, a transform stack and real
-  blending, and assumes filling triangles is cheap. They meet only at ISurface,
+  blending, and assumes filling triangles is cheap. They meet only at IwgSurface,
   so either can be a source for the other.
 
   COORDINATES are floats in surface pixels, with the origin at the TOP-LEFT and
@@ -33,97 +33,97 @@
   (OpenGL) flip in their projection, not here.
 
   COLOURS passed to primitives use STRAIGHT (non-premultiplied) alpha, so
-  ARGB($80, 255, 0, 0) is what you would expect: half-transparent red. Pixels
-  stored in surfaces are premultiplied, per wayland_surface; the conversion, and
+  wgARGB($80, 255, 0, 0) is what you would expect: half-transparent red. Pixels
+  stored in surfaces are premultiplied, per wlg.surface; the conversion, and
   the global Opacity multiply, happen once in ResolveColor as vertices are
   emitted.
 
   ANTI-ALIASING is a backend property, not something the tessellation here
   emits coverage geometry for. Backends are expected to render at a higher
-  sample rate and resolve; see TWaylandGLCanvas's supersampling. }
-unit wayland_accel_canvas;
+  sample rate and resolve; see TwgGLCanvas's supersampling. }
+unit wlg.canvas.base;
 
 {$mode ObjFPC}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Math, Types, wayland_surface;
+  Classes, SysUtils, Math, Types, wlg.surface;
 
 type
-  EAccelCanvas = class(Exception);
+  EwgCanvas = class(Exception);
 
-  TCanvasPointF = record
+  TwgPointF = record
     X, Y: Single;
   end;
-  TCanvasPointFArray = array of TCanvasPointF;
+  TwgPointFArray = array of TwgPointF;
 
-  TCanvasRectF = record
+  TwgRectF = record
     Left, Top, Right, Bottom: Single;
   end;
 
-  { TCanvasMatrix — a 2x3 affine transform.
+  { TwgMatrix — a 2x3 affine transform.
 
       X' = A*X + C*Y + E
       Y' = B*X + D*Y + F }
-  TCanvasMatrix = record
+  TwgMatrix = record
     A, B, C, D, E, F: Single;
   end;
 
-  { TCanvasVertex — the one thing backends consume.
+  { TwgVertex — the one thing backends consume.
 
     X/Y are FINAL device pixels: the transform has already been applied. U/V are
     normalised over the source surface's own extent (0..1 across its Width and
     Height), NOT over the backing texture — a backend blitting from an atlas
-    page maps them through ITextureSurface.GetTextureUV. Color is premultiplied
+    page maps them through IwgTextureSurface.GetTextureUV. Color is premultiplied
     and modulates the sampled texel; with no texture it IS the colour. }
-  TCanvasVertex = record
+  TwgVertex = record
     X, Y: Single;
     U, V: Single;
-    Color: TCanvasColor;
+    Color: TwgColor;
   end;
-  TCanvasVertexArray = array of TCanvasVertex;
+  TwgVertexArray = array of TwgVertex;
 
-  TCanvasBlendMode = (
+  TwgBlendMode = (
     cbmSourceOver,   // normal alpha compositing (default)
     cbmSource,       // replace the destination, alpha included
     cbmAdd,          // additive; for glows and light accumulation
     cbmMultiply      // modulate the destination; for shadows and tints
   );
 
-  TCanvasLineCap  = (clcButt, clcSquare, clcRound);
-  TCanvasLineJoin = (cljMiter, cljRound, cljBevel);
+  TwgLineCap  = (clcButt, clcSquare, clcRound);
+  TwgLineJoin = (cljMiter, cljRound, cljBevel);
 
-  TCanvasFillRule = (
+  TwgFillRule = (
     cfrNonZero,      // standard winding rule
     cfrEvenOdd       // alternate; self-intersections punch holes
   );
 
   { --- text --- }
 
-  { TGlyphInfo — where one rasterised glyph lives and how to place it.
+  { TwgGlyphInfo — where one rasterised glyph lives and how to place it.
 
-    Texture is the atlas page, exposed as an ordinary ISurface so the canvas
+    Texture is the atlas page, exposed as an ordinary IwgSurface so the canvas
     blits it with the same path as any image. U/V bound the glyph within that
     page, normalised over the page's extent. Width/Height are the bitmap's size
     in pixels. BearingX/BearingY offset the bitmap from the pen position, with
     BearingY measured UP from the baseline (FreeType's convention). Advance is
     how far the pen moves afterwards. }
-  TGlyphInfo = record
-    Texture: ISurface;
+  TwgGlyphInfo = record
+    Texture: IwgSurface;
     U0, V0, U1, V1: Single;
     Width, Height: Single;
     BearingX, BearingY: Single;
     Advance: Single;
   end;
 
-  { IGlyphSource — a sized font face that can produce rasterised glyphs.
+  { IwgGlyphSource — a sized font face that can produce rasterised glyphs.
 
-    Implemented in the backend (TGlyphAtlas in the wayland-gl module wraps
+    Implemented in the backend (TwgGlyphAtlas in the wayland-gl module wraps
     FreeType), because rasterising into a texture is inherently backend work.
     The canvas only does layout: it asks for glyph indices, metrics and kerning,
     and emits one textured quad per glyph. }
-  IGlyphSource = interface
+  IwgGlyphSource = interface
     ['{2D9A6F03-4E81-4C7B-A053-8F1D6B29E4C7}']
     function GetAscent: Single;        // pixels above the baseline, positive
     function GetDescent: Single;       // pixels below the baseline, positive
@@ -132,45 +132,45 @@ type
     // Opaque per-face glyph id for a Unicode code point; 0 means "not present".
     function GetGlyphIndex(ACodePoint: LongWord): LongWord;
     // Rasterise if needed and describe the glyph. False if it cannot be had.
-    function GetGlyph(AGlyphIndex: LongWord; out AGlyph: TGlyphInfo): Boolean;
+    function GetGlyph(AGlyphIndex: LongWord; out AGlyph: TwgGlyphInfo): Boolean;
     // Horizontal adjustment between an adjacent pair, 0 when unkerned.
     function GetKerning(ALeftIndex, ARightIndex: LongWord): Single;
   end;
 
-  { TCanvasState — everything Save/Restore preserves. }
-  TCanvasState = record
-    Matrix: TCanvasMatrix;
+  { TwgCanvasState — everything Save/Restore preserves. }
+  TwgCanvasState = record
+    Matrix: TwgMatrix;
     ClipRect: TRect;
     ClipEnabled: Boolean;
-    BlendMode: TCanvasBlendMode;
+    BlendMode: TwgBlendMode;
     LineWidth: Single;
-    LineCap: TCanvasLineCap;
-    LineJoin: TCanvasLineJoin;
+    LineCap: TwgLineCap;
+    LineJoin: TwgLineJoin;
     MiterLimit: Single;
     Opacity: Single;
-    Font: IGlyphSource;
+    Font: IwgGlyphSource;
   end;
 
-  { TCanvasPath — a builder for bezier outlines.
+  { TwgPath — a builder for bezier outlines.
 
     Curves are flattened to line segments on the fly using the current
     flatness tolerance, so by the time a path reaches the canvas it is just
     polygons. Coordinates are in USER space; the transform is applied when the
     path is filled or stroked, not when it is built. }
-  TCanvasPath = class
+  TwgPath = class
   private
-    FSubPaths: array of TCanvasPointFArray;
-    FCurrent: TCanvasPointFArray;
+    FSubPaths: array of TwgPointFArray;
+    FCurrent: TwgPointFArray;
     FCurrentCount: Integer;
     FClosed: array of Boolean;
-    FStart: TCanvasPointF;
-    FLast: TCanvasPointF;
+    FStart: TwgPointF;
+    FLast: TwgPointF;
     FHasCurrent: Boolean;
     FFlatness: Single;
-    procedure AddPoint(const APoint: TCanvasPointF);
+    procedure AddPoint(const APoint: TwgPointF);
     procedure FinishSubPath(AClosed: Boolean);
-    procedure FlattenQuad(const P0, P1, P2: TCanvasPointF; ADepth: Integer);
-    procedure FlattenCubic(const P0, P1, P2, P3: TCanvasPointF; ADepth: Integer);
+    procedure FlattenQuad(const P0, P1, P2: TwgPointF; ADepth: Integer);
+    procedure FlattenCubic(const P0, P1, P2, P3: TwgPointF; ADepth: Integer);
   public
     constructor Create;
     procedure Clear;
@@ -181,10 +181,10 @@ type
     procedure CurveTo(AC1X, AC1Y, AC2X, AC2Y, X, Y: Single);
     procedure ClosePath;
     // Append a whole polygon as one closed sub-path.
-    procedure AddPolygon(const APoints: array of TCanvasPointF);
+    procedure AddPolygon(const APoints: array of TwgPointF);
 
     function SubPathCount: Integer;
-    function SubPath(AIndex: Integer): TCanvasPointFArray;
+    function SubPath(AIndex: Integer): TwgPointFArray;
     function SubPathClosed(AIndex: Integer): Boolean;
     function IsEmpty: Boolean;
 
@@ -192,42 +192,42 @@ type
     property Flatness: Single read FFlatness write FFlatness;
   end;
 
-  { TWaylandAccelCanvas }
+  { TwgCanvas }
 
-  TWaylandAccelCanvas = class(TWaylandSurfaceObject)
+  TwgCanvas = class(TwgSurfaceObject)
   private
     FWidth: Integer;
     FHeight: Integer;
-    FState: TCanvasState;
-    FStack: array of TCanvasState;
+    FState: TwgCanvasState;
+    FStack: array of TwgCanvasState;
     FStackCount: Integer;
     FInFrame: Boolean;
     FCurveTolerance: Single;
-    FScratch: TCanvasVertexArray;
+    FScratch: TwgVertexArray;
     FScratchCount: Integer;
 
-    procedure PushVertex(const AX, AY, AU, AV: Single; AColor: TCanvasColor);
+    procedure PushVertex(const AX, AY, AU, AV: Single; AColor: TwgColor);
     procedure ResetScratch;
-    procedure FlushScratch(ATexture: ISurface);
-    procedure EmitTriangleUV(const P0, P1, P2: TCanvasPointF;
-      const AUV0, AUV1, AUV2: TCanvasPointF; AColor: TCanvasColor);
-    procedure EmitTriangle(const P0, P1, P2: TCanvasPointF; AColor: TCanvasColor);
+    procedure FlushScratch(ATexture: IwgSurface);
+    procedure EmitTriangleUV(const P0, P1, P2: TwgPointF;
+      const AUV0, AUV1, AUV2: TwgPointF; AColor: TwgColor);
+    procedure EmitTriangle(const P0, P1, P2: TwgPointF; AColor: TwgColor);
     // Fill a simple polygon (already in device space) by ear clipping.
-    procedure EmitSimplePolygon(const APoints: TCanvasPointFArray; AColor: TCanvasColor);
+    procedure EmitSimplePolygon(const APoints: TwgPointFArray; AColor: TwgColor);
     // Fill a CONVEX polygon (already in device space) as a triangle fan.
-    procedure EmitConvexFan(const APoints: TCanvasPointFArray; AColor: TCanvasColor);
-    procedure EmitStroke(const APoints: TCanvasPointFArray; AClosed: Boolean;
-      AColor: TCanvasColor);
-    procedure EmitRoundJoin(const ACenter: TCanvasPointF; ARadius: Single;
-      AFrom, ATo: Single; AColor: TCanvasColor);
-    procedure EmitJoin(const AAt, ADirIn, ADirOut: TCanvasPointF;
-      AHalf: Single; AColor: TCanvasColor);
-    procedure EmitCap(const AAt, ADir: TCanvasPointF; AHalf: Single;
-      AColor: TCanvasColor);
+    procedure EmitConvexFan(const APoints: TwgPointFArray; AColor: TwgColor);
+    procedure EmitStroke(const APoints: TwgPointFArray; AClosed: Boolean;
+      AColor: TwgColor);
+    procedure EmitRoundJoin(const ACenter: TwgPointF; ARadius: Single;
+      AFrom, ATo: Single; AColor: TwgColor);
+    procedure EmitJoin(const AAt, ADirIn, ADirOut: TwgPointF;
+      AHalf: Single; AColor: TwgColor);
+    procedure EmitCap(const AAt, ADir: TwgPointF; AHalf: Single;
+      AColor: TwgColor);
 
     function  BuildEllipse(CX, CY, RX, RY, AStart, ASweep: Single;
-      AIncludeCentre: Boolean): TCanvasPointFArray;
-    function  BuildRoundRect(const R: TCanvasRectF; ARX, ARY: Single): TCanvasPointFArray;
+      AIncludeCentre: Boolean): TwgPointFArray;
+    function  BuildRoundRect(const R: TwgRectF; ARX, ARY: Single): TwgPointFArray;
     procedure CheckInFrame;
   protected
     { --- the device protocol a backend implements --- }
@@ -237,22 +237,22 @@ type
     procedure DeviceBeginFrame; virtual; abstract;
     procedure DeviceEndFrame; virtual; abstract;
     // Fill the whole target, ignoring the clip. AColor is premultiplied.
-    procedure DeviceClear(AColor: TCanvasColor); virtual; abstract;
+    procedure DeviceClear(AColor: TwgColor); virtual; abstract;
     // Restrict drawing to ARect (device pixels). Disabled means "no clip".
     procedure DeviceSetClip(const ARect: TRect; AEnabled: Boolean); virtual; abstract;
-    procedure DeviceSetBlend(AMode: TCanvasBlendMode); virtual; abstract;
+    procedure DeviceSetBlend(AMode: TwgBlendMode); virtual; abstract;
     // Draw ACount/3 triangles. Vertices are device-space and premultiplied.
     // ATexture nil means flat shading; otherwise modulate by that surface.
-    procedure DeviceDrawTriangles(const AVerts: TCanvasVertexArray;
-      ACount: Integer; ATexture: ISurface); virtual; abstract;
+    procedure DeviceDrawTriangles(const AVerts: TwgVertexArray;
+      ACount: Integer; ATexture: IwgSurface); virtual; abstract;
 
     function GetSurfaceWidth: Integer; override;
     function GetSurfaceHeight: Integer; override;
 
     // Apply Opacity and convert straight alpha to premultiplied.
-    function ResolveColor(AColor: TCanvasColor): TCanvasColor;
+    function ResolveColor(AColor: TwgColor): TwgColor;
     // Map a user-space point through the current matrix into device space.
-    function MapPoint(X, Y: Single): TCanvasPointF; inline;
+    function MapPoint(X, Y: Single): TwgPointF; inline;
     procedure SetSize(AWidth, AHeight: Integer);
     procedure ApplyClipToDevice;
   public
@@ -273,10 +273,10 @@ type
     procedure Scale(SX, SY: Single);
     procedure Rotate(ARadians: Single);
     procedure Skew(AX, AY: Single);
-    procedure SetMatrix(const AMatrix: TCanvasMatrix);
-    procedure MultiplyMatrix(const AMatrix: TCanvasMatrix);
+    procedure SetMatrix(const AMatrix: TwgMatrix);
+    procedure MultiplyMatrix(const AMatrix: TwgMatrix);
     procedure ResetMatrix;
-    function  Matrix: TCanvasMatrix;
+    function  Matrix: TwgMatrix;
 
     { --- clipping ---
 
@@ -290,93 +290,93 @@ type
     procedure ResetClip;
 
     { --- fills --- }
-    procedure Clear(AColor: TCanvasColor);
-    procedure FillRect(X, Y, W, H: Single; AColor: TCanvasColor);
-    procedure FillRoundRect(X, Y, W, H, RX, RY: Single; AColor: TCanvasColor);
-    procedure FillEllipse(CX, CY, RX, RY: Single; AColor: TCanvasColor);
-    procedure FillCircle(CX, CY, R: Single; AColor: TCanvasColor);
+    procedure Clear(AColor: TwgColor);
+    procedure FillRect(X, Y, W, H: Single; AColor: TwgColor);
+    procedure FillRoundRect(X, Y, W, H, RX, RY: Single; AColor: TwgColor);
+    procedure FillEllipse(CX, CY, RX, RY: Single; AColor: TwgColor);
+    procedure FillCircle(CX, CY, R: Single; AColor: TwgColor);
     // Pie slice: a wedge from AStartRadians through ASweepRadians, including
     // the centre. Angles run clockwise from the +X axis (Y is down).
     procedure FillPie(CX, CY, RX, RY, AStartRadians, ASweepRadians: Single;
-      AColor: TCanvasColor);
-    procedure FillPolygon(const APoints: array of TCanvasPointF; AColor: TCanvasColor);
-    procedure FillPath(APath: TCanvasPath; AColor: TCanvasColor;
-      AFillRule: TCanvasFillRule = cfrNonZero);
+      AColor: TwgColor);
+    procedure FillPolygon(const APoints: array of TwgPointF; AColor: TwgColor);
+    procedure FillPath(APath: TwgPath; AColor: TwgColor;
+      AFillRule: TwgFillRule = cfrNonZero);
     // Four-corner gradient over a rectangle; the backend interpolates.
     procedure FillRectGradient(X, Y, W, H: Single;
-      ATopLeft, ATopRight, ABottomRight, ABottomLeft: TCanvasColor);
+      ATopLeft, ATopRight, ABottomRight, ABottomLeft: TwgColor);
 
     { --- strokes --- }
-    procedure Line(X1, Y1, X2, Y2: Single; AColor: TCanvasColor);
-    procedure Rectangle(X, Y, W, H: Single; AColor: TCanvasColor);
-    procedure RoundRect(X, Y, W, H, RX, RY: Single; AColor: TCanvasColor);
-    procedure Ellipse(CX, CY, RX, RY: Single; AColor: TCanvasColor);
-    procedure Circle(CX, CY, R: Single; AColor: TCanvasColor);
+    procedure Line(X1, Y1, X2, Y2: Single; AColor: TwgColor);
+    procedure Rectangle(X, Y, W, H: Single; AColor: TwgColor);
+    procedure RoundRect(X, Y, W, H, RX, RY: Single; AColor: TwgColor);
+    procedure Ellipse(CX, CY, RX, RY: Single; AColor: TwgColor);
+    procedure Circle(CX, CY, R: Single; AColor: TwgColor);
     procedure Arc(CX, CY, RX, RY, AStartRadians, ASweepRadians: Single;
-      AColor: TCanvasColor);
-    procedure Polyline(const APoints: array of TCanvasPointF; AColor: TCanvasColor);
-    procedure Polygon(const APoints: array of TCanvasPointF; AColor: TCanvasColor);
-    procedure StrokePath(APath: TCanvasPath; AColor: TCanvasColor);
+      AColor: TwgColor);
+    procedure Polyline(const APoints: array of TwgPointF; AColor: TwgColor);
+    procedure Polygon(const APoints: array of TwgPointF; AColor: TwgColor);
+    procedure StrokePath(APath: TwgPath; AColor: TwgColor);
 
     { --- surfaces --- }
     // Blit ASurface with its top-left at (X, Y), at its natural size.
-    procedure DrawSurface(ASurface: ISurface; X, Y: Single);
+    procedure DrawSurface(ASurface: IwgSurface; X, Y: Single);
     // Blit scaled into the destination rectangle.
-    procedure DrawSurface(ASurface: ISurface; X, Y, W, H: Single);
+    procedure DrawSurface(ASurface: IwgSurface; X, Y, W, H: Single);
     // Blit the source sub-rectangle (in source pixels) into the destination
-    // rectangle, scaling as needed. ATint modulates; use clWhiteOpaque for none.
-    procedure DrawSurface(ASurface: ISurface;
+    // rectangle, scaling as needed. ATint modulates; use wgWhiteOpaque for none.
+    procedure DrawSurface(ASurface: IwgSurface;
       const ASrcX, ASrcY, ASrcW, ASrcH: Single;
       const ADstX, ADstY, ADstW, ADstH: Single;
-      ATint: TCanvasColor);
+      ATint: TwgColor);
 
     { --- text ---
 
-      Layout only: the glyphs come from the current Font (an IGlyphSource) and
+      Layout only: the glyphs come from the current Font (an IwgGlyphSource) and
       are emitted as textured quads. (X, Y) is the pen origin ON THE BASELINE,
       not the top-left of the text — use DrawTextTopLeft, or offset by
       Font.GetAscent, if you want the latter. }
-    procedure DrawText(const AText: String; X, Y: Single; AColor: TCanvasColor);
-    procedure DrawTextTopLeft(const AText: String; X, Y: Single; AColor: TCanvasColor);
+    procedure DrawText(const AText: String; X, Y: Single; AColor: TwgColor);
+    procedure DrawTextTopLeft(const AText: String; X, Y: Single; AColor: TwgColor);
     // Advance width of AText under the current Font, in user units.
     function  TextWidth(const AText: String): Single;
     function  TextHeight: Single;
     // Bounding box of AText drawn at the origin with the baseline at y = 0.
-    function  TextExtent(const AText: String): TCanvasRectF;
+    function  TextExtent(const AText: String): TwgRectF;
 
     { --- properties --- }
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
     property InFrame: Boolean read FInFrame;
 
-    property BlendMode: TCanvasBlendMode read FState.BlendMode write FState.BlendMode;
+    property BlendMode: TwgBlendMode read FState.BlendMode write FState.BlendMode;
     property LineWidth: Single read FState.LineWidth write FState.LineWidth;
-    property LineCap: TCanvasLineCap read FState.LineCap write FState.LineCap;
-    property LineJoin: TCanvasLineJoin read FState.LineJoin write FState.LineJoin;
+    property LineCap: TwgLineCap read FState.LineCap write FState.LineCap;
+    property LineJoin: TwgLineJoin read FState.LineJoin write FState.LineJoin;
     property MiterLimit: Single read FState.MiterLimit write FState.MiterLimit;
     // Multiplies the alpha of everything drawn, 0..1.
     property Opacity: Single read FState.Opacity write FState.Opacity;
-    property Font: IGlyphSource read FState.Font write FState.Font;
+    property Font: IwgGlyphSource read FState.Font write FState.Font;
     // Maximum deviation, in device pixels, when flattening curves and arcs.
     property CurveTolerance: Single read FCurveTolerance write FCurveTolerance;
   end;
 
 const
   // Fully opaque white — the identity tint for DrawSurface.
-  clWhiteOpaque = TCanvasColor($FFFFFFFF);
+  wgWhiteOpaque = TwgColor($FFFFFFFF);
 
 { --- helpers --- }
 
-function PointF(X, Y: Single): TCanvasPointF; inline;
-function RectF(ALeft, ATop, ARight, ABottom: Single): TCanvasRectF; inline;
+function wgPointF(X, Y: Single): TwgPointF; inline;
+function wgRectF(ALeft, ATop, ARight, ABottom: Single): TwgRectF; inline;
 
-function MatrixIdentity: TCanvasMatrix;
-function MatrixTranslation(DX, DY: Single): TCanvasMatrix;
-function MatrixScaling(SX, SY: Single): TCanvasMatrix;
-function MatrixRotation(ARadians: Single): TCanvasMatrix;
+function wgMatrixIdentity: TwgMatrix;
+function wgMatrixTranslation(DX, DY: Single): TwgMatrix;
+function wgMatrixScaling(SX, SY: Single): TwgMatrix;
+function wgMatrixRotation(ARadians: Single): TwgMatrix;
 // AFirst applied, then ASecond.
-function MatrixMultiply(const AFirst, ASecond: TCanvasMatrix): TCanvasMatrix;
-function MatrixTransform(const AMatrix: TCanvasMatrix; X, Y: Single): TCanvasPointF; inline;
+function wgMatrixMultiply(const AFirst, ASecond: TwgMatrix): TwgMatrix;
+function wgMatrixTransform(const AMatrix: TwgMatrix; X, Y: Single): TwgPointF; inline;
 
 implementation
 
@@ -386,13 +386,13 @@ const
   // Cap on bezier subdivision, so a pathological control polygon terminates.
   MaxCurveDepth = 16;
 
-function PointF(X, Y: Single): TCanvasPointF;
+function wgPointF(X, Y: Single): TwgPointF;
 begin
   Result.X := X;
   Result.Y := Y;
 end;
 
-function RectF(ALeft, ATop, ARight, ABottom: Single): TCanvasRectF;
+function wgRectF(ALeft, ATop, ARight, ABottom: Single): TwgRectF;
 begin
   Result.Left := ALeft;
   Result.Top := ATop;
@@ -400,28 +400,28 @@ begin
   Result.Bottom := ABottom;
 end;
 
-function MatrixIdentity: TCanvasMatrix;
+function wgMatrixIdentity: TwgMatrix;
 begin
   Result.A := 1; Result.B := 0;
   Result.C := 0; Result.D := 1;
   Result.E := 0; Result.F := 0;
 end;
 
-function MatrixTranslation(DX, DY: Single): TCanvasMatrix;
+function wgMatrixTranslation(DX, DY: Single): TwgMatrix;
 begin
-  Result := MatrixIdentity;
+  Result := wgMatrixIdentity;
   Result.E := DX;
   Result.F := DY;
 end;
 
-function MatrixScaling(SX, SY: Single): TCanvasMatrix;
+function wgMatrixScaling(SX, SY: Single): TwgMatrix;
 begin
-  Result := MatrixIdentity;
+  Result := wgMatrixIdentity;
   Result.A := SX;
   Result.D := SY;
 end;
 
-function MatrixRotation(ARadians: Single): TCanvasMatrix;
+function wgMatrixRotation(ARadians: Single): TwgMatrix;
 var
   s, c: Double;
 begin
@@ -431,7 +431,7 @@ begin
   Result.E := 0;  Result.F := 0;
 end;
 
-function MatrixMultiply(const AFirst, ASecond: TCanvasMatrix): TCanvasMatrix;
+function wgMatrixMultiply(const AFirst, ASecond: TwgMatrix): TwgMatrix;
 begin
   // Result = ASecond * AFirst, so a point goes through AFirst first.
   Result.A := AFirst.A * ASecond.A + AFirst.B * ASecond.C;
@@ -442,21 +442,21 @@ begin
   Result.F := AFirst.E * ASecond.B + AFirst.F * ASecond.D + ASecond.F;
 end;
 
-function MatrixTransform(const AMatrix: TCanvasMatrix; X, Y: Single): TCanvasPointF;
+function wgMatrixTransform(const AMatrix: TwgMatrix; X, Y: Single): TwgPointF;
 begin
   Result.X := AMatrix.A * X + AMatrix.C * Y + AMatrix.E;
   Result.Y := AMatrix.B * X + AMatrix.D * Y + AMatrix.F;
 end;
 
-{ TCanvasPath }
+{ TwgPath }
 
-constructor TCanvasPath.Create;
+constructor TwgPath.Create;
 begin
   inherited Create;
   FFlatness := 0.25;
 end;
 
-procedure TCanvasPath.Clear;
+procedure TwgPath.Clear;
 begin
   SetLength(FSubPaths, 0);
   SetLength(FClosed, 0);
@@ -465,7 +465,7 @@ begin
   FHasCurrent := False;
 end;
 
-procedure TCanvasPath.AddPoint(const APoint: TCanvasPointF);
+procedure TwgPath.AddPoint(const APoint: TwgPointF);
 begin
   if FCurrentCount = Length(FCurrent) then
     SetLength(FCurrent, Max(8, Length(FCurrent) * 2));
@@ -474,7 +474,7 @@ begin
   FLast := APoint;
 end;
 
-procedure TCanvasPath.FinishSubPath(AClosed: Boolean);
+procedure TwgPath.FinishSubPath(AClosed: Boolean);
 var
   n: Integer;
 begin
@@ -488,32 +488,32 @@ begin
   SetLength(FSubPaths, n + 1);
   SetLength(FClosed, n + 1);
   SetLength(FSubPaths[n], FCurrentCount);
-  Move(FCurrent[0], FSubPaths[n][0], FCurrentCount * SizeOf(TCanvasPointF));
+  Move(FCurrent[0], FSubPaths[n][0], FCurrentCount * SizeOf(TwgPointF));
   FClosed[n] := AClosed;
   FCurrentCount := 0;
   FHasCurrent := False;
 end;
 
-procedure TCanvasPath.MoveTo(X, Y: Single);
+procedure TwgPath.MoveTo(X, Y: Single);
 begin
   FinishSubPath(False);
-  FStart := PointF(X, Y);
+  FStart := wgPointF(X, Y);
   FHasCurrent := True;
   AddPoint(FStart);
 end;
 
-procedure TCanvasPath.LineTo(X, Y: Single);
+procedure TwgPath.LineTo(X, Y: Single);
 begin
   if not FHasCurrent then
     MoveTo(X, Y)
   else
-    AddPoint(PointF(X, Y));
+    AddPoint(wgPointF(X, Y));
 end;
 
-procedure TCanvasPath.FlattenQuad(const P0, P1, P2: TCanvasPointF; ADepth: Integer);
+procedure TwgPath.FlattenQuad(const P0, P1, P2: TwgPointF; ADepth: Integer);
 var
   lMidX, lMidY, lDX, lDY, lDev: Single;
-  a, b, c: TCanvasPointF;
+  a, b, c: TwgPointF;
 begin
   // Deviation of the control point from the chord decides whether to split.
   lMidX := (P0.X + P2.X) * 0.5;
@@ -527,17 +527,17 @@ begin
     Exit;
   end;
   // de Casteljau split at t = 0.5
-  a := PointF((P0.X + P1.X) * 0.5, (P0.Y + P1.Y) * 0.5);
-  b := PointF((P1.X + P2.X) * 0.5, (P1.Y + P2.Y) * 0.5);
-  c := PointF((a.X + b.X) * 0.5, (a.Y + b.Y) * 0.5);
+  a := wgPointF((P0.X + P1.X) * 0.5, (P0.Y + P1.Y) * 0.5);
+  b := wgPointF((P1.X + P2.X) * 0.5, (P1.Y + P2.Y) * 0.5);
+  c := wgPointF((a.X + b.X) * 0.5, (a.Y + b.Y) * 0.5);
   FlattenQuad(P0, a, c, ADepth + 1);
   FlattenQuad(c, b, P2, ADepth + 1);
 end;
 
-procedure TCanvasPath.FlattenCubic(const P0, P1, P2, P3: TCanvasPointF; ADepth: Integer);
+procedure TwgPath.FlattenCubic(const P0, P1, P2, P3: TwgPointF; ADepth: Integer);
 var
   lDX, lDY, lD1, lD2: Single;
-  a, b, c, d, e, f: TCanvasPointF;
+  a, b, c, d, e, f: TwgPointF;
 begin
   // Flat when both control points lie close to the chord.
   lDX := P3.X - P0.X;
@@ -550,42 +550,42 @@ begin
     AddPoint(P3);
     Exit;
   end;
-  a := PointF((P0.X + P1.X) * 0.5, (P0.Y + P1.Y) * 0.5);
-  b := PointF((P1.X + P2.X) * 0.5, (P1.Y + P2.Y) * 0.5);
-  c := PointF((P2.X + P3.X) * 0.5, (P2.Y + P3.Y) * 0.5);
-  d := PointF((a.X + b.X) * 0.5, (a.Y + b.Y) * 0.5);
-  e := PointF((b.X + c.X) * 0.5, (b.Y + c.Y) * 0.5);
-  f := PointF((d.X + e.X) * 0.5, (d.Y + e.Y) * 0.5);
+  a := wgPointF((P0.X + P1.X) * 0.5, (P0.Y + P1.Y) * 0.5);
+  b := wgPointF((P1.X + P2.X) * 0.5, (P1.Y + P2.Y) * 0.5);
+  c := wgPointF((P2.X + P3.X) * 0.5, (P2.Y + P3.Y) * 0.5);
+  d := wgPointF((a.X + b.X) * 0.5, (a.Y + b.Y) * 0.5);
+  e := wgPointF((b.X + c.X) * 0.5, (b.Y + c.Y) * 0.5);
+  f := wgPointF((d.X + e.X) * 0.5, (d.Y + e.Y) * 0.5);
   FlattenCubic(P0, a, d, f, ADepth + 1);
   FlattenCubic(f, e, c, P3, ADepth + 1);
 end;
 
-procedure TCanvasPath.QuadTo(ACX, ACY, X, Y: Single);
+procedure TwgPath.QuadTo(ACX, ACY, X, Y: Single);
 var
-  lFrom: TCanvasPointF;
+  lFrom: TwgPointF;
 begin
   if not FHasCurrent then
     MoveTo(ACX, ACY);
   lFrom := FLast;
-  FlattenQuad(lFrom, PointF(ACX, ACY), PointF(X, Y), 0);
+  FlattenQuad(lFrom, wgPointF(ACX, ACY), wgPointF(X, Y), 0);
 end;
 
-procedure TCanvasPath.CurveTo(AC1X, AC1Y, AC2X, AC2Y, X, Y: Single);
+procedure TwgPath.CurveTo(AC1X, AC1Y, AC2X, AC2Y, X, Y: Single);
 var
-  lFrom: TCanvasPointF;
+  lFrom: TwgPointF;
 begin
   if not FHasCurrent then
     MoveTo(AC1X, AC1Y);
   lFrom := FLast;
-  FlattenCubic(lFrom, PointF(AC1X, AC1Y), PointF(AC2X, AC2Y), PointF(X, Y), 0);
+  FlattenCubic(lFrom, wgPointF(AC1X, AC1Y), wgPointF(AC2X, AC2Y), wgPointF(X, Y), 0);
 end;
 
-procedure TCanvasPath.ClosePath;
+procedure TwgPath.ClosePath;
 begin
   FinishSubPath(True);
 end;
 
-procedure TCanvasPath.AddPolygon(const APoints: array of TCanvasPointF);
+procedure TwgPath.AddPolygon(const APoints: array of TwgPointF);
 var
   i: Integer;
 begin
@@ -597,7 +597,7 @@ begin
   ClosePath;
 end;
 
-function TCanvasPath.SubPathCount: Integer;
+function TwgPath.SubPathCount: Integer;
 begin
   // An unterminated sub-path still counts; callers see it via SubPath.
   Result := Length(FSubPaths);
@@ -605,17 +605,17 @@ begin
     Inc(Result);
 end;
 
-function TCanvasPath.SubPath(AIndex: Integer): TCanvasPointFArray;
+function TwgPath.SubPath(AIndex: Integer): TwgPointFArray;
 begin
   if AIndex < Length(FSubPaths) then
     Exit(FSubPaths[AIndex]);
   // The still-open sub-path, materialised on demand.
   SetLength(Result, FCurrentCount);
   if FCurrentCount > 0 then
-    Move(FCurrent[0], Result[0], FCurrentCount * SizeOf(TCanvasPointF));
+    Move(FCurrent[0], Result[0], FCurrentCount * SizeOf(TwgPointF));
 end;
 
-function TCanvasPath.SubPathClosed(AIndex: Integer): Boolean;
+function TwgPath.SubPathClosed(AIndex: Integer): Boolean;
 begin
   if AIndex < Length(FClosed) then
     Result := FClosed[AIndex]
@@ -623,14 +623,14 @@ begin
     Result := False;
 end;
 
-function TCanvasPath.IsEmpty: Boolean;
+function TwgPath.IsEmpty: Boolean;
 begin
   Result := SubPathCount = 0;
 end;
 
-{ TWaylandAccelCanvas }
+{ TwgCanvas }
 
-constructor TWaylandAccelCanvas.Create(AWidth, AHeight: Integer);
+constructor TwgCanvas.Create(AWidth, AHeight: Integer);
 begin
   inherited Create;
   FWidth := AWidth;
@@ -640,24 +640,24 @@ begin
   ResetState;
 end;
 
-destructor TWaylandAccelCanvas.Destroy;
+destructor TwgCanvas.Destroy;
 begin
   SetLength(FScratch, 0);
   SetLength(FStack, 0);
   inherited Destroy;
 end;
 
-function TWaylandAccelCanvas.GetSurfaceWidth: Integer;
+function TwgCanvas.GetSurfaceWidth: Integer;
 begin
   Result := FWidth;
 end;
 
-function TWaylandAccelCanvas.GetSurfaceHeight: Integer;
+function TwgCanvas.GetSurfaceHeight: Integer;
 begin
   Result := FHeight;
 end;
 
-procedure TWaylandAccelCanvas.SetSize(AWidth, AHeight: Integer);
+procedure TwgCanvas.SetSize(AWidth, AHeight: Integer);
 begin
   if (AWidth = FWidth) and (AHeight = FHeight) then
     Exit;
@@ -666,15 +666,15 @@ begin
   Changed;
 end;
 
-procedure TWaylandAccelCanvas.CheckInFrame;
+procedure TwgCanvas.CheckInFrame;
 begin
   if not FInFrame then
-    raise EAccelCanvas.Create('drawing outside BeginFrame/EndFrame');
+    raise EwgCanvas.Create('drawing outside BeginFrame/EndFrame');
 end;
 
-procedure TWaylandAccelCanvas.ResetState;
+procedure TwgCanvas.ResetState;
 begin
-  FState.Matrix := MatrixIdentity;
+  FState.Matrix := wgMatrixIdentity;
   FState.ClipRect := Rect(0, 0, FWidth, FHeight);
   FState.ClipEnabled := False;
   FState.BlendMode := cbmSourceOver;
@@ -687,10 +687,10 @@ begin
   FStackCount := 0;
 end;
 
-procedure TWaylandAccelCanvas.BeginFrame;
+procedure TwgCanvas.BeginFrame;
 begin
   if FInFrame then
-    raise EAccelCanvas.Create('BeginFrame called while already in a frame');
+    raise EwgCanvas.Create('BeginFrame called while already in a frame');
   ResetState;
   DeviceBeginFrame;
   FInFrame := True;
@@ -698,7 +698,7 @@ begin
   ApplyClipToDevice;
 end;
 
-procedure TWaylandAccelCanvas.EndFrame;
+procedure TwgCanvas.EndFrame;
 begin
   CheckInFrame;
   FlushScratch(nil);
@@ -707,7 +707,7 @@ begin
   Changed;
 end;
 
-procedure TWaylandAccelCanvas.Save;
+procedure TwgCanvas.Save;
 begin
   if FStackCount = Length(FStack) then
     SetLength(FStack, Max(8, Length(FStack) * 2));
@@ -715,10 +715,10 @@ begin
   Inc(FStackCount);
 end;
 
-procedure TWaylandAccelCanvas.Restore;
+procedure TwgCanvas.Restore;
 begin
   if FStackCount = 0 then
-    raise EAccelCanvas.Create('Restore without a matching Save');
+    raise EwgCanvas.Create('Restore without a matching Save');
   Dec(FStackCount);
   FState := FStack[FStackCount];
   if FInFrame then
@@ -730,67 +730,67 @@ end;
 
 { --- transform --- }
 
-procedure TWaylandAccelCanvas.Translate(DX, DY: Single);
+procedure TwgCanvas.Translate(DX, DY: Single);
 begin
-  FState.Matrix := MatrixMultiply(MatrixTranslation(DX, DY), FState.Matrix);
+  FState.Matrix := wgMatrixMultiply(wgMatrixTranslation(DX, DY), FState.Matrix);
 end;
 
-procedure TWaylandAccelCanvas.Scale(SX, SY: Single);
+procedure TwgCanvas.Scale(SX, SY: Single);
 begin
-  FState.Matrix := MatrixMultiply(MatrixScaling(SX, SY), FState.Matrix);
+  FState.Matrix := wgMatrixMultiply(wgMatrixScaling(SX, SY), FState.Matrix);
 end;
 
-procedure TWaylandAccelCanvas.Rotate(ARadians: Single);
+procedure TwgCanvas.Rotate(ARadians: Single);
 begin
-  FState.Matrix := MatrixMultiply(MatrixRotation(ARadians), FState.Matrix);
+  FState.Matrix := wgMatrixMultiply(wgMatrixRotation(ARadians), FState.Matrix);
 end;
 
-procedure TWaylandAccelCanvas.Skew(AX, AY: Single);
+procedure TwgCanvas.Skew(AX, AY: Single);
 var
-  m: TCanvasMatrix;
+  m: TwgMatrix;
 begin
-  m := MatrixIdentity;
+  m := wgMatrixIdentity;
   m.C := Tan(AX);
   m.B := Tan(AY);
-  FState.Matrix := MatrixMultiply(m, FState.Matrix);
+  FState.Matrix := wgMatrixMultiply(m, FState.Matrix);
 end;
 
-procedure TWaylandAccelCanvas.SetMatrix(const AMatrix: TCanvasMatrix);
+procedure TwgCanvas.SetMatrix(const AMatrix: TwgMatrix);
 begin
   FState.Matrix := AMatrix;
 end;
 
-procedure TWaylandAccelCanvas.MultiplyMatrix(const AMatrix: TCanvasMatrix);
+procedure TwgCanvas.MultiplyMatrix(const AMatrix: TwgMatrix);
 begin
-  FState.Matrix := MatrixMultiply(AMatrix, FState.Matrix);
+  FState.Matrix := wgMatrixMultiply(AMatrix, FState.Matrix);
 end;
 
-procedure TWaylandAccelCanvas.ResetMatrix;
+procedure TwgCanvas.ResetMatrix;
 begin
-  FState.Matrix := MatrixIdentity;
+  FState.Matrix := wgMatrixIdentity;
 end;
 
-function TWaylandAccelCanvas.Matrix: TCanvasMatrix;
+function TwgCanvas.Matrix: TwgMatrix;
 begin
   Result := FState.Matrix;
 end;
 
-function TWaylandAccelCanvas.MapPoint(X, Y: Single): TCanvasPointF;
+function TwgCanvas.MapPoint(X, Y: Single): TwgPointF;
 begin
-  Result := MatrixTransform(FState.Matrix, X, Y);
+  Result := wgMatrixTransform(FState.Matrix, X, Y);
 end;
 
 { --- clipping --- }
 
-procedure TWaylandAccelCanvas.ApplyClipToDevice;
+procedure TwgCanvas.ApplyClipToDevice;
 begin
   if FInFrame then
     DeviceSetClip(FState.ClipRect, FState.ClipEnabled);
 end;
 
-procedure TWaylandAccelCanvas.ClipRect(X, Y, W, H: Single);
+procedure TwgCanvas.ClipRect(X, Y, W, H: Single);
 var
-  p: array[0..3] of TCanvasPointF;
+  p: array[0..3] of TwgPointF;
   i: Integer;
   lMinX, lMinY, lMaxX, lMaxY: Single;
   lNew: TRect;
@@ -828,7 +828,7 @@ begin
   ApplyClipToDevice;
 end;
 
-procedure TWaylandAccelCanvas.ResetClip;
+procedure TwgCanvas.ResetClip;
 begin
   FlushScratch(nil);
   FState.ClipRect := Rect(0, 0, FWidth, FHeight);
@@ -838,11 +838,11 @@ end;
 
 { --- vertex emission --- }
 
-function TWaylandAccelCanvas.ResolveColor(AColor: TCanvasColor): TCanvasColor;
+function TwgCanvas.ResolveColor(AColor: TwgColor): TwgColor;
 var
   a: Integer;
 begin
-  a := AlphaOf(AColor);
+  a := wgAlphaOf(AColor);
   if FState.Opacity < 1.0 then
   begin
     if FState.Opacity <= 0 then
@@ -850,16 +850,16 @@ begin
     a := Round(a * FState.Opacity);
     if a > 255 then a := 255;
   end;
-  Result := PremultiplyColor((AColor and $00FFFFFF) or (TCanvasColor(Byte(a)) shl 24));
+  Result := wgPremultiply((AColor and $00FFFFFF) or (TwgColor(Byte(a)) shl 24));
 end;
 
-procedure TWaylandAccelCanvas.ResetScratch;
+procedure TwgCanvas.ResetScratch;
 begin
   FScratchCount := 0;
 end;
 
-procedure TWaylandAccelCanvas.PushVertex(const AX, AY, AU, AV: Single;
-  AColor: TCanvasColor);
+procedure TwgCanvas.PushVertex(const AX, AY, AU, AV: Single;
+  AColor: TwgColor);
 begin
   if FScratchCount = Length(FScratch) then
     SetLength(FScratch, Length(FScratch) * 2);
@@ -874,7 +874,7 @@ begin
   Inc(FScratchCount);
 end;
 
-procedure TWaylandAccelCanvas.FlushScratch(ATexture: ISurface);
+procedure TwgCanvas.FlushScratch(ATexture: IwgSurface);
 begin
   if FScratchCount = 0 then
     Exit;
@@ -882,24 +882,24 @@ begin
   FScratchCount := 0;
 end;
 
-procedure TWaylandAccelCanvas.EmitTriangleUV(const P0, P1, P2: TCanvasPointF;
-  const AUV0, AUV1, AUV2: TCanvasPointF; AColor: TCanvasColor);
+procedure TwgCanvas.EmitTriangleUV(const P0, P1, P2: TwgPointF;
+  const AUV0, AUV1, AUV2: TwgPointF; AColor: TwgColor);
 begin
   PushVertex(P0.X, P0.Y, AUV0.X, AUV0.Y, AColor);
   PushVertex(P1.X, P1.Y, AUV1.X, AUV1.Y, AColor);
   PushVertex(P2.X, P2.Y, AUV2.X, AUV2.Y, AColor);
 end;
 
-procedure TWaylandAccelCanvas.EmitTriangle(const P0, P1, P2: TCanvasPointF;
-  AColor: TCanvasColor);
+procedure TwgCanvas.EmitTriangle(const P0, P1, P2: TwgPointF;
+  AColor: TwgColor);
 begin
   PushVertex(P0.X, P0.Y, 0, 0, AColor);
   PushVertex(P1.X, P1.Y, 0, 0, AColor);
   PushVertex(P2.X, P2.Y, 0, 0, AColor);
 end;
 
-procedure TWaylandAccelCanvas.EmitConvexFan(const APoints: TCanvasPointFArray;
-  AColor: TCanvasColor);
+procedure TwgCanvas.EmitConvexFan(const APoints: TwgPointFArray;
+  AColor: TwgColor);
 var
   i: Integer;
 begin
@@ -907,19 +907,19 @@ begin
     EmitTriangle(APoints[0], APoints[i], APoints[i + 1], AColor);
 end;
 
-procedure TWaylandAccelCanvas.EmitSimplePolygon(const APoints: TCanvasPointFArray;
-  AColor: TCanvasColor);
+procedure TwgCanvas.EmitSimplePolygon(const APoints: TwgPointFArray;
+  AColor: TwgColor);
 var
   lIdx: array of Integer;
   lCount, i, lPrev, lCur, lNext, lGuard: Integer;
   lArea: Double;
 
-  function Cross(const A, B, C: TCanvasPointF): Double; inline;
+  function Cross(const A, B, C: TwgPointF): Double; inline;
   begin
     Result := (B.X - A.X) * (C.Y - A.Y) - (B.Y - A.Y) * (C.X - A.X);
   end;
 
-  function InTriangle(const P, A, B, C: TCanvasPointF): Boolean;
+  function InTriangle(const P, A, B, C: TwgPointF): Boolean;
   var
     d1, d2, d3: Double;
     lNeg, lPos: Boolean;
@@ -935,7 +935,7 @@ var
   function IsEar(AAt: Integer): Boolean;
   var
     j: Integer;
-    a, b, c: TCanvasPointF;
+    a, b, c: TwgPointF;
   begin
     a := APoints[lIdx[(AAt + lCount - 1) mod lCount]];
     b := APoints[lIdx[AAt]];
@@ -1009,13 +1009,13 @@ begin
     EmitTriangle(APoints[lIdx[0]], APoints[lIdx[i]], APoints[lIdx[i + 1]], AColor);
 end;
 
-procedure TWaylandAccelCanvas.EmitRoundJoin(const ACenter: TCanvasPointF;
-  ARadius: Single; AFrom, ATo: Single; AColor: TCanvasColor);
+procedure TwgCanvas.EmitRoundJoin(const ACenter: TwgPointF;
+  ARadius: Single; AFrom, ATo: Single; AColor: TwgColor);
 var
   lSteps, i: Integer;
   lSweep, lAngle, lNext: Single;
   s, c: Double;
-  p0, p1: TCanvasPointF;
+  p0, p1: TwgPointF;
 begin
   lSweep := ATo - AFrom;
   // Take the short way round.
@@ -1030,15 +1030,15 @@ begin
     lAngle := AFrom + lSweep * (i / lSteps);
     lNext := AFrom + lSweep * ((i + 1) / lSteps);
     SinCos(lAngle, s, c);
-    p0 := PointF(ACenter.X + ARadius * c, ACenter.Y + ARadius * s);
+    p0 := wgPointF(ACenter.X + ARadius * c, ACenter.Y + ARadius * s);
     SinCos(lNext, s, c);
-    p1 := PointF(ACenter.X + ARadius * c, ACenter.Y + ARadius * s);
+    p1 := wgPointF(ACenter.X + ARadius * c, ACenter.Y + ARadius * s);
     EmitTriangle(ACenter, p0, p1, AColor);
   end;
 end;
 
 // Unit vector from A towards B; zero if they coincide.
-function UnitDir(const A, B: TCanvasPointF): TCanvasPointF;
+function UnitDir(const A, B: TwgPointF): TwgPointF;
 var
   lLen: Single;
 begin
@@ -1061,11 +1061,11 @@ end;
   segments. Only the OUTER side of the turn has a gap — the inner side is
   already covered twice by the two segment quads — so the sign of the cross
   product picks which side to work on. }
-procedure TWaylandAccelCanvas.EmitJoin(const AAt, ADirIn, ADirOut: TCanvasPointF;
-  AHalf: Single; AColor: TCanvasColor);
+procedure TwgCanvas.EmitJoin(const AAt, ADirIn, ADirOut: TwgPointF;
+  AHalf: Single; AColor: TwgColor);
 var
   lCross, lDenom, lT, lSide: Single;
-  lNIn, lNOut, a, b, m: TCanvasPointF;
+  lNIn, lNOut, a, b, m: TwgPointF;
   lMiterLen: Single;
 begin
   lCross := ADirIn.X * ADirOut.Y - ADirIn.Y * ADirOut.X;
@@ -1079,10 +1079,10 @@ begin
 
   // Left-hand normals, scaled to the half width. The outer offset points are on
   // the side opposite the turn.
-  lNIn := PointF(-ADirIn.Y * AHalf, ADirIn.X * AHalf);
-  lNOut := PointF(-ADirOut.Y * AHalf, ADirOut.X * AHalf);
-  a := PointF(AAt.X - lSide * lNIn.X, AAt.Y - lSide * lNIn.Y);
-  b := PointF(AAt.X - lSide * lNOut.X, AAt.Y - lSide * lNOut.Y);
+  lNIn := wgPointF(-ADirIn.Y * AHalf, ADirIn.X * AHalf);
+  lNOut := wgPointF(-ADirOut.Y * AHalf, ADirOut.X * AHalf);
+  a := wgPointF(AAt.X - lSide * lNIn.X, AAt.Y - lSide * lNIn.Y);
+  b := wgPointF(AAt.X - lSide * lNOut.X, AAt.Y - lSide * lNOut.Y);
 
   case FState.LineJoin of
     cljRound:
@@ -1095,7 +1095,7 @@ begin
         // Where the two outer edges would meet if extended.
         lDenom := lCross;
         lT := ((b.X - a.X) * ADirOut.Y - (b.Y - a.Y) * ADirOut.X) / lDenom;
-        m := PointF(a.X + ADirIn.X * lT, a.Y + ADirIn.Y * lT);
+        m := wgPointF(a.X + ADirIn.X * lT, a.Y + ADirIn.Y * lT);
         lMiterLen := Sqrt(Sqr(m.X - AAt.X) + Sqr(m.Y - AAt.Y));
         // A near-reversal sends the spike to infinity; the miter limit is what
         // caps it, falling back to a bevel exactly as PostScript/SVG specify.
@@ -1115,8 +1115,8 @@ end;
 
 { Round off an open end. Butt caps need nothing, and square caps are handled by
   extending the segment itself, so only the round case does work here. }
-procedure TWaylandAccelCanvas.EmitCap(const AAt, ADir: TCanvasPointF;
-  AHalf: Single; AColor: TCanvasColor);
+procedure TwgCanvas.EmitCap(const AAt, ADir: TwgPointF;
+  AHalf: Single; AColor: TwgColor);
 var
   lBase: Single;
 begin
@@ -1128,14 +1128,14 @@ begin
   EmitRoundJoin(AAt, AHalf, lBase, lBase + Pi, AColor);
 end;
 
-procedure TWaylandAccelCanvas.EmitStroke(const APoints: TCanvasPointFArray;
-  AClosed: Boolean; AColor: TCanvasColor);
+procedure TwgCanvas.EmitStroke(const APoints: TwgPointFArray;
+  AClosed: Boolean; AColor: TwgColor);
 var
   i, n, lLast: Integer;
   lHalf, lLen, lDX, lDY, lNX, lNY: Single;
-  a, b: TCanvasPointF;
-  lPts: TCanvasPointFArray;
-  lPoly: TCanvasPointFArray;
+  a, b: TwgPointF;
+  lPts: TwgPointFArray;
+  lPoly: TwgPointFArray;
 
   // Scale the pen by the transform so a 1px line stays 1px under zoom. The
   // geometric mean of the axis scales is the standard isotropic approximation.
@@ -1208,10 +1208,10 @@ begin
       end;
     end;
 
-    lPoly[0] := PointF(a.X + lNX, a.Y + lNY);
-    lPoly[1] := PointF(b.X + lNX, b.Y + lNY);
-    lPoly[2] := PointF(b.X - lNX, b.Y - lNY);
-    lPoly[3] := PointF(a.X - lNX, a.Y - lNY);
+    lPoly[0] := wgPointF(a.X + lNX, a.Y + lNY);
+    lPoly[1] := wgPointF(b.X + lNX, b.Y + lNY);
+    lPoly[2] := wgPointF(b.X - lNX, b.Y - lNY);
+    lPoly[3] := wgPointF(a.X - lNX, a.Y - lNY);
     EmitTriangle(lPoly[0], lPoly[1], lPoly[2], AColor);
     EmitTriangle(lPoly[0], lPoly[2], lPoly[3], AColor);
   end;
@@ -1228,10 +1228,10 @@ begin
     begin
       lNX := -lDY / lLen * lHalf;
       lNY := lDX / lLen * lHalf;
-      EmitTriangle(PointF(a.X + lNX, a.Y + lNY), PointF(b.X + lNX, b.Y + lNY),
-                   PointF(b.X - lNX, b.Y - lNY), AColor);
-      EmitTriangle(PointF(a.X + lNX, a.Y + lNY), PointF(b.X - lNX, b.Y - lNY),
-                   PointF(a.X - lNX, a.Y - lNY), AColor);
+      EmitTriangle(wgPointF(a.X + lNX, a.Y + lNY), wgPointF(b.X + lNX, b.Y + lNY),
+                   wgPointF(b.X - lNX, b.Y - lNY), AColor);
+      EmitTriangle(wgPointF(a.X + lNX, a.Y + lNY), wgPointF(b.X - lNX, b.Y - lNY),
+                   wgPointF(a.X - lNX, a.Y - lNY), AColor);
     end;
   end;
 
@@ -1258,8 +1258,8 @@ end;
 
 { --- geometry builders (results are in DEVICE space) --- }
 
-function TWaylandAccelCanvas.BuildEllipse(CX, CY, RX, RY, AStart, ASweep: Single;
-  AIncludeCentre: Boolean): TCanvasPointFArray;
+function TwgCanvas.BuildEllipse(CX, CY, RX, RY, AStart, ASweep: Single;
+  AIncludeCentre: Boolean): TwgPointFArray;
 var
   lSteps, i, lBase: Integer;
   lRadius, lAngle: Single;
@@ -1297,11 +1297,11 @@ begin
   end;
 end;
 
-function TWaylandAccelCanvas.BuildRoundRect(const R: TCanvasRectF;
-  ARX, ARY: Single): TCanvasPointFArray;
+function TwgCanvas.BuildRoundRect(const R: TwgRectF;
+  ARX, ARY: Single): TwgPointFArray;
 var
   lW, lH: Single;
-  lCorner: array[0..3] of TCanvasPointFArray;
+  lCorner: array[0..3] of TwgPointFArray;
   i, j, n, k: Integer;
 begin
   Result := nil; // as BuildEllipse
@@ -1339,17 +1339,17 @@ end;
 
 { --- fills --- }
 
-procedure TWaylandAccelCanvas.Clear(AColor: TCanvasColor);
+procedure TwgCanvas.Clear(AColor: TwgColor);
 begin
   CheckInFrame;
   FlushScratch(nil);
   DeviceClear(ResolveColor(AColor));
 end;
 
-procedure TWaylandAccelCanvas.FillRect(X, Y, W, H: Single; AColor: TCanvasColor);
+procedure TwgCanvas.FillRect(X, Y, W, H: Single; AColor: TwgColor);
 var
-  p0, p1, p2, p3: TCanvasPointF;
-  lColor: TCanvasColor;
+  p0, p1, p2, p3: TwgPointF;
+  lColor: TwgColor;
 begin
   CheckInFrame;
   if (W = 0) or (H = 0) then
@@ -1364,11 +1364,11 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillRectGradient(X, Y, W, H: Single;
-  ATopLeft, ATopRight, ABottomRight, ABottomLeft: TCanvasColor);
+procedure TwgCanvas.FillRectGradient(X, Y, W, H: Single;
+  ATopLeft, ATopRight, ABottomRight, ABottomLeft: TwgColor);
 var
-  p0, p1, p2, p3: TCanvasPointF;
-  c0, c1, c2, c3: TCanvasColor;
+  p0, p1, p2, p3: TwgPointF;
+  c0, c1, c2, c3: TwgColor;
 begin
   CheckInFrame;
   if (W = 0) or (H = 0) then
@@ -1391,23 +1391,23 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillRoundRect(X, Y, W, H, RX, RY: Single;
-  AColor: TCanvasColor);
+procedure TwgCanvas.FillRoundRect(X, Y, W, H, RX, RY: Single;
+  AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (W <= 0) or (H <= 0) then
     Exit;
-  lPoly := BuildRoundRect(RectF(X, Y, X + W, Y + H), RX, RY);
+  lPoly := BuildRoundRect(wgRectF(X, Y, X + W, Y + H), RX, RY);
   // A rounded rectangle is convex, so a fan is exact and cheaper than clipping.
   EmitConvexFan(lPoly, ResolveColor(AColor));
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillEllipse(CX, CY, RX, RY: Single; AColor: TCanvasColor);
+procedure TwgCanvas.FillEllipse(CX, CY, RX, RY: Single; AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (RX <= 0) or (RY <= 0) then
@@ -1417,15 +1417,15 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillCircle(CX, CY, R: Single; AColor: TCanvasColor);
+procedure TwgCanvas.FillCircle(CX, CY, R: Single; AColor: TwgColor);
 begin
   FillEllipse(CX, CY, R, R, AColor);
 end;
 
-procedure TWaylandAccelCanvas.FillPie(CX, CY, RX, RY, AStartRadians,
-  ASweepRadians: Single; AColor: TCanvasColor);
+procedure TwgCanvas.FillPie(CX, CY, RX, RY, AStartRadians,
+  ASweepRadians: Single; AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (RX <= 0) or (RY <= 0) or IsZero(ASweepRadians) then
@@ -1438,10 +1438,10 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillPolygon(const APoints: array of TCanvasPointF;
-  AColor: TCanvasColor);
+procedure TwgCanvas.FillPolygon(const APoints: array of TwgPointF;
+  AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
   i: Integer;
 begin
   CheckInFrame;
@@ -1454,12 +1454,12 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.FillPath(APath: TCanvasPath; AColor: TCanvasColor;
-  AFillRule: TCanvasFillRule);
+procedure TwgCanvas.FillPath(APath: TwgPath; AColor: TwgColor;
+  AFillRule: TwgFillRule);
 var
   i, j: Integer;
-  lSub, lPoly: TCanvasPointFArray;
-  lColor: TCanvasColor;
+  lSub, lPoly: TwgPointFArray;
+  lColor: TwgColor;
 begin
   CheckInFrame;
   if (APath = nil) or APath.IsEmpty then
@@ -1484,9 +1484,9 @@ end;
 
 { --- strokes --- }
 
-procedure TWaylandAccelCanvas.Line(X1, Y1, X2, Y2: Single; AColor: TCanvasColor);
+procedure TwgCanvas.Line(X1, Y1, X2, Y2: Single; AColor: TwgColor);
 var
-  lPts: TCanvasPointFArray;
+  lPts: TwgPointFArray;
 begin
   CheckInFrame;
   SetLength(lPts, 2);
@@ -1496,9 +1496,9 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.Rectangle(X, Y, W, H: Single; AColor: TCanvasColor);
+procedure TwgCanvas.Rectangle(X, Y, W, H: Single; AColor: TwgColor);
 var
-  lPts: TCanvasPointFArray;
+  lPts: TwgPointFArray;
 begin
   CheckInFrame;
   if (W = 0) or (H = 0) then
@@ -1512,22 +1512,22 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.RoundRect(X, Y, W, H, RX, RY: Single;
-  AColor: TCanvasColor);
+procedure TwgCanvas.RoundRect(X, Y, W, H, RX, RY: Single;
+  AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (W <= 0) or (H <= 0) then
     Exit;
-  lPoly := BuildRoundRect(RectF(X, Y, X + W, Y + H), RX, RY);
+  lPoly := BuildRoundRect(wgRectF(X, Y, X + W, Y + H), RX, RY);
   EmitStroke(lPoly, True, ResolveColor(AColor));
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.Ellipse(CX, CY, RX, RY: Single; AColor: TCanvasColor);
+procedure TwgCanvas.Ellipse(CX, CY, RX, RY: Single; AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (RX <= 0) or (RY <= 0) then
@@ -1537,15 +1537,15 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.Circle(CX, CY, R: Single; AColor: TCanvasColor);
+procedure TwgCanvas.Circle(CX, CY, R: Single; AColor: TwgColor);
 begin
   Ellipse(CX, CY, R, R, AColor);
 end;
 
-procedure TWaylandAccelCanvas.Arc(CX, CY, RX, RY, AStartRadians,
-  ASweepRadians: Single; AColor: TCanvasColor);
+procedure TwgCanvas.Arc(CX, CY, RX, RY, AStartRadians,
+  ASweepRadians: Single; AColor: TwgColor);
 var
-  lPoly: TCanvasPointFArray;
+  lPoly: TwgPointFArray;
 begin
   CheckInFrame;
   if (RX <= 0) or (RY <= 0) or IsZero(ASweepRadians) then
@@ -1555,10 +1555,10 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.Polyline(const APoints: array of TCanvasPointF;
-  AColor: TCanvasColor);
+procedure TwgCanvas.Polyline(const APoints: array of TwgPointF;
+  AColor: TwgColor);
 var
-  lPts: TCanvasPointFArray;
+  lPts: TwgPointFArray;
   i: Integer;
 begin
   CheckInFrame;
@@ -1571,10 +1571,10 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.Polygon(const APoints: array of TCanvasPointF;
-  AColor: TCanvasColor);
+procedure TwgCanvas.Polygon(const APoints: array of TwgPointF;
+  AColor: TwgColor);
 var
-  lPts: TCanvasPointFArray;
+  lPts: TwgPointFArray;
   i: Integer;
 begin
   CheckInFrame;
@@ -1587,11 +1587,11 @@ begin
   FlushScratch(nil);
 end;
 
-procedure TWaylandAccelCanvas.StrokePath(APath: TCanvasPath; AColor: TCanvasColor);
+procedure TwgCanvas.StrokePath(APath: TwgPath; AColor: TwgColor);
 var
   i, j: Integer;
-  lSub, lPts: TCanvasPointFArray;
-  lColor: TCanvasColor;
+  lSub, lPts: TwgPointFArray;
+  lColor: TwgColor;
 begin
   CheckInFrame;
   if (APath = nil) or APath.IsEmpty then
@@ -1612,29 +1612,29 @@ end;
 
 { --- surfaces --- }
 
-procedure TWaylandAccelCanvas.DrawSurface(ASurface: ISurface; X, Y: Single);
+procedure TwgCanvas.DrawSurface(ASurface: IwgSurface; X, Y: Single);
 begin
   if ASurface = nil then
     Exit;
   DrawSurface(ASurface, 0, 0, ASurface.Width, ASurface.Height,
-    X, Y, ASurface.Width, ASurface.Height, clWhiteOpaque);
+    X, Y, ASurface.Width, ASurface.Height, wgWhiteOpaque);
 end;
 
-procedure TWaylandAccelCanvas.DrawSurface(ASurface: ISurface; X, Y, W, H: Single);
+procedure TwgCanvas.DrawSurface(ASurface: IwgSurface; X, Y, W, H: Single);
 begin
   if ASurface = nil then
     Exit;
   DrawSurface(ASurface, 0, 0, ASurface.Width, ASurface.Height,
-    X, Y, W, H, clWhiteOpaque);
+    X, Y, W, H, wgWhiteOpaque);
 end;
 
-procedure TWaylandAccelCanvas.DrawSurface(ASurface: ISurface;
+procedure TwgCanvas.DrawSurface(ASurface: IwgSurface;
   const ASrcX, ASrcY, ASrcW, ASrcH: Single;
-  const ADstX, ADstY, ADstW, ADstH: Single; ATint: TCanvasColor);
+  const ADstX, ADstY, ADstW, ADstH: Single; ATint: TwgColor);
 var
-  p0, p1, p2, p3: TCanvasPointF;
+  p0, p1, p2, p3: TwgPointF;
   u0, v0, u1, v1: Single;
-  lColor: TCanvasColor;
+  lColor: TwgColor;
 begin
   CheckInFrame;
   if (ASurface = nil) or (ADstW = 0) or (ADstH = 0) then
@@ -1706,17 +1706,17 @@ begin
   end;
 end;
 
-procedure TWaylandAccelCanvas.DrawText(const AText: String; X, Y: Single;
-  AColor: TCanvasColor);
+procedure TwgCanvas.DrawText(const AText: String; X, Y: Single;
+  AColor: TwgColor);
 var
   i: Integer;
   lCP, lGlyph, lPrev: LongWord;
-  lInfo: TGlyphInfo;
+  lInfo: TwgGlyphInfo;
   lPenX, lPenY, lX0, lY0, lX1, lY1: Single;
-  lColor: TCanvasColor;
-  p0, p1, p2, p3: TCanvasPointF;
-  lFont: IGlyphSource;
-  lBatchTex: ISurface;
+  lColor: TwgColor;
+  p0, p1, p2, p3: TwgPointF;
+  lFont: IwgGlyphSource;
+  lBatchTex: IwgSurface;
 begin
   CheckInFrame;
   lFont := FState.Font;
@@ -1779,21 +1779,21 @@ begin
   FlushScratch(lBatchTex);
 end;
 
-procedure TWaylandAccelCanvas.DrawTextTopLeft(const AText: String; X, Y: Single;
-  AColor: TCanvasColor);
+procedure TwgCanvas.DrawTextTopLeft(const AText: String; X, Y: Single;
+  AColor: TwgColor);
 begin
   if FState.Font = nil then
     Exit;
   DrawText(AText, X, Y + FState.Font.GetAscent, AColor);
 end;
 
-function TWaylandAccelCanvas.TextWidth(const AText: String): Single;
+function TwgCanvas.TextWidth(const AText: String): Single;
 var
   i: Integer;
   lCP, lGlyph, lPrev: LongWord;
-  lInfo: TGlyphInfo;
+  lInfo: TwgGlyphInfo;
   lPen, lMax: Single;
-  lFont: IGlyphSource;
+  lFont: IwgGlyphSource;
 begin
   lFont := FState.Font;
   if (lFont = nil) or (AText = '') then
@@ -1822,26 +1822,26 @@ begin
   Result := Max(lMax, lPen);
 end;
 
-function TWaylandAccelCanvas.TextHeight: Single;
+function TwgCanvas.TextHeight: Single;
 begin
   if FState.Font = nil then
     Exit(0);
   Result := FState.Font.GetLineHeight;
 end;
 
-function TWaylandAccelCanvas.TextExtent(const AText: String): TCanvasRectF;
+function TwgCanvas.TextExtent(const AText: String): TwgRectF;
 var
-  lFont: IGlyphSource;
+  lFont: IwgGlyphSource;
   lLines, i: Integer;
 begin
   lFont := FState.Font;
   if lFont = nil then
-    Exit(RectF(0, 0, 0, 0));
+    Exit(wgRectF(0, 0, 0, 0));
   lLines := 1;
   for i := 1 to Length(AText) do
     if AText[i] = #10 then
       Inc(lLines);
-  Result := RectF(0, -lFont.GetAscent, TextWidth(AText),
+  Result := wgRectF(0, -lFont.GetAscent, TextWidth(AText),
     lFont.GetDescent + (lLines - 1) * lFont.GetLineHeight);
 end;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_canvas — a minimal, reusable software drawing canvas over a raw
+{ wlg.canvas.raster — a minimal, reusable software drawing canvas over a raw
   ARGB8888 pixel buffer.
 
   It is deliberately NOT a full compositing/anti-aliasing/alpha-blending canvas:
@@ -12,21 +12,21 @@
   Wayland: hand it any CPU-addressable ARGB8888 memory (a wl_shm buffer's data, a
   linearly-tiled CPU-mapped dma-buf, a plain heap block) plus its stride.
 
-  Pixel format: each pixel is a 32-bit ARGB value 0xAARRGGBB as a host DWord,
+  Pixel format: each pixel is a 32-bit wgARGB value 0xAARRGGBB as a host DWord,
   stored little-endian (byte order B,G,R,A) — i.e. wl_shm ARGB8888/XRGB8888.
 
   All primitives clip to the canvas bounds, so off-edge coordinates are safe.
 
-  It also implements ISurface / IPixelSurface (see wayland_surface), so a
+  It also implements IwgSurface / IwgPixelSurface (see wlg.surface), so a
   software canvas can be used as a blit SOURCE by anything that consumes
-  surfaces — notably TWaylandGLCanvas, which uploads it as a texture. Note the
+  surfaces — notably TwgGLCanvas, which uploads it as a texture. Note the
   format mismatch that implies: surfaces are defined as premultiplied, while
   this canvas writes colours verbatim. Content drawn with an alpha other than
   255 is therefore straight, not premultiplied, and should be run through
   RoundCorners (which premultiplies) or premultiplied by the caller before
   being handed to a compositor or a GPU blend. Fully opaque content — the
   common case — is identical either way. }
-unit wayland_canvas;
+unit wlg.canvas.raster;
 
 {$mode ObjFPC}{$H+}
 {$ModeSwitch typehelpers}
@@ -34,17 +34,17 @@ unit wayland_canvas;
 interface
 
 uses
-  Classes, SysUtils, Types, FPImage, wayland_surface;
+  Classes, SysUtils, Types, FPImage, wlg.surface;
 
 type
   // 0xAARRGGBB as a host DWord (little-endian bytes B,G,R,A = wl_shm ARGB8888).
-  // Declared in wayland_surface so canvases and images share one pixel type;
-  // aliased here so `uses wayland_canvas` alone still names it.
-  TCanvasColor = wayland_surface.TCanvasColor;
+  // Declared in wlg.surface so canvases and images share one pixel type;
+  // re-exported here so `uses wlg.canvas.raster` alone still names it.
+  TwgColor = wlg.surface.TwgColor;
 
-  { TWaylandCanvas }
+  { TwgRasterCanvas }
 
-  TWaylandCanvas = class(TWaylandSurfaceObject, IPixelSurface)
+  TwgRasterCanvas = class(TwgSurfaceObject, IwgPixelSurface)
   private
     FData: PByte;
     FWidth: Integer;
@@ -70,34 +70,34 @@ type
       and hot, and doubling its cost to maintain a cache key would be a poor
       trade. Every higher-level primitive below does bump it. If you write
       pixels through PutPixel (or through a locked Data pointer) and the canvas
-      is being used as an ISurface source, call Changed once when you are done. }
-    procedure PutPixel(X, Y: Integer; AColor: TCanvasColor); inline;
-    function  GetPixel(X, Y: Integer): TCanvasColor;
+      is being used as an IwgSurface source, call Changed once when you are done. }
+    procedure PutPixel(X, Y: Integer; AColor: TwgColor); inline;
+    function  GetPixel(X, Y: Integer): TwgColor;
 
     { --- fills --- }
-    procedure Clear(AColor: TCanvasColor);
-    procedure FillRect(X, Y, W, H: Integer; AColor: TCanvasColor);
+    procedure Clear(AColor: TwgColor);
+    procedure FillRect(X, Y, W, H: Integer; AColor: TwgColor);
 
     { --- outlines / lines --- }
-    procedure HLine(X, Y, W: Integer; AColor: TCanvasColor);
-    procedure VLine(X, Y, H: Integer; AColor: TCanvasColor);
-    procedure Line(X1, Y1, X2, Y2: Integer; AColor: TCanvasColor);
-    procedure Rectangle(X, Y, W, H: Integer; AColor: TCanvasColor);
+    procedure HLine(X, Y, W: Integer; AColor: TwgColor);
+    procedure VLine(X, Y, H: Integer; AColor: TwgColor);
+    procedure Line(X1, Y1, X2, Y2: Integer; AColor: TwgColor);
+    procedure Rectangle(X, Y, W, H: Integer; AColor: TwgColor);
     // Connect consecutive points with straight lines. Polyline leaves the path
     // open; Polygon also draws the closing edge from the last point to the first.
-    procedure Polyline(const APoints: array of TPoint; AColor: TCanvasColor);
-    procedure Polygon(const APoints: array of TPoint; AColor: TCanvasColor);
+    procedure Polyline(const APoints: array of TPoint; AColor: TwgColor);
+    procedure Polygon(const APoints: array of TPoint; AColor: TwgColor);
 
     { --- rounded rectangles --- }
     // Rectangle (X,Y,W,H) with quarter-ellipse corners of radii (RX,RY). Radii
     // are clamped to half the width/height; a zero radius falls back to the
     // square Rectangle/FillRect.
-    procedure RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
-    procedure FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+    procedure RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TwgColor);
+    procedure FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TwgColor);
     // Round the corners of an already-drawn rectangular region by carving its
     // ALPHA channel: pixels outside the radius-R rounded rect become fully
     // transparent, and the (whole) rounded boundary is anti-aliased by scaling
-    // each edge pixel's existing alpha by its coverage. RGB is preserved. This
+    // each edge pixel's existing alpha by its coverage. wgRGB is preserved. This
     // is how you give a window rounded, transparent corners (draw the window
     // opaque, then RoundCorners over it); the surface must not be marked opaque.
     // Output is premultiplied (as wl_shm/dma-buf ARGB8888 requires): edge colours
@@ -105,10 +105,10 @@ type
     procedure RoundCorners(X, Y, W, H, R: Integer);
 
     { --- ellipses / circles --- }
-    procedure Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
-    procedure FillEllipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
-    procedure Circle(CX, CY, R: Integer; AColor: TCanvasColor); inline;
-    procedure FillCircle(CX, CY, R: Integer; AColor: TCanvasColor); inline;
+    procedure Ellipse(CX, CY, RX, RY: Integer; AColor: TwgColor);
+    procedure FillEllipse(CX, CY, RX, RY: Integer; AColor: TwgColor);
+    procedure Circle(CX, CY, R: Integer; AColor: TwgColor); inline;
+    procedure FillCircle(CX, CY, R: Integer; AColor: TwgColor); inline;
 
     { --- images (fpimage) --- }
     // Blit AImage 1:1 at (ADestX, ADestY), clipped to the canvas. No scaling.
@@ -126,32 +126,32 @@ type
     property Data: PByte read FData;
   end;
 
-// Pack/convert helpers. These live in wayland_surface, where the pixel type is
-// defined; they are re-exported here so `uses wayland_canvas` remains enough.
-function ARGB(A, R, G, B: Byte): TCanvasColor; inline;       // explicit alpha
-function RGB(R, G, B: Byte): TCanvasColor; inline;           // opaque (A=255)
-function FPColorToCanvas(const AColor: TFPColor): TCanvasColor; inline;
+// Pack/convert helpers. These live in wlg.surface, where the pixel type is
+// defined; they are re-exported here so `uses wlg.canvas.raster` remains enough.
+function wgARGB(A, R, G, B: Byte): TwgColor; inline;       // explicit alpha
+function wgRGB(R, G, B: Byte): TwgColor; inline;           // opaque (A=255)
+function wgFPColorToColor(const AColor: TFPColor): TwgColor; inline;
 
 implementation
 
-function ARGB(A, R, G, B: Byte): TCanvasColor;
+function wgARGB(A, R, G, B: Byte): TwgColor;
 begin
-  Result := wayland_surface.ARGB(A, R, G, B);
+  Result := wlg.surface.wgARGB(A, R, G, B);
 end;
 
-function RGB(R, G, B: Byte): TCanvasColor;
+function wgRGB(R, G, B: Byte): TwgColor;
 begin
-  Result := wayland_surface.RGB(R, G, B);
+  Result := wlg.surface.wgRGB(R, G, B);
 end;
 
-function FPColorToCanvas(const AColor: TFPColor): TCanvasColor;
+function wgFPColorToColor(const AColor: TFPColor): TwgColor;
 begin
-  Result := wayland_surface.FPColorToCanvas(AColor);
+  Result := wlg.surface.wgFPColorToColor(AColor);
 end;
 
-{ TWaylandCanvas }
+{ TwgRasterCanvas }
 
-constructor TWaylandCanvas.Create(AData: Pointer; AWidth, AHeight: Integer;
+constructor TwgRasterCanvas.Create(AData: Pointer; AWidth, AHeight: Integer;
   AStride: Integer);
 begin
   inherited Create;
@@ -164,56 +164,56 @@ begin
     FStride := AWidth * 4;
 end;
 
-function TWaylandCanvas.GetSurfaceWidth: Integer;
+function TwgRasterCanvas.GetSurfaceWidth: Integer;
 begin
   Result := FWidth;
 end;
 
-function TWaylandCanvas.GetSurfaceHeight: Integer;
+function TwgRasterCanvas.GetSurfaceHeight: Integer;
 begin
   Result := FHeight;
 end;
 
-function TWaylandCanvas.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+function TwgRasterCanvas.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
 begin
   if FLocked then
-    raise ESurface.Create('TWaylandCanvas: pixels are already locked');
+    raise EwgSurface.Create('TwgRasterCanvas: pixels are already locked');
   FLocked := True;
   AData := FData;
   AStride := FStride;
   Result := FData <> nil;
 end;
 
-procedure TWaylandCanvas.UnlockPixels;
+procedure TwgRasterCanvas.UnlockPixels;
 begin
   FLocked := False;
 end;
 
-function TWaylandCanvas.RowPtr(Y: Integer): PDWord;
+function TwgRasterCanvas.RowPtr(Y: Integer): PDWord;
 begin
   Result := PDWord(FData + Y * FStride);
 end;
 
-procedure TWaylandCanvas.PutPixel(X, Y: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.PutPixel(X, Y: Integer; AColor: TwgColor);
 begin
   if (X < 0) or (Y < 0) or (X >= FWidth) or (Y >= FHeight) then
     Exit;
   RowPtr(Y)[X] := AColor;
 end;
 
-function TWaylandCanvas.GetPixel(X, Y: Integer): TCanvasColor;
+function TwgRasterCanvas.GetPixel(X, Y: Integer): TwgColor;
 begin
   if (X < 0) or (Y < 0) or (X >= FWidth) or (Y >= FHeight) then
     Exit(0);
   Result := RowPtr(Y)[X];
 end;
 
-procedure TWaylandCanvas.Clear(AColor: TCanvasColor);
+procedure TwgRasterCanvas.Clear(AColor: TwgColor);
 begin
   FillRect(0, 0, FWidth, FHeight, AColor);
 end;
 
-procedure TWaylandCanvas.FillRect(X, Y, W, H: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.FillRect(X, Y, W, H: Integer; AColor: TwgColor);
 var
   lRow, lCol, lX2, lY2: Integer;
   p: PDWord;
@@ -234,17 +234,17 @@ begin
   Changed;
 end;
 
-procedure TWaylandCanvas.HLine(X, Y, W: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.HLine(X, Y, W: Integer; AColor: TwgColor);
 begin
   FillRect(X, Y, W, 1, AColor);
 end;
 
-procedure TWaylandCanvas.VLine(X, Y, H: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.VLine(X, Y, H: Integer; AColor: TwgColor);
 begin
   FillRect(X, Y, 1, H, AColor);
 end;
 
-procedure TWaylandCanvas.Line(X1, Y1, X2, Y2: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Line(X1, Y1, X2, Y2: Integer; AColor: TwgColor);
 var
   dx, dy, sx, sy, err, e2: Integer;
 begin
@@ -274,7 +274,7 @@ begin
   Changed;
 end;
 
-procedure TWaylandCanvas.Rectangle(X, Y, W, H: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Rectangle(X, Y, W, H: Integer; AColor: TwgColor);
 begin
   if (W <= 0) or (H <= 0) then
     Exit;
@@ -284,7 +284,7 @@ begin
   VLine(X + W - 1, Y, H, AColor);
 end;
 
-procedure TWaylandCanvas.Polyline(const APoints: array of TPoint; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Polyline(const APoints: array of TPoint; AColor: TwgColor);
 var
   i: Integer;
 begin
@@ -292,7 +292,7 @@ begin
     Line(APoints[i].X, APoints[i].Y, APoints[i + 1].X, APoints[i + 1].Y, AColor);
 end;
 
-procedure TWaylandCanvas.Polygon(const APoints: array of TPoint; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Polygon(const APoints: array of TPoint; AColor: TwgColor);
 begin
   if Length(APoints) < 2 then
     Exit;
@@ -302,7 +302,7 @@ begin
        APoints[Low(APoints)].X, APoints[Low(APoints)].Y, AColor);
 end;
 
-procedure TWaylandCanvas.RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.RoundRect(X, Y, W, H, RX, RY: Integer; AColor: TwgColor);
 var
   x0, y0: Integer;
 
@@ -373,7 +373,7 @@ begin
   end;
 end;
 
-procedure TWaylandCanvas.FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.FillRoundRect(X, Y, W, H, RX, RY: Integer; AColor: TwgColor);
 var
   dy, hx, inset: Integer;
 begin
@@ -398,11 +398,11 @@ begin
   end;
 end;
 
-procedure TWaylandCanvas.RoundCorners(X, Y, W, H, R: Integer);
+procedure TwgRasterCanvas.RoundCorners(X, Y, W, H, R: Integer);
 var
   px, py, nx, ny, a: Integer;
   dx, dy, cov: Double;
-  d: TCanvasColor;
+  d: TwgColor;
 begin
   if (W <= 0) or (H <= 0) or (R <= 0) then
     Exit;
@@ -432,10 +432,10 @@ begin
       end;
       // Edge pixel. wl_shm / dma-buf ARGB8888 is PREMULTIPLIED, so scale both the
       // alpha AND the colour by coverage — otherwise a compositor reads the leftover
-      // RGB as additive and the "transparent" area shows the fill colour instead.
+      // wgRGB as additive and the "transparent" area shows the fill colour instead.
       d := GetPixel(px, py);
       a := Round(((d shr 24) and $FF) * cov);
-      PutPixel(px, py, ARGB(a,
+      PutPixel(px, py, wgARGB(a,
         Round(((d shr 16) and $FF) * cov),
         Round(((d shr 8) and $FF) * cov),
         Round((d and $FF) * cov)));
@@ -443,7 +443,7 @@ begin
   Changed;
 end;
 
-procedure TWaylandCanvas.Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Ellipse(CX, CY, RX, RY: Integer; AColor: TwgColor);
 var
   x, y: Integer;
   rx2, ry2, twoRx2, twoRy2, p, px, py: Int64;
@@ -505,7 +505,7 @@ begin
   Changed;
 end;
 
-procedure TWaylandCanvas.FillEllipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.FillEllipse(CX, CY, RX, RY: Integer; AColor: TwgColor);
 var
   x, y: Integer;
   rx2, ry2, twoRx2, twoRy2, p, px, py: Int64;
@@ -562,22 +562,22 @@ begin
   end;
 end;
 
-procedure TWaylandCanvas.Circle(CX, CY, R: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.Circle(CX, CY, R: Integer; AColor: TwgColor);
 begin
   Ellipse(CX, CY, R, R, AColor);
 end;
 
-procedure TWaylandCanvas.FillCircle(CX, CY, R: Integer; AColor: TCanvasColor);
+procedure TwgRasterCanvas.FillCircle(CX, CY, R: Integer; AColor: TwgColor);
 begin
   FillEllipse(CX, CY, R, R, AColor);
 end;
 
-procedure TWaylandCanvas.CopyImage(AImage: TFPCustomImage; ADestX, ADestY: Integer);
+procedure TwgRasterCanvas.CopyImage(AImage: TFPCustomImage; ADestX, ADestY: Integer);
 begin
   CopyImage(AImage, ADestX, ADestY, 0, 0, -1, -1);
 end;
 
-procedure TWaylandCanvas.CopyImage(AImage: TFPCustomImage; ADestX, ADestY,
+procedure TwgRasterCanvas.CopyImage(AImage: TFPCustomImage; ADestX, ADestY,
   ASrcX, ASrcY, ASrcW, ASrcH: Integer);
 var
   sx, sy, dx, dy: Integer;
@@ -602,7 +602,7 @@ begin
         Continue;
       if (ASrcX + sx < 0) or (ASrcX + sx >= AImage.Width) then
         Continue;
-      p[dx] := FPColorToCanvas(AImage.Colors[ASrcX + sx, ASrcY + sy]);
+      p[dx] := wgFPColorToColor(AImage.Colors[ASrcX + sx, ASrcY + sy]);
     end;
   end;
   Changed;

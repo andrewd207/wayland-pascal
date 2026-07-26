@@ -1,7 +1,7 @@
 # Widget core — design
 
-A retained widget toolkit drawing through `TWaylandAccelCanvas`, so it runs on
-the GPU (`TWaylandGLCanvas`) or the CPU (`TWaylandSoftCanvas`) unchanged.
+A retained widget toolkit drawing through `TwgCanvas`, so it runs on
+the GPU (`TwgGLCanvas`) or the CPU (`TwgSoftCanvas`) unchanged.
 
 New module `wayland-widgets/`, top level, `activeByDefault="false"` — the same
 precedent as `wayland-gl`, so the repo stays adoptable as a plain Wayland
@@ -13,9 +13,9 @@ binding and later extraction to its own repo is a `moduleDependencies` →
 | Layer | Provides |
 |---|---|
 | `wayland-classes` | `TfpgwDisplay` (event loop, seat input), `TfpgwWindow` (xdg surface, double buffering, configure/paint/close), `TfpgwBuffer` (`Data`/`Stride`), `desktop_theme` |
-| `wayland-rt` | `TWaylandAccelCanvas` + `TWaylandSoftCanvas`, `ISurface` |
-| `wayland-text` | `TGlyphAtlas` as `IGlyphSource` |
-| `wayland-gl` | `TWaylandGLCanvas` (optional) |
+| `wayland-rt` | `TwgCanvas` + `TwgSoftCanvas`, `IwgSurface` |
+| `wayland-text` | `TwgGlyphAtlas` as `IwgGlyphSource` |
+| `wayland-gl` | `TwgGLCanvas` (optional) |
 
 Note how input arrives: it is **seat-level**, on `TfpgwDisplay`, not per window —
 `OnMouseButton`, `OnMouseMotion`, `OnKeyboardKey` and friends. The display
@@ -37,7 +37,7 @@ wayland_controls.pas        button, label, entry, checkbox, scrollbar, panel...
 
 Font lookup deliberately does **not** live here. `fontconfig_fpc` (a subset
 binding) and `wayland_font_cache` — `(family, size, weight, scale)` →
-`IGlyphSource`, memoised — go in `wayland-text`, so anything drawing on a canvas
+`IwgGlyphSource`, memoised — go in `wayland-text`, so anything drawing on a canvas
 can resolve fonts by name without depending on the widget layer. That module
 then links libfreetype *and* libfontconfig, which is the same class of
 dependency and keeps them together.
@@ -79,7 +79,7 @@ The one thing that must follow the scale is the font: the atlas is created at
 ## Paint pass
 
 ```pascal
-procedure Paint(ACanvas: TWaylandAccelCanvas); virtual;   // self only
+procedure Paint(ACanvas: TwgCanvas); virtual;   // self only
 ```
 
 The core walks the tree; a widget never paints its own children:
@@ -162,9 +162,11 @@ One dispatcher installed on `TfpgwDisplay`, resolving `Sender` to a
 
 - **Hit test** — deepest visible, enabled widget containing the point; walks
   children last-to-first so later siblings are on top.
-- **Capture** — pointer grab set on button-down and held until release, so a
-  drag that leaves the widget still tracks. Without this, sliders and scrollbars
-  are broken; it is not optional.
+- **Capture** — grab set on press and held until release, so a drag that leaves
+  the widget still tracks. Without this, sliders and scrollbars are broken; it
+  is not optional. Capture is keyed **per sequence id**, not global: two fingers
+  on two different widgets must each keep their own grab, and a single global
+  capture silently breaks multi-touch.
 - **Enter/leave** — computed against the previous hit chain, so the whole
   ancestor path gets consistent enter/leave, not just the leaf.
 - **Click synthesis** — press and release on the same widget.
@@ -185,6 +187,53 @@ TWidgetMouseEvent = record
 end;
 ```
 
+## Touch and gestures
+
+The protocol side is available but **not yet wired**: `TWlTouch` is in the
+generated core binding and `pointer_gestures_unstable_v1` and `tablet_v2` are in
+the protocol tiers, but `fpg_wayland_classes` currently handles only pointer and
+keyboard. Adding `wl_touch` to the classes layer — which is where the seat lives
+— is a prerequisite for any of this, and is the honest first task of the input
+work rather than something the widget layer should bind behind its back.
+
+What the design has to get right up front, because these are the parts that are
+expensive to retrofit:
+
+- **Multi-pointer routing and per-sequence capture**, as above.
+- **No hover on touch.** A finger has no position until it touches. Nothing
+  essential may be reachable only via enter/leave — hover is decoration, never
+  the sole affordance. Widgets get `Hovered` but must not depend on it.
+- **Hit-target metrics belong to the theme.** A finger needs roughly 9mm; a
+  mouse needs 2mm. `TwgMetrics` carries a minimum touch target that grows when
+  the last input was touch, so controls stay usable without a separate layout.
+
+Gestures come from two places and both feed one recogniser layer:
+
+- **Synthesised from `wl_touch`** — tap, double-tap, long-press, pan, pinch,
+  rotate, swipe/fling. This is where a tablet's gestures come from.
+- **Native `zwp_pointer_gestures_v1`** — pinch, swipe and hold, which
+  compositors report for *touchpads*. Worth using rather than synthesising,
+  since the compositor has already done the finger-count disambiguation.
+
+A recogniser is attached to a widget and observes the raw stream before normal
+routing, claiming the sequence when it recognises:
+
+```pascal
+TwgGestureRecogniser = class
+  function  Feed(const AEvent: TwgPointerEvent): TwgGestureState; virtual; abstract;
+  // trPossible -> trRecognised claims the sequence and cancels the widget's
+  // ordinary press/click handling, exactly as a scroll view must steal a drag
+  // that began as a press on a button inside it.
+end;
+```
+
+That claim/cancel handshake is the part worth designing now: without it, a
+scrollable list containing buttons cannot work, because the button consumes the
+press before the pan is recognised.
+
+Kinetic (flick) scrolling belongs with the pan recogniser, not in each scrollable
+widget.
+
 ## Theming
 
 Widgets never hardcode colours or draw their own chrome — they ask a theme, so a
@@ -194,9 +243,9 @@ restyle is one class:
 TWidgetTheme = class
   Palette: TWidgetPalette;      // window, surface, text, accent, disabled...
   Metrics: TWidgetMetrics;      // padding, corner radius, border, min sizes
-  procedure DrawButton(C: TWaylandAccelCanvas; const R: TRect; AState: TWidgetState);
+  procedure DrawButton(C: TwgCanvas; const R: TRect; AState: TWidgetState);
   procedure DrawEntry(...);  procedure DrawFrame(...);  procedure DrawFocusRing(...);
-  function  DefaultFont: IGlyphSource;
+  function  DefaultFont: IwgGlyphSource;
 end;
 ```
 

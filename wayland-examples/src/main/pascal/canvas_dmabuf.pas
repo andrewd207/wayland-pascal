@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ canvas_dmabuf — draw with TWaylandCanvas into a dma-buf and present it.
+{ canvas_dmabuf — draw with TwgRasterCanvas into a dma-buf and present it.
 
   Shows that the software canvas is buffer-source agnostic: instead of wl_shm,
   the pixels live in a CPU-mapped dma-buf, presented zero-extra-copy via
@@ -22,7 +22,7 @@ program canvas_dmabuf;
 uses
   cthreads, BaseUnix, ctypes, SysUtils, Types,
   Wayland_Core, wayland, linux_dmabuf_v1_protocol, xdg_shell_protocol,
-  wayland_canvas, wayland_dmabuf;
+  wlg.canvas.raster, wayland_dmabuf;
 
 const
   WIN_W = 360;
@@ -131,27 +131,27 @@ end;
 
 procedure TApp.DrawScene;
 var
-  c: TWaylandCanvas;
+  c: TwgRasterCanvas;
   i: Integer;
   lZig: array[0..4] of TPoint;
 begin
   // Bracket CPU writes with dma-buf sync so the compositor sees coherent pixels.
   Buf.BeginCpuAccess;
   try
-    c := TWaylandCanvas.Create(Buf.Data, WIN_W, WIN_H, Stride);
+    c := TwgRasterCanvas.Create(Buf.Data, WIN_W, WIN_H, Stride);
     try
-      c.Clear(RGB(32, 28, 24));
-      c.FillRoundRect(20, 20, 120, 80, 18, 18, RGB(200, 120, 60));
-      c.RoundRect(20, 20, 120, 80, 18, 18, RGB(255, 255, 255));
-      c.FillCircle(250, 70, 45, RGB(80, 160, 220));
-      c.Circle(250, 70, 45, RGB(255, 255, 255));
-      c.FillEllipse(120, 200, 80, 40, RGB(150, 110, 200));
-      c.Ellipse(120, 200, 80, 40, RGB(255, 255, 255));
+      c.Clear(wgRGB(32, 28, 24));
+      c.FillRoundRect(20, 20, 120, 80, 18, 18, wgRGB(200, 120, 60));
+      c.RoundRect(20, 20, 120, 80, 18, 18, wgRGB(255, 255, 255));
+      c.FillCircle(250, 70, 45, wgRGB(80, 160, 220));
+      c.Circle(250, 70, 45, wgRGB(255, 255, 255));
+      c.FillEllipse(120, 200, 80, 40, wgRGB(150, 110, 200));
+      c.Ellipse(120, 200, 80, 40, wgRGB(255, 255, 255));
       for i := 0 to 8 do
-        c.Line(230, 150, 230 + i * 12, 250, RGB(230, 220, 120));
+        c.Line(230, 150, 230 + i * 12, 250, wgRGB(230, 220, 120));
       for i := 0 to High(lZig) do
         lZig[i] := Point(220 + i * 30, 150 + (i and 1) * 40);
-      c.Polyline(lZig, RGB(120, 230, 160));
+      c.Polyline(lZig, wgRGB(120, 230, 160));
     finally
       c.Free;
     end;

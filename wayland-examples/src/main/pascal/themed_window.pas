@@ -8,7 +8,7 @@
   It reads the running desktop's appearance with `desktop_theme`
   (CreateDesktopTheme): header-bar colours, accent, light/dark, and which
   buttons the user wants on which side. The title bar + buttons are painted with
-  TWaylandCanvas; there is no title *text* (the canvas has no font — a real
+  TwgRasterCanvas; there is no title *text* (the canvas has no font — a real
   toolkit would draw the title with its own text renderer).
 
   Interactions:
@@ -24,7 +24,7 @@ program themed_window;
 
 uses
   {$IFDEF UNIX}cthreads, BaseUnix,{$ENDIF}
-  SysUtils, Types, fpg_wayland_classes, wayland, wayland_canvas, desktop_theme;
+  SysUtils, Types, fpg_wayland_classes, wayland, wlg.canvas.raster, desktop_theme;
 
 const
   WIN_W   = 520;
@@ -62,7 +62,7 @@ begin
 end;
 
 { $00RRGGBB (theme) -> opaque ARGB8888 (canvas) }
-function ThemeColor(ARGB24: LongWord): TCanvasColor; inline;
+function ThemeColor(ARGB24: LongWord): TwgColor; inline;
 begin
   Result := $FF000000 or (ARGB24 and $FFFFFF);
 end;
@@ -73,9 +73,9 @@ begin
 end;
 
 { lighten (+) / darken (-) an opaque canvas colour by ADelta per channel }
-function Shade(AColor: TCanvasColor; ADelta: Integer): TCanvasColor;
+function Shade(AColor: TwgColor; ADelta: Integer): TwgColor;
 begin
-  Result := ARGB(255,
+  Result := wgARGB(255,
     Clamp(((AColor shr 16) and $FF) + ADelta),
     Clamp(((AColor shr 8) and $FF) + ADelta),
     Clamp((AColor and $FF) + ADelta));
@@ -130,17 +130,17 @@ end;
 procedure TApp.DoPaint(Sender: TObject);
 var
   lBuf: TfpgwBuffer;
-  c: TWaylandCanvas;
+  c: TwgRasterCanvas;
   i, cx, cy: Integer;
-  bar, fg, body, hov: TCanvasColor;
+  bar, fg, body, hov: TwgColor;
 begin
   lBuf := Window.NextBuffer;
   if lBuf = nil then Exit;
   bar  := ThemeColor(Theme.HeaderbarBg);
   fg   := ThemeColor(Theme.HeaderbarFg);
-  if Theme.IsDark then body := RGB(36, 36, 40) else body := RGB(246, 246, 248);
+  if Theme.IsDark then body := wgRGB(36, 36, 40) else body := wgRGB(246, 246, 248);
 
-  c := TWaylandCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
+  c := TwgRasterCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
   try
     c.Clear(body);
     c.FillRect(0, 0, WIN_W, TITLE_H, bar);                 { title bar }
@@ -156,7 +156,7 @@ begin
       if i = Hover then
       begin
         if Slots[i].Kind = dwbClose then
-          hov := RGB(232, 76, 60)                          { close: red hover }
+          hov := wgRGB(232, 76, 60)                          { close: red hover }
         else
           hov := Shade(bar, 30);
         c.FillCircle(cx, cy, TITLE_H div 2 - 5, hov);

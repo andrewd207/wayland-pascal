@@ -7,7 +7,7 @@
   Demonstrates the wayland-classes cursor path (pure-Pascal XCursor loader): the
   same TXCursorTheme that backs TfpgwDisplay.SetCursor is used here to fetch each
   cursor's pixels, which are alpha-composited (Xcursor images are premultiplied
-  ARGB) into the window via TWaylandCanvas. Hovering a cell calls
+  wgARGB) into the window via TwgRasterCanvas. Hovering a cell calls
   Display.SetCursor with that cell's candidate names, so the real pointer turns
   into the pictured cursor. Animated cursors (e.g. 'watch') cycle their frames
   both in the grid and on the live pointer.
@@ -25,7 +25,7 @@ program cursor_demo;
 uses
   {$IFDEF UNIX}cthreads, BaseUnix,{$ENDIF}
   SysUtils, Types,
-  fpg_wayland_classes, wayland, wayland_canvas, xcursor;
+  fpg_wayland_classes, wayland, wlg.canvas.raster, xcursor;
 
 const
   COLS     = 4;
@@ -63,8 +63,8 @@ type
     procedure Run;
   end;
 
-{ Composite a premultiplied-ARGB cursor image onto the (opaque) canvas. }
-procedure BlitCursor(c: TWaylandCanvas; const AImg: TXCursorImage; ADestX, ADestY: Integer);
+{ Composite a premultiplied-wgARGB cursor image onto the (opaque) canvas. }
+procedure BlitCursor(c: TwgRasterCanvas; const AImg: TXCursorImage; ADestX, ADestY: Integer);
 var
   sx, sy, px, py: Integer;
   s, d: DWord;
@@ -94,7 +94,7 @@ begin
       dr := sr + dr * (255 - sa) div 255;
       dg := sg + dg * (255 - sa) div 255;
       db := sb + db * (255 - sa) div 255;
-      c.PutPixel(px, py, ARGB(255, dr, dg, db));
+      c.PutPixel(px, py, wgARGB(255, dr, dg, db));
     end;
   end;
 end;
@@ -169,16 +169,16 @@ end;
 procedure TDemo.DoPaint(Sender: TObject);
 var
   lBuf: TfpgwBuffer;
-  c: TWaylandCanvas;
+  c: TwgRasterCanvas;
   i, col, row, cx, cy, ix, iy: Integer;
-  bg, border: TCanvasColor;
+  bg, border: TwgColor;
 begin
   lBuf := Window.NextBuffer;
   if lBuf = nil then
     Exit;
-  c := TWaylandCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
+  c := TwgRasterCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
   try
-    c.Clear(RGB(30, 30, 38));
+    c.Clear(wgRGB(30, 30, 38));
     for i := 0 to High(Cells) do
     begin
       col := i mod COLS;
@@ -187,13 +187,13 @@ begin
       cy := row * CELL;
       if i = Hovered then
       begin
-        bg := RGB(54, 70, 96);
-        border := RGB(150, 200, 255);
+        bg := wgRGB(54, 70, 96);
+        border := wgRGB(150, 200, 255);
       end
       else
       begin
-        bg := RGB(42, 42, 52);
-        border := RGB(80, 80, 96);
+        bg := wgRGB(42, 42, 52);
+        border := wgRGB(80, 80, 96);
       end;
       c.FillRoundRect(cx + PAD, cy + PAD, CELL - 2 * PAD, CELL - 2 * PAD, 10, 10, bg);
       c.RoundRect(cx + PAD, cy + PAD, CELL - 2 * PAD, CELL - 2 * PAD, 10, 10, border);

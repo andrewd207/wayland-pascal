@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ gl_canvas_demo — TWaylandGLCanvas drawing an animated scene, presented over
+{ gl_canvas_demo — TwgGLCanvas drawing an animated scene, presented over
   Wayland as a dmabuf with no libwayland anywhere in the process.
 
   It exercises the parts of the accelerated canvas that are easy to get wrong:
@@ -11,9 +11,9 @@
     * the transform stack — the rotating star is drawn in its own local space
     * clipping — one panel is drawn under a clip rectangle
     * blend modes — an additive glow over the background
-    * DrawSurface — a procedurally built TWaylandImage blitted and scaled,
-      which also proves the ISurface texture cache re-uploads only on change
-    * text — FreeType glyphs through TGlyphAtlas, including kerning and a
+    * DrawSurface — a procedurally built TwgImage blitted and scaled,
+      which also proves the IwgSurface texture cache re-uploads only on change
+    * text — FreeType glyphs through TwgGlyphAtlas, including kerning and a
       second size, which proves atlas paging and the alpha-only shader path
 
   Left-drag moves the window, right-click quits.
@@ -27,9 +27,9 @@ uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   ctypes, SysUtils, Math, BaseUnix,
   Wayland_Core, wayland, linux_dmabuf_v1_protocol, xdg_shell_protocol,
-  wayland_surface, wayland_accel_canvas,
-  wayland_gl_context, wayland_gl_texture, wayland_gl_target, wayland_gl_canvas,
-  wayland_glyph_atlas;
+  wlg.surface, wlg.canvas.base,
+  wlg.gl.context, wlg.gl.texture, wlg.gl.target, wlg.canvas.gl,
+  wlg.text.atlas;
 
 const
   WIN_W = 900;
@@ -54,12 +54,12 @@ type
   TGLCanvasDemo = class
   private
     // GPU
-    FContext: TWaylandGLContext;
-    FRing: TGLTargetRing;
-    FCanvas: TWaylandGLCanvas;
-    FFont: TGlyphAtlas;
-    FFontSmall: TGlyphAtlas;
-    FLogo: TWaylandImage;
+    FContext: TwgGLContext;
+    FRing: TwgGLTargetRing;
+    FCanvas: TwgGLCanvas;
+    FFont: TwgGlyphAtlas;
+    FFontSmall: TwgGlyphAtlas;
+    FLogo: TwgImage;
 
     // Wayland
     FDisplay:    TWlDisplay;
@@ -86,7 +86,7 @@ type
     procedure BuildWlBuffers;
     procedure BuildLogo;
 
-    procedure DrawScene(ACanvas: TWaylandGLCanvas; ATime: Double);
+    procedure DrawScene(ACanvas: TwgGLCanvas; ATime: Double);
     procedure TryDraw;
     procedure DrawFrame;
 
@@ -120,17 +120,17 @@ end;
 
 procedure TGLCanvasDemo.InitGpu;
 begin
-  FContext := TWaylandGLContext.Create(3, 3);
+  FContext := TwgGLContext.Create(3, 3);
   if not FContext.CanExportDmabuf then
     raise Exception.Create(
       'the driver cannot export GL textures as dmabufs; this demo needs ' +
       'EGL_MESA_image_dma_buf_export');
 
-  FRing := TGLTargetRing.Create(FContext, WIN_W, WIN_H, FRAME_SLOTS);
-  FCanvas := TWaylandGLCanvas.Create(FContext, WIN_W, WIN_H, SUPERSAMPLE);
+  FRing := TwgGLTargetRing.Create(FContext, WIN_W, WIN_H, FRAME_SLOTS);
+  FCanvas := TwgGLCanvas.Create(FContext, WIN_W, WIN_H, SUPERSAMPLE);
 
-  FFont := TGlyphAtlas.Create(FindFont, 28);
-  FFontSmall := TGlyphAtlas.Create(FindFont, 14);
+  FFont := TwgGlyphAtlas.Create(FindFont, 28);
+  FFontSmall := TwgGlyphAtlas.Create(FindFont, 14);
   // Rasterise ASCII up front so the first frame does not stall on uploads.
   FFont.Prewarm('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,:—');
   FFontSmall.Prewarm('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,:');
@@ -146,7 +146,7 @@ var
 begin
   // A procedural RGBA image: a soft radial disc over a checkerboard, so both
   // the colour path and premultiplied alpha are visible when it is blitted.
-  FLogo := TWaylandImage.Create(64, 64);
+  FLogo := TwgImage.Create(64, 64);
   for y := 0 to 63 do
     for x := 0 to 63 do
     begin
@@ -163,62 +163,62 @@ begin
       begin
         lR := 60; lG := 130; lB := 245;
       end;
-      // TWaylandImage holds premultiplied pixels.
-      FLogo.PutPixel(x, y, PremultiplyColor(ARGB(lA, lR, lG, lB)));
+      // TwgImage holds premultiplied pixels.
+      FLogo.PutPixel(x, y, wgPremultiply(wgARGB(lA, lR, lG, lB)));
     end;
   FLogo.Changed;
 end;
 
-procedure TGLCanvasDemo.DrawScene(ACanvas: TWaylandGLCanvas; ATime: Double);
+procedure TGLCanvasDemo.DrawScene(ACanvas: TwgGLCanvas; ATime: Double);
 var
   i: Integer;
-  lStar: array[0..9] of TCanvasPointF;
+  lStar: array[0..9] of TwgPointF;
   lAngle, lRadius: Double;
-  lPath: TCanvasPath;
+  lPath: TwgPath;
   lPulse: Double;
 begin
   // --- background: a vertical gradient, so the gradient path gets exercised
-  ACanvas.Clear(ARGB(255, 18, 20, 28));
+  ACanvas.Clear(wgARGB(255, 18, 20, 28));
   ACanvas.FillRectGradient(0, 0, WIN_W, WIN_H,
-    ARGB(255, 28, 32, 48), ARGB(255, 28, 32, 48),
-    ARGB(255, 12, 13, 20), ARGB(255, 12, 13, 20));
+    wgARGB(255, 28, 32, 48), wgARGB(255, 28, 32, 48),
+    wgARGB(255, 12, 13, 20), wgARGB(255, 12, 13, 20));
 
   // --- title
   ACanvas.Font := FFont;
-  ACanvas.DrawTextTopLeft('TWaylandGLCanvas', 32, 24, ARGB(255, 235, 238, 245));
+  ACanvas.DrawTextTopLeft('TwgGLCanvas', 32, 24, wgARGB(255, 235, 238, 245));
   ACanvas.Font := FFontSmall;
   ACanvas.DrawTextTopLeft(
     'accelerated primitives · supersampled AA · FreeType text · dmabuf present',
-    32, 60, ARGB(190, 150, 170, 200));
+    32, 60, wgARGB(190, 150, 170, 200));
 
   // --- panel 1: anti-aliased shapes
-  ACanvas.FillRoundRect(32, 96, 400, 240, 14, 14, ARGB(255, 32, 38, 54));
-  ACanvas.RoundRect(32, 96, 400, 240, 14, 14, ARGB(120, 120, 150, 200));
+  ACanvas.FillRoundRect(32, 96, 400, 240, 14, 14, wgARGB(255, 32, 38, 54));
+  ACanvas.RoundRect(32, 96, 400, 240, 14, 14, wgARGB(120, 120, 150, 200));
 
   // circles, stroked with increasing width
   for i := 0 to 4 do
   begin
     ACanvas.LineWidth := 1 + i * 1.5;
     ACanvas.Circle(90 + i * 70, 170, 26,
-      ARGB(255, 90 + i * 30, 200 - i * 20, 240 - i * 30));
+      wgARGB(255, 90 + i * 30, 200 - i * 20, 240 - i * 30));
   end;
   ACanvas.LineWidth := 1;
 
   // filled ellipses with decreasing alpha, to show real blending
   for i := 0 to 4 do
-    ACanvas.FillEllipse(90 + i * 70, 250, 30, 20, ARGB(220 - i * 40, 250, 140, 90));
+    ACanvas.FillEllipse(90 + i * 70, 250, 30, 20, wgARGB(220 - i * 40, 250, 140, 90));
 
   // an arc and a pie
   ACanvas.LineWidth := 4;
   ACanvas.LineCap := clcRound;
-  ACanvas.Arc(120, 305, 40, 22, Pi * 1.1, Pi * 0.8, ARGB(255, 120, 230, 160));
+  ACanvas.Arc(120, 305, 40, 22, Pi * 1.1, Pi * 0.8, wgARGB(255, 120, 230, 160));
   ACanvas.LineWidth := 1;
   ACanvas.FillPie(300, 300, 34, 34, -Pi / 2, Pi * 1.2 + Sin(ATime) * 0.6,
-    ARGB(230, 240, 200, 80));
+    wgARGB(230, 240, 200, 80));
 
   // --- panel 2: transform stack — a star spinning in its own space
-  ACanvas.FillRoundRect(456, 96, 200, 240, 14, 14, ARGB(255, 32, 38, 54));
-  ACanvas.RoundRect(456, 96, 200, 240, 14, 14, ARGB(120, 120, 150, 200));
+  ACanvas.FillRoundRect(456, 96, 200, 240, 14, 14, wgARGB(255, 32, 38, 54));
+  ACanvas.RoundRect(456, 96, 200, 240, 14, 14, wgARGB(120, 120, 150, 200));
 
   ACanvas.Save;
   ACanvas.Translate(556, 216);
@@ -230,19 +230,19 @@ begin
       lRadius := 78
     else
       lRadius := 32;
-    lStar[i] := PointF(Cos(lAngle) * lRadius, Sin(lAngle) * lRadius);
+    lStar[i] := wgPointF(Cos(lAngle) * lRadius, Sin(lAngle) * lRadius);
   end;
-  ACanvas.FillPolygon(lStar, ARGB(235, 255, 205, 90));
+  ACanvas.FillPolygon(lStar, wgARGB(235, 255, 205, 90));
   // Light, not dark: half the stroke falls OUTSIDE the fill onto the dark
   // panel, so a dark outline would be invisible exactly where it matters.
   ACanvas.LineWidth := 2.5;
   ACanvas.LineJoin := cljMiter;
-  ACanvas.Polygon(lStar, ARGB(255, 255, 250, 235));
+  ACanvas.Polygon(lStar, wgARGB(255, 255, 250, 235));
   ACanvas.Restore;
 
   // --- panel 3: clipping + additive glow
-  ACanvas.FillRoundRect(680, 96, 188, 240, 14, 14, ARGB(255, 32, 38, 54));
-  ACanvas.RoundRect(680, 96, 188, 240, 14, 14, ARGB(120, 120, 150, 200));
+  ACanvas.FillRoundRect(680, 96, 188, 240, 14, 14, wgARGB(255, 32, 38, 54));
+  ACanvas.RoundRect(680, 96, 188, 240, 14, 14, wgARGB(120, 120, 150, 200));
 
   ACanvas.Save;
   ACanvas.ClipRect(696, 112, 156, 208);
@@ -251,25 +251,25 @@ begin
   begin
     ACanvas.LineWidth := 10;
     ACanvas.Line(696 + i * 20 - 60, 112, 696 + i * 20 + 60, 320,
-      ARGB(70, 130, 190, 255));
+      wgARGB(70, 130, 190, 255));
   end;
   // An additive pulse on top, to show the blend mode actually changes.
   lPulse := 0.5 + 0.5 * Sin(ATime * 2.0);
   ACanvas.BlendMode := cbmAdd;
   ACanvas.FillCircle(774, 216, 40 + lPulse * 25,
-    ARGB(Round(60 + 80 * lPulse), 90, 140, 220));
+    wgARGB(Round(60 + 80 * lPulse), 90, 140, 220));
   ACanvas.BlendMode := cbmSourceOver;
   ACanvas.Restore;
 
   // --- bezier path along the bottom
-  lPath := TCanvasPath.Create;
+  lPath := TwgPath.Create;
   try
     lPath.MoveTo(48, 470);
     lPath.CurveTo(200, 380 + Sin(ATime) * 50, 340, 560 - Sin(ATime) * 50, 480, 470);
     lPath.CurveTo(620, 380 + Cos(ATime) * 40, 740, 560, 860, 460);
     ACanvas.LineWidth := 3;
     ACanvas.LineCap := clcRound;
-    ACanvas.StrokePath(lPath, ARGB(255, 120, 220, 255));
+    ACanvas.StrokePath(lPath, wgARGB(255, 120, 220, 255));
   finally
     lPath.Free;
   end;
@@ -278,7 +278,7 @@ begin
   ACanvas.DrawSurface(FLogo, 48, 500);
   ACanvas.DrawSurface(FLogo, 130, 500, 110, 110);
   ACanvas.DrawSurface(FLogo, 0, 0, FLogo.Width, FLogo.Height,
-    266, 500, 80, 80, ARGB(255, 255, 140, 140));
+    266, 500, 80, 80, wgARGB(255, 255, 140, 140));
 
   ACanvas.Save;
   ACanvas.Translate(400, 545);
@@ -291,14 +291,14 @@ begin
   for i := 0 to 5 do
   begin
     ACanvas.Opacity := (i + 1) / 6;
-    ACanvas.FillRect(490 + i * 42, 505, 34, 34, ARGB(255, 120, 230, 170));
+    ACanvas.FillRect(490 + i * 42, 505, 34, 34, wgARGB(255, 120, 230, 170));
   end;
   ACanvas.Opacity := 1.0;
 
   ACanvas.DrawTextTopLeft(Format('frame %d — %.1fs', [FFrames, ATime]),
-    490, 552, ARGB(160, 190, 200, 220));
+    490, 552, wgARGB(160, 190, 200, 220));
   ACanvas.DrawTextTopLeft('left-drag to move · right-click to quit',
-    490, 572, ARGB(160, 190, 200, 220));
+    490, 572, wgARGB(160, 190, 200, 220));
 end;
 
 procedure TGLCanvasDemo.InitWayland;
@@ -328,7 +328,7 @@ var
   i: Integer;
   lParams: TWpLinuxBufferParamsV1;
   lFlags: TWpLinuxBufferParamsV1.TFlags;
-  lTarget: TGLRenderTarget;
+  lTarget: TwgGLRenderTarget;
 begin
   SetLength(FBuffers, FRing.Count);
   for i := 0 to FRing.Count - 1 do

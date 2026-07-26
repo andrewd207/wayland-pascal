@@ -16,7 +16,7 @@ From the [examples](wayland-examples/README.md):
 | | |
 |---|---|
 | ![wl_window_demo](docs/screenshots/wl_window_demo.png) | ![canvas_demo](docs/screenshots/canvas_demo.png) |
-| `wl_window_demo` — a basic toplevel | `canvas_demo` — `TWaylandCanvas` shapes |
+| `wl_window_demo` — a basic toplevel | `canvas_demo` — `TwgRasterCanvas` shapes |
 | ![canvas_dmabuf](docs/screenshots/canvas_dmabuf.png) | ![cursor_demo](docs/screenshots/cursor_demo.png) |
 | `canvas_dmabuf` — canvas in a CPU dma-buf | `cursor_demo` — cursor grid, retargets the pointer on hover |
 | ![themed_window](docs/screenshots/themed_window.png) | |
@@ -35,13 +35,13 @@ The library modules are grouped under a `wayland-client/` pom and a
 | Directory | What | Dependencies | Built with |
 |---|---|---|---|
 | `wayland-common/` | Shared, direction-agnostic transport: the Unix-socket + fd plumbing, the wire codec, the object base (`TWaylandBase` + message dispatch), event-message/fd-stream types, and the xkbcommon bindings. Not built standalone; each `*-rt` compiles it in via a `../../wayland-common` unit path. | FPC RTL only | (compiled into each `*-rt`) |
-| `wayland-client/rt/` | Client runtime: generated `wayland.pas` (core protocol proxies) + the RTL-only utilities `wayland_canvas` ([docs](docs/wayland-canvas.md)), the accelerated canvas `wayland_surface` / `wayland_accel_canvas` / `wayland_soft_canvas` ([docs](docs/wayland-accel-canvas.md)) and `wayland_dmabuf`. | `wayland-common` (unit path) | **pasbuild** |
+| `wayland-client/rt/` | Client runtime: generated `wayland.pas` (core protocol proxies) + the RTL-only utilities `wlg.canvas.raster` ([docs](docs/wayland-canvas.md)), the accelerated canvas `wlg.surface` / `wlg.canvas.base` / `wlg.canvas.software` ([docs](docs/wayland-accel-canvas.md)) and `wayland_dmabuf`. | `wayland-common` (unit path) | **pasbuild** |
 | `wayland-client/stable/` | Stable wayland-protocols, generated as `<protocol>_protocol` units (xdg-shell, linux-dmabuf, viewporter, …). | `wayland-client/rt` | **pasbuild** |
 | `wayland-client/unstable/` | Unstable (`z*`) wayland-protocols. | rt, stable | **pasbuild** |
 | `wayland-client/staging/` | Staging (`ext_`/`wp_` v1) wayland-protocols. | rt, stable, unstable | **pasbuild** |
 | [`wayland-client/classes/`](wayland-client/classes/README.md) | Higher-level OOP convenience layer (library): a display/event loop, windows, double-buffered surfaces (shm or dma-buf), a software canvas, cursors and clipboard/drag-and-drop. ([API docs](docs/wayland-classes/index.md).) | rt + protocol tiers | **pasbuild** |
-| `wayland-client/text/` | FreeType glyph rasterisation: a subset FreeType 2 binding and `TGlyphAtlas`, an `IGlyphSource` packing glyphs into coverage (`sfA8`) CPU pages — so one atlas serves both canvas backends. ([docs](docs/wayland-accel-canvas.md).) Links `libfreetype`, so excluded from the default build. | `wayland-client/rt` | **pasbuild** |
-| `wayland-client/gl/` | GPU canvas backend: surfaceless EGL + GL 3.3 core context, dmabuf-exporting FBO render targets, and `TWaylandGLCanvas` — the OpenGL implementation of `TWaylandAccelCanvas`. ([docs](docs/wayland-accel-canvas.md).) Links `libEGL`/`libGL`, so excluded from the default build and nothing else depends on it. | `wayland-client/rt` | **pasbuild** |
+| `wayland-client/text/` | FreeType glyph rasterisation: a subset FreeType 2 binding and `TwgGlyphAtlas`, an `IwgGlyphSource` packing glyphs into coverage (`sfA8`) CPU pages — so one atlas serves both canvas backends. ([docs](docs/wayland-accel-canvas.md).) Links `libfreetype`, so excluded from the default build. | `wayland-client/rt` | **pasbuild** |
+| `wayland-client/gl/` | GPU canvas backend: surfaceless EGL + GL 3.3 core context, dmabuf-exporting FBO render targets, and `TwgGLCanvas` — the OpenGL implementation of `TwgCanvas`. ([docs](docs/wayland-accel-canvas.md).) Links `libEGL`/`libGL`, so excluded from the default build and nothing else depends on it. | `wayland-client/rt` | **pasbuild** |
 | `wayland-server/rt/` | Server runtime base (`wayland_server_core`): `TWaylandServerResource` (a server-side protocol object, requests routed to `message` handlers), `TWaylandServerClient` (per-connection object map + server-range id allocation + receive loop), `TWaylandServerDisplay` (listening socket + accept/poll loop). Also carries the generated server core `wayland_server.pas`. | `wayland-common` (unit path) | **pasbuild** |
 | `wayland-server/stable/`, `unstable/`, `staging/` | The wayland-protocols, generated as server-side `<protocol>_server` units (the direction-swapped mirror of the client tiers: requests arrive as `message` handlers + an `I<Class>Requests` interface, events are sent via `SendEvent`). | server rt (+ lower tiers) | **pasbuild** |
 | [`wayland-server/classes/`](wayland-server/classes/README.md) | Server protocol-ergonomics layer (`TWaylandServer`): `wl_display`/registry/globals/`bind`/version-clamp/`sync`/serial plumbing via `AddGlobal`. The server-side counterpart of the client `classes` layer; deliberately not a compositor. | server rt | **pasbuild** |

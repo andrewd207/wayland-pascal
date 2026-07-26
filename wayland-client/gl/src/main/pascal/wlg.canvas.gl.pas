@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_gl_canvas — the OpenGL implementation of TWaylandAccelCanvas.
+{ wlg.canvas.gl — the OpenGL implementation of TwgCanvas.
 
   All the geometry has already happened by the time anything here runs:
-  TWaylandAccelCanvas turned rectangles, arcs, strokes, glyphs and blits into
+  TwgCanvas turned rectangles, arcs, strokes, glyphs and blits into
   triangles with device-space positions, surface-normalised UVs and
   premultiplied per-vertex colours. This unit only has to get those triangles
   onto the GPU, which it does with one shader, one streaming vertex buffer and
@@ -31,12 +31,12 @@
   halves, so every source texel contributes exactly once.
 
   BLENDING assumes premultiplied alpha throughout (source-over is
-  ONE, ONE_MINUS_SRC_ALPHA), which is what wayland_surface defines and what
+  ONE, ONE_MINUS_SRC_ALPHA), which is what wlg.surface defines and what
   wl_shm and dma-buf ARGB8888 require.
 
-  A canvas is itself an ITextureSurface, delegating to its presentation
+  A canvas is itself an IwgTextureSurface, delegating to its presentation
   target's texture, so one canvas can be blitted into another with no readback. }
-unit wayland_gl_canvas;
+unit wlg.canvas.gl;
 
 {$mode ObjFPC}{$H+}
 
@@ -45,15 +45,15 @@ interface
 uses
   Classes, SysUtils, Math, Types, ctypes,
   gl_fpc, gl_core_fpc,
-  wayland_surface, wayland_accel_canvas,
-  wayland_gl_context, wayland_gl_texture, wayland_gl_target;
+  wlg.surface, wlg.canvas.base,
+  wlg.gl.context, wlg.gl.texture, wlg.gl.target;
 
 type
-  EGLCanvas = class(Exception);
+  EwgGLCanvas = class(Exception);
 
-  { TWaylandGLCanvas }
+  { TwgGLCanvas }
 
-  TWaylandGLCanvas = class(TWaylandAccelCanvas, ITextureSurface)
+  TwgGLCanvas = class(TwgCanvas, IwgTextureSurface)
   private
     type
       // 20 bytes: 2 floats position, 2 floats UV, 4 normalised bytes colour.
@@ -64,18 +64,18 @@ type
       end;
 
       TTextureCacheEntry = record
-        SourceKey: Pointer;   // the ISurface implementor, compared never dereferenced
+        SourceKey: Pointer;   // the IwgSurface implementor, compared never dereferenced
         Generation: QWord;
-        Texture: TGLTexture;
+        Texture: TwgGLTexture;
       end;
   private
-    FContext: TWaylandGLContext;
-    FTarget: TGLRenderTarget;
+    FContext: TwgGLContext;
+    FTarget: TwgGLRenderTarget;
     FSuperSample: Integer;
 
     // Offscreen supersample buffer and the halving chain down to 1x.
-    FSSTarget: TGLRenderTarget;
-    FResolveChain: array of TGLRenderTarget;
+    FSSTarget: TwgGLRenderTarget;
+    FResolveChain: array of TwgGLRenderTarget;
 
     // shader
     FProgram: GLuint;
@@ -103,52 +103,52 @@ type
 
     // Find or upload a GL texture for ASurface. AAlphaOnly reports whether it
     // holds coverage rather than colour. Returns 0 if it cannot be textured.
-    function  ResolveTexture(ASurface: ISurface; out AAlphaOnly: Boolean;
+    function  ResolveTexture(ASurface: IwgSurface; out AAlphaOnly: Boolean;
       out AU0, AV0, AU1, AV1: Single): GLuint;
-    function  CacheLookup(ASurface: ISurface): TGLTexture;
-    procedure CacheStore(ASurface: ISurface; ATexture: TGLTexture);
+    function  CacheLookup(ASurface: IwgSurface): TwgGLTexture;
+    procedure CacheStore(ASurface: IwgSurface; ATexture: TwgGLTexture);
     procedure ClearCache;
 
     procedure FlushBatch;
     procedure SetBatchState(ATexture: GLuint; AMode: Integer);
-    procedure PushGLVertex(const AVert: TCanvasVertex;
+    procedure PushGLVertex(const AVert: TwgVertex;
       const AU0, AV0, AU1, AV1: Single);
 
     // Draw ASource over the whole of ADest with linear filtering.
-    procedure BlitFullscreen(ASource: TGLTexture; ADest: TGLRenderTarget);
+    procedure BlitFullscreen(ASource: TwgGLTexture; ADest: TwgGLRenderTarget);
     procedure SetProjection(AWidth, AHeight: Integer);
-    function  RenderTarget: TGLRenderTarget;
+    function  RenderTarget: TwgGLRenderTarget;
   protected
-    { TWaylandAccelCanvas device protocol }
+    { TwgCanvas device protocol }
     procedure DeviceBeginFrame; override;
     procedure DeviceEndFrame; override;
-    procedure DeviceClear(AColor: TCanvasColor); override;
+    procedure DeviceClear(AColor: TwgColor); override;
     procedure DeviceSetClip(const ARect: TRect; AEnabled: Boolean); override;
-    procedure DeviceSetBlend(AMode: TCanvasBlendMode); override;
-    procedure DeviceDrawTriangles(const AVerts: TCanvasVertexArray;
-      ACount: Integer; ATexture: ISurface); override;
+    procedure DeviceSetBlend(AMode: TwgBlendMode); override;
+    procedure DeviceDrawTriangles(const AVerts: TwgVertexArray;
+      ACount: Integer; ATexture: IwgSurface); override;
 
-    { ITextureSurface — the canvas as a blit source }
+    { IwgTextureSurface — the canvas as a blit source }
     function GetTextureHandle: PtrUInt;
     procedure GetTextureUV(out AU0, AV0, AU1, AV1: Single);
   public
     // ASuperSample must be a power of two: 1 disables anti-aliasing, 2 is the
     // sensible default, 4 is noticeably better on thin diagonals and costs
     // sixteen times the fill rate.
-    constructor Create(AContext: TWaylandGLContext; AWidth, AHeight: Integer;
+    constructor Create(AContext: TwgGLContext; AWidth, AHeight: Integer;
       ASuperSample: Integer = 2);
     destructor Destroy; override;
 
     // Where EndFrame delivers the finished image. Must be set before
     // BeginFrame, and must match the canvas size.
-    procedure SetTarget(ATarget: TGLRenderTarget);
+    procedure SetTarget(ATarget: TwgGLRenderTarget);
 
     // Discard cached uploads of source surfaces. They are re-uploaded on next
     // use; call it if a lot of one-shot images have gone through the canvas.
     procedure PurgeTextureCache;
 
-    property Context: TWaylandGLContext read FContext;
-    property Target: TGLRenderTarget read FTarget;
+    property Context: TwgGLContext read FContext;
+    property Target: TwgGLRenderTarget read FTarget;
     property SuperSample: Integer read FSuperSample;
   end;
 
@@ -204,17 +204,17 @@ const
 
   InitialBatchVerts = 4096;
 
-{ TWaylandGLCanvas }
+{ TwgGLCanvas }
 
-constructor TWaylandGLCanvas.Create(AContext: TWaylandGLContext;
+constructor TwgGLCanvas.Create(AContext: TwgGLContext;
   AWidth, AHeight: Integer; ASuperSample: Integer);
 begin
   inherited Create(AWidth, AHeight);
   if AContext = nil then
-    raise EGLCanvas.Create('TWaylandGLCanvas: nil context');
+    raise EwgGLCanvas.Create('TwgGLCanvas: nil context');
   if (ASuperSample < 1) or ((ASuperSample and (ASuperSample - 1)) <> 0) then
-    raise EGLCanvas.CreateFmt(
-      'TWaylandGLCanvas: SuperSample must be a power of two, got %d', [ASuperSample]);
+    raise EwgGLCanvas.CreateFmt(
+      'TwgGLCanvas: SuperSample must be a power of two, got %d', [ASuperSample]);
 
   FContext := AContext;
   FSuperSample := ASuperSample;
@@ -225,7 +225,7 @@ begin
   BuildResolveChain;
 end;
 
-destructor TWaylandGLCanvas.Destroy;
+destructor TwgGLCanvas.Destroy;
 var
   i: Integer;
 begin
@@ -244,7 +244,7 @@ begin
   inherited Destroy;
 end;
 
-function TWaylandGLCanvas.CompileShader(AKind: GLenum; const ASource: String): GLuint;
+function TwgGLCanvas.CompileShader(AKind: GLenum; const ASource: String): GLuint;
 var
   lSrc: PGLchar;
   lStatus, lLen: GLint;
@@ -261,12 +261,12 @@ begin
     SetLength(lLog, Max(lLen, 1));
     glGetShaderInfoLog(Result, Length(lLog), nil, PGLchar(lLog));
     glDeleteShader(Result);
-    raise EGLCanvas.CreateFmt('%s shader failed to compile: %s',
+    raise EwgGLCanvas.CreateFmt('%s shader failed to compile: %s',
       [BoolToStr(AKind = GL_VERTEX_SHADER, 'vertex', 'fragment'), Trim(lLog)]);
   end;
 end;
 
-procedure TWaylandGLCanvas.BuildProgram;
+procedure TwgGLCanvas.BuildProgram;
 var
   lVert, lFrag: GLuint;
   lStatus, lLen: GLint;
@@ -298,7 +298,7 @@ begin
     glGetProgramInfoLog(FProgram, Length(lLog), nil, PGLchar(lLog));
     glDeleteProgram(FProgram);
     FProgram := 0;
-    raise EGLCanvas.CreateFmt('canvas shader program failed to link: %s', [Trim(lLog)]);
+    raise EwgGLCanvas.CreateFmt('canvas shader program failed to link: %s', [Trim(lLog)]);
   end;
 
   FUniViewport := glGetUniformLocation(FProgram, 'uViewport');
@@ -306,7 +306,7 @@ begin
   FUniMode := glGetUniformLocation(FProgram, 'uMode');
 end;
 
-procedure TWaylandGLCanvas.BuildBuffers;
+procedure TwgGLCanvas.BuildBuffers;
 begin
   glGenVertexArrays(1, @FVao);
   glBindVertexArray(FVao);
@@ -327,14 +327,14 @@ begin
   SetLength(FBatch, InitialBatchVerts);
 end;
 
-procedure TWaylandGLCanvas.BuildResolveChain;
+procedure TwgGLCanvas.BuildResolveChain;
 var
   lSize, lStages, i, lW, lH: Integer;
 begin
   if FSuperSample = 1 then
     Exit;
 
-  FSSTarget := TGLRenderTarget.Create(FContext,
+  FSSTarget := TwgGLRenderTarget.Create(FContext,
     Width * FSuperSample, Height * FSuperSample, False);
 
   // One halving pass per power of two. The LAST halving writes straight into
@@ -355,24 +355,24 @@ begin
     lSize := lSize div 2;
     lW := Width * lSize;
     lH := Height * lSize;
-    FResolveChain[i] := TGLRenderTarget.Create(FContext, lW, lH, False);
+    FResolveChain[i] := TwgGLRenderTarget.Create(FContext, lW, lH, False);
   end;
 end;
 
-procedure TWaylandGLCanvas.SetTarget(ATarget: TGLRenderTarget);
+procedure TwgGLCanvas.SetTarget(ATarget: TwgGLRenderTarget);
 begin
   if InFrame then
-    raise EGLCanvas.Create('SetTarget called during a frame');
+    raise EwgGLCanvas.Create('SetTarget called during a frame');
   if ATarget = nil then
-    raise EGLCanvas.Create('TWaylandGLCanvas: nil target');
+    raise EwgGLCanvas.Create('TwgGLCanvas: nil target');
   if (ATarget.Width <> Width) or (ATarget.Height <> Height) then
-    raise EGLCanvas.CreateFmt(
+    raise EwgGLCanvas.CreateFmt(
       'target is %dx%d but the canvas is %dx%d',
       [ATarget.Width, ATarget.Height, Width, Height]);
   FTarget := ATarget;
 end;
 
-function TWaylandGLCanvas.RenderTarget: TGLRenderTarget;
+function TwgGLCanvas.RenderTarget: TwgGLRenderTarget;
 begin
   // Everything is drawn into the supersample buffer when there is one.
   if FSuperSample > 1 then
@@ -381,14 +381,14 @@ begin
     Result := FTarget;
 end;
 
-procedure TWaylandGLCanvas.SetProjection(AWidth, AHeight: Integer);
+procedure TwgGLCanvas.SetProjection(AWidth, AHeight: Integer);
 begin
   glUniform2f(FUniViewport, AWidth, AHeight);
 end;
 
 { --- texture cache --- }
 
-function TWaylandGLCanvas.CacheLookup(ASurface: ISurface): TGLTexture;
+function TwgGLCanvas.CacheLookup(ASurface: IwgSurface): TwgGLTexture;
 var
   i: Integer;
   lKey: Pointer;
@@ -402,7 +402,7 @@ begin
   Result := nil;
 end;
 
-procedure TWaylandGLCanvas.CacheStore(ASurface: ISurface; ATexture: TGLTexture);
+procedure TwgGLCanvas.CacheStore(ASurface: IwgSurface; ATexture: TwgGLTexture);
 var
   i: Integer;
   lKey: Pointer;
@@ -439,7 +439,7 @@ begin
   Inc(FCacheCount);
 end;
 
-procedure TWaylandGLCanvas.ClearCache;
+procedure TwgGLCanvas.ClearCache;
 var
   i: Integer;
 begin
@@ -449,17 +449,17 @@ begin
   SetLength(FCache, 0);
 end;
 
-procedure TWaylandGLCanvas.PurgeTextureCache;
+procedure TwgGLCanvas.PurgeTextureCache;
 begin
   FlushBatch;
   ClearCache;
 end;
 
-function TWaylandGLCanvas.ResolveTexture(ASurface: ISurface; out AAlphaOnly: Boolean;
+function TwgGLCanvas.ResolveTexture(ASurface: IwgSurface; out AAlphaOnly: Boolean;
   out AU0, AV0, AU1, AV1: Single): GLuint;
 var
-  lNative: ITextureSurface;
-  lTex: TGLTexture;
+  lNative: IwgTextureSurface;
+  lTex: TwgGLTexture;
 begin
   AU0 := 0; AV0 := 0; AU1 := 1; AV1 := 1;
   Result := 0;
@@ -472,7 +472,7 @@ begin
   AAlphaOnly := ASurface.Format = sfA8;
 
   // Already on the GPU: use it directly, no upload, no cache entry.
-  if Supports(ASurface, ITextureSurface, lNative) then
+  if Supports(ASurface, IwgTextureSurface, lNative) then
   begin
     lNative.GetTextureUV(AU0, AV0, AU1, AV1);
     Exit(GLuint(lNative.GetTextureHandle));
@@ -485,9 +485,9 @@ begin
     // R8 texture; anything else is colour. This is what lets one backend-
     // agnostic FreeType atlas feed the GPU path with no atlas-specific code.
     if ASurface.Format = sfA8 then
-      lTex := TGLTexture.Create(ASurface.Width, ASurface.Height, tfR8, tflLinear)
+      lTex := TwgGLTexture.Create(ASurface.Width, ASurface.Height, tfR8, tflLinear)
     else
-      lTex := TGLTexture.Create(ASurface.Width, ASurface.Height, tfRGBA8, tflLinear);
+      lTex := TwgGLTexture.Create(ASurface.Width, ASurface.Height, tfRGBA8, tflLinear);
     if not lTex.UploadFromSurface(ASurface) then
     begin
       // Not CPU-readable and not a texture: nothing can be drawn from it.
@@ -502,7 +502,7 @@ end;
 
 { --- batching --- }
 
-procedure TWaylandGLCanvas.SetBatchState(ATexture: GLuint; AMode: Integer);
+procedure TwgGLCanvas.SetBatchState(ATexture: GLuint; AMode: Integer);
 begin
   if FBatchValid and (FBatchTexture = ATexture) and (FBatchMode = AMode) then
     Exit;
@@ -512,7 +512,7 @@ begin
   FBatchValid := True;
 end;
 
-procedure TWaylandGLCanvas.PushGLVertex(const AVert: TCanvasVertex;
+procedure TwgGLCanvas.PushGLVertex(const AVert: TwgVertex;
   const AU0, AV0, AU1, AV1: Single);
 begin
   if FBatchCount = Length(FBatch) then
@@ -530,7 +530,7 @@ begin
   Inc(FBatchCount);
 end;
 
-procedure TWaylandGLCanvas.FlushBatch;
+procedure TwgGLCanvas.FlushBatch;
 begin
   if (FBatchCount = 0) or (FProgram = 0) then
   begin
@@ -567,12 +567,12 @@ end;
 
 { --- device protocol --- }
 
-procedure TWaylandGLCanvas.DeviceBeginFrame;
+procedure TwgGLCanvas.DeviceBeginFrame;
 var
-  lRT: TGLRenderTarget;
+  lRT: TwgGLRenderTarget;
 begin
   if FTarget = nil then
-    raise EGLCanvas.Create('BeginFrame without a target; call SetTarget first');
+    raise EwgGLCanvas.Create('BeginFrame without a target; call SetTarget first');
   FContext.MakeCurrent;
 
   lRT := RenderTarget;
@@ -591,10 +591,10 @@ begin
   FBatchValid := False;
 end;
 
-procedure TWaylandGLCanvas.DeviceEndFrame;
+procedure TwgGLCanvas.DeviceEndFrame;
 var
   i: Integer;
-  lSrc: TGLRenderTarget;
+  lSrc: TwgGLRenderTarget;
 begin
   FlushBatch;
 
@@ -619,9 +619,9 @@ begin
   FBatchValid := False;
 end;
 
-procedure TWaylandGLCanvas.BlitFullscreen(ASource: TGLTexture; ADest: TGLRenderTarget);
+procedure TwgGLCanvas.BlitFullscreen(ASource: TwgGLTexture; ADest: TwgGLRenderTarget);
 var
-  lVerts: array[0..5] of TCanvasVertex;
+  lVerts: array[0..5] of TwgVertex;
   lU0, lV0, lU1, lV1: Single;
   i: Integer;
 
@@ -631,7 +631,7 @@ var
     lVerts[AIndex].Y := AY;
     lVerts[AIndex].U := AU;
     lVerts[AIndex].V := AV;
-    lVerts[AIndex].Color := clWhiteOpaque;
+    lVerts[AIndex].Color := wgWhiteOpaque;
   end;
 
 begin
@@ -662,7 +662,7 @@ begin
   FlushBatch;
 end;
 
-procedure TWaylandGLCanvas.DeviceClear(AColor: TCanvasColor);
+procedure TwgGLCanvas.DeviceClear(AColor: TwgColor);
 var
   lWasScissor: Boolean;
 begin
@@ -672,16 +672,16 @@ begin
   if lWasScissor then
     glDisable(GL_SCISSOR_TEST);
   glClearColor(
-    RedOf(AColor) / 255.0,
-    GreenOf(AColor) / 255.0,
-    BlueOf(AColor) / 255.0,
-    AlphaOf(AColor) / 255.0);
+    wgRedOf(AColor) / 255.0,
+    wgGreenOf(AColor) / 255.0,
+    wgBlueOf(AColor) / 255.0,
+    wgAlphaOf(AColor) / 255.0);
   glClear(GL_COLOR_BUFFER_BIT);
   if lWasScissor then
     glEnable(GL_SCISSOR_TEST);
 end;
 
-procedure TWaylandGLCanvas.DeviceSetClip(const ARect: TRect; AEnabled: Boolean);
+procedure TwgGLCanvas.DeviceSetClip(const ARect: TRect; AEnabled: Boolean);
 var
   lX, lY, lW, lH: Integer;
 begin
@@ -709,7 +709,7 @@ begin
   glScissor(lX, lY, lW * FSuperSample, lH * FSuperSample);
 end;
 
-procedure TWaylandGLCanvas.DeviceSetBlend(AMode: TCanvasBlendMode);
+procedure TwgGLCanvas.DeviceSetBlend(AMode: TwgBlendMode);
 begin
   FlushBatch;
   glEnable(GL_BLEND);
@@ -726,8 +726,8 @@ begin
   end;
 end;
 
-procedure TWaylandGLCanvas.DeviceDrawTriangles(const AVerts: TCanvasVertexArray;
-  ACount: Integer; ATexture: ISurface);
+procedure TwgGLCanvas.DeviceDrawTriangles(const AVerts: TwgVertexArray;
+  ACount: Integer; ATexture: IwgSurface);
 var
   i, lMode: Integer;
   lHandle: GLuint;
@@ -759,9 +759,9 @@ begin
     PushGLVertex(AVerts[i], lU0, lV0, lU1, lV1);
 end;
 
-{ --- ITextureSurface --- }
+{ --- IwgTextureSurface --- }
 
-function TWaylandGLCanvas.GetTextureHandle: PtrUInt;
+function TwgGLCanvas.GetTextureHandle: PtrUInt;
 begin
   if FTarget <> nil then
     Result := FTarget.Texture.Handle
@@ -769,7 +769,7 @@ begin
     Result := 0;
 end;
 
-procedure TWaylandGLCanvas.GetTextureUV(out AU0, AV0, AU1, AV1: Single);
+procedure TwgGLCanvas.GetTextureUV(out AU0, AV0, AU1, AV1: Single);
 begin
   if FTarget <> nil then
     FTarget.Texture.GetTextureUV(AU0, AV0, AU1, AV1)

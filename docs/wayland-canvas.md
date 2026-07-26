@@ -1,6 +1,6 @@
-# wayland_canvas — a minimal software canvas
+# wlg.canvas.raster — a minimal software canvas
 
-`TWaylandCanvas` (unit `wayland_canvas`, in `wayland-rt`) is a small software
+`TwgRasterCanvas` (unit `wlg.canvas.raster`, in `wayland-rt`) is a small software
 drawing canvas over a raw ARGB8888 pixel buffer.
 
 It is **deliberately not** a comprehensive canvas — no anti-aliasing, no alpha
@@ -16,8 +16,8 @@ with out of the box. It is intentionally a starting point:
   has no special status; it's one convenient way to fill the buffer.
 
 If you want anti-aliasing, transforms, blending, gradients or text, that is the
-GPU canvas — [`TWaylandGLCanvas`](wayland-accel-canvas.md) — a separate hierarchy
-that meets this one at `ISurface`, so a software canvas can be a blit source for
+GPU canvas — [`TwgGLCanvas`](wayland-accel-canvas.md) — a separate hierarchy
+that meets this one at `IwgSurface`, so a software canvas can be a blit source for
 it and vice versa.
 
 It knows nothing about Wayland — give it any CPU-addressable ARGB8888 memory (a
@@ -50,7 +50,7 @@ property Data: PByte;
 ## Primitives
 
 ```pascal
-{ pixels }       PutPixel(X, Y, AColor);  GetPixel(X, Y): TCanvasColor
+{ pixels }       PutPixel(X, Y, AColor);  GetPixel(X, Y): TwgColor
 { fills }        Clear(AColor);  FillRect(X, Y, W, H, AColor)
 { lines }        HLine(X, Y, W, AColor);  VLine(X, Y, H, AColor)
                  Line(X1, Y1, X2, Y2, AColor)            { Bresenham }
@@ -79,23 +79,23 @@ honour it — see the `themed_window` example.
 ## Colour helpers
 
 ```pascal
-function ARGB(A, R, G, B: Byte): TCanvasColor;   // explicit alpha
-function RGB(R, G, B: Byte): TCanvasColor;        // opaque (A = 255)
-function FPColorToCanvas(const AColor: TFPColor): TCanvasColor;
+function wgARGB(A, R, G, B: Byte): TwgColor;   // explicit alpha
+function wgRGB(R, G, B: Byte): TwgColor;        // opaque (A = 255)
+function wgFPColorToColor(const AColor: TFPColor): TwgColor;
 ```
 
 ## Example
 
 ```pascal
-uses wayland_canvas;
+uses wlg.canvas.raster;
 ...
-c := TWaylandCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
+c := TwgRasterCanvas.Create(lBuf.Data, lBuf.Width, lBuf.Height, lBuf.Stride);
 try
-  c.Clear(RGB(24, 24, 32));
-  c.FillRoundRect(20, 20, 120, 80, 16, 16, RGB(60, 120, 200));
-  c.RoundRect(20, 20, 120, 80, 16, 16, RGB(255, 255, 255));
-  c.FillCircle(240, 70, 45, RGB(220, 80, 80));
-  c.Line(0, 0, c.Width - 1, c.Height - 1, RGB(120, 120, 140));
+  c.Clear(wgRGB(24, 24, 32));
+  c.FillRoundRect(20, 20, 120, 80, 16, 16, wgRGB(60, 120, 200));
+  c.RoundRect(20, 20, 120, 80, 16, 16, wgRGB(255, 255, 255));
+  c.FillCircle(240, 70, 45, wgRGB(220, 80, 80));
+  c.Line(0, 0, c.Width - 1, c.Height - 1, wgRGB(120, 120, 140));
 finally
   c.Free;
 end;

@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_glyph_atlas — FreeType text rendering for the accelerated canvas.
+{ wlg.text.atlas — FreeType text rendering for the accelerated canvas.
 
-  TGlyphAtlas is an IGlyphSource: give it a font file and a pixel size and it
+  TwgGlyphAtlas is an IwgGlyphSource: give it a font file and a pixel size and it
   rasterises glyphs on demand into a coverage atlas, handing the canvas back UV
   rectangles. The canvas then draws text as ordinary textured quads — text costs
   no more than any other blit, and a whole run of glyphs in one page becomes one
   draw call.
 
-  BACKEND-AGNOSTIC ON PURPOSE. Pages are plain CPU TWaylandAlphaImage surfaces
+  BACKEND-AGNOSTIC ON PURPOSE. Pages are plain CPU TwgAlphaImage surfaces
   (sfA8), not GPU textures, which is why this module sits beside the GL one
   rather than inside it. The GL canvas picks them up through its ordinary
-  IPixelSurface texture cache — seeing sfA8, it allocates an R8 texture — while
+  IwgPixelSurface texture cache — seeing sfA8, it allocates an R8 texture — while
   the software canvas samples the same bytes directly. One atlas, both backends,
   and no atlas-specific code in either. It does link libfreetype, so it is its
   own module and stays out of the RTL-only stack's way.
@@ -25,16 +25,16 @@
 
   GROWTH: when a page fills, the atlas allocates a new, larger one and starts
   over on it — existing glyphs keep pointing at the old page, which stays alive.
-  Nothing is ever evicted, so a TGlyphInfo handed out earlier never dangles. For
+  Nothing is ever evicted, so a TwgGlyphInfo handed out earlier never dangles. For
   a UI that is the right trade; a text editor cycling through thousands of CJK
   glyphs would want an LRU instead.
 
   ONE FACE PER ATLAS, at one size. Bold, italic and other sizes are separate
-  TGlyphAtlas instances — which is also how they end up as separate batches.
+  TwgGlyphAtlas instances — which is also how they end up as separate batches.
 
   A shared FreeType library handle is refcounted across atlases, so opening ten
   fonts does not initialise FreeType ten times. }
-unit wayland_glyph_atlas;
+unit wlg.text.atlas;
 
 {$mode ObjFPC}{$H+}
 
@@ -42,14 +42,14 @@ interface
 
 uses
   Classes, SysUtils, ctypes, freetype_fpc,
-  wayland_surface, wayland_accel_canvas;
+  wlg.surface, wlg.canvas.base;
 
 type
-  EGlyphAtlas = class(Exception);
+  EwgGlyphAtlas = class(Exception);
 
-  { TGlyphAtlas }
+  { TwgGlyphAtlas }
 
-  TGlyphAtlas = class(TInterfacedObject, IGlyphSource)
+  TwgGlyphAtlas = class(TInterfacedObject, IwgGlyphSource)
   private
     type
       TGlyphEntry = record
@@ -71,7 +71,7 @@ type
     FDescent: Single;
     FLineHeight: Single;
 
-    FPages: array of TWaylandAlphaImage;
+    FPages: array of TwgAlphaImage;
     FPageSize: Integer;
     // shelf allocator state for the current (last) page
     FPenX: Integer;
@@ -95,12 +95,12 @@ type
     function _AddRef: LongInt; cdecl;
     function _Release: LongInt; cdecl;
   protected
-    { IGlyphSource }
+    { IwgGlyphSource }
     function GetAscent: Single;
     function GetDescent: Single;
     function GetLineHeight: Single;
     function GetGlyphIndex(ACodePoint: LongWord): LongWord;
-    function GetGlyph(AGlyphIndex: LongWord; out AGlyph: TGlyphInfo): Boolean;
+    function GetGlyph(AGlyphIndex: LongWord; out AGlyph: TwgGlyphInfo): Boolean;
     function GetKerning(ALeftIndex, ARightIndex: LongWord): Single;
   public
     // Open a font file at APixelSize pixels per em. AFaceIndex selects a face
@@ -123,11 +123,11 @@ type
     property LineHeight: Single read FLineHeight;
     // Number of texture pages currently allocated; > 1 means the atlas grew.
     function PageCount: Integer;
-    function Page(AIndex: Integer): TWaylandAlphaImage;
+    function Page(AIndex: Integer): TwgAlphaImage;
   end;
 
 // The shared FreeType library handle, initialised on first use.
-function SharedFTLibrary: FT_Library;
+function wgSharedFTLibrary: FT_Library;
 
 implementation
 
@@ -143,7 +143,7 @@ var
   GLibrary: FT_Library = nil;
   GLibraryRefs: Integer = 0;
 
-function SharedFTLibrary: FT_Library;
+function wgSharedFTLibrary: FT_Library;
 begin
   if GLibrary = nil then
     FTCheck(FT_Init_FreeType(@GLibrary), 'FT_Init_FreeType');
@@ -152,7 +152,7 @@ end;
 
 procedure RetainFTLibrary;
 begin
-  SharedFTLibrary;
+  wgSharedFTLibrary;
   Inc(GLibraryRefs);
 end;
 
@@ -167,16 +167,16 @@ begin
   end;
 end;
 
-{ TGlyphAtlas }
+{ TwgGlyphAtlas }
 
-constructor TGlyphAtlas.Create(const AFileName: String; APixelSize: Integer;
+constructor TwgGlyphAtlas.Create(const AFileName: String; APixelSize: Integer;
   AFaceIndex: Integer);
 begin
   inherited Create;
   if APixelSize <= 0 then
-    raise EGlyphAtlas.CreateFmt('TGlyphAtlas: invalid pixel size %d', [APixelSize]);
+    raise EwgGlyphAtlas.CreateFmt('TwgGlyphAtlas: invalid pixel size %d', [APixelSize]);
   if not FileExists(AFileName) then
-    raise EGlyphAtlas.CreateFmt('TGlyphAtlas: font file not found: %s', [AFileName]);
+    raise EwgGlyphAtlas.CreateFmt('TwgGlyphAtlas: font file not found: %s', [AFileName]);
 
   RetainFTLibrary;
   FPixelSize := APixelSize;
@@ -192,14 +192,14 @@ begin
   end;
 end;
 
-constructor TGlyphAtlas.CreateFromMemory(AData: Pointer; ASize: Integer;
+constructor TwgGlyphAtlas.CreateFromMemory(AData: Pointer; ASize: Integer;
   APixelSize: Integer; AFaceIndex: Integer);
 begin
   inherited Create;
   if APixelSize <= 0 then
-    raise EGlyphAtlas.CreateFmt('TGlyphAtlas: invalid pixel size %d', [APixelSize]);
+    raise EwgGlyphAtlas.CreateFmt('TwgGlyphAtlas: invalid pixel size %d', [APixelSize]);
   if (AData = nil) or (ASize <= 0) then
-    raise EGlyphAtlas.Create('TGlyphAtlas: empty font buffer');
+    raise EwgGlyphAtlas.Create('TwgGlyphAtlas: empty font buffer');
 
   RetainFTLibrary;
   FPixelSize := APixelSize;
@@ -215,7 +215,7 @@ begin
   end;
 end;
 
-destructor TGlyphAtlas.Destroy;
+destructor TwgGlyphAtlas.Destroy;
 var
   i: Integer;
 begin
@@ -229,12 +229,12 @@ begin
   inherited Destroy;
 end;
 
-procedure TGlyphAtlas.ReadFaceMetrics;
+procedure TwgGlyphAtlas.ReadFaceMetrics;
 begin
   FTCheck(FT_Set_Pixel_Sizes(FFace, 0, FPixelSize), 'FT_Set_Pixel_Sizes');
   FHasKerning := (FFace^.face_flags and FT_FACE_FLAG_KERNING) <> 0;
   // Size metrics are 26.6 and already scaled to the pixel size. Descent is
-  // negative in FreeType; IGlyphSource reports it as a positive distance.
+  // negative in FreeType; IwgGlyphSource reports it as a positive distance.
   FAscent := From26Dot6(FFace^.size^.metrics.ascender);
   FDescent := -From26Dot6(FFace^.size^.metrics.descender);
   FLineHeight := From26Dot6(FFace^.size^.metrics.height);
@@ -242,36 +242,36 @@ begin
     FLineHeight := FAscent + FDescent;
 end;
 
-function TGlyphAtlas._AddRef: LongInt; cdecl;
+function TwgGlyphAtlas._AddRef: LongInt; cdecl;
 begin
   // As elsewhere in the stack: the atlas is owned and freed by its creator,
-  // so handing an IGlyphSource to a canvas must not affect its lifetime.
+  // so handing an IwgGlyphSource to a canvas must not affect its lifetime.
   Result := 1;
 end;
 
-function TGlyphAtlas._Release: LongInt; cdecl;
+function TwgGlyphAtlas._Release: LongInt; cdecl;
 begin
   Result := 1;
 end;
 
-function TGlyphAtlas.PageCount: Integer;
+function TwgGlyphAtlas.PageCount: Integer;
 begin
   Result := Length(FPages);
 end;
 
-function TGlyphAtlas.Page(AIndex: Integer): TWaylandAlphaImage;
+function TwgGlyphAtlas.Page(AIndex: Integer): TwgAlphaImage;
 begin
   Result := FPages[AIndex];
 end;
 
-function TGlyphAtlas.NewPage: Integer;
+function TwgGlyphAtlas.NewPage: Integer;
 var
-  lTex: TWaylandAlphaImage;
+  lTex: TwgAlphaImage;
 begin
   // A plain CPU coverage page. The GL backend uploads it as an R8 texture
-  // through the ordinary IPixelSurface cache; the software backend samples it
+  // through the ordinary IwgPixelSurface cache; the software backend samples it
   // directly. Neither needs atlas-specific code.
-  lTex := TWaylandAlphaImage.Create(FPageSize, FPageSize);
+  lTex := TwgAlphaImage.Create(FPageSize, FPageSize);
   Result := Length(FPages);
   SetLength(FPages, Result + 1);
   FPages[Result] := lTex;
@@ -280,7 +280,7 @@ begin
   FShelfHeight := 0;
 end;
 
-procedure TGlyphAtlas.Allocate(AWidth, AHeight: Integer; out APage, AX, AY: Integer);
+procedure TwgGlyphAtlas.Allocate(AWidth, AHeight: Integer; out APage, AX, AY: Integer);
 var
   lPad: Integer;
 begin
@@ -295,7 +295,7 @@ begin
           ((AWidth + 2 * lPad > FPageSize) or (AHeight + 2 * lPad > FPageSize)) do
       FPageSize := FPageSize * 2;
     if (AWidth + 2 * lPad > FPageSize) or (AHeight + 2 * lPad > FPageSize) then
-      raise EGlyphAtlas.CreateFmt(
+      raise EwgGlyphAtlas.CreateFmt(
         'glyph is %dx%d, larger than the maximum %dx%d atlas page',
         [AWidth, AHeight, MaxPageSize, MaxPageSize]);
     NewPage;
@@ -326,13 +326,13 @@ begin
     FShelfHeight := AHeight;
 end;
 
-function TGlyphAtlas.Rasterise(AGlyphIndex: LongWord; out AEntry: TGlyphEntry): Boolean;
+function TwgGlyphAtlas.Rasterise(AGlyphIndex: LongWord; out AEntry: TGlyphEntry): Boolean;
 var
   lSlot: FT_GlyphSlot;
   lBmp: FT_Bitmap;
   lPage, lX, lY, lW, lH: Integer;
   lSrc: PByte;
-  lTex: TWaylandAlphaImage;
+  lTex: TwgAlphaImage;
 begin
   Result := False;
   FillChar(AEntry, SizeOf(AEntry), 0);
@@ -384,7 +384,7 @@ begin
   Result := True;
 end;
 
-function TGlyphAtlas.FindEntry(AGlyphIndex: LongWord; out AIndex: Integer): Boolean;
+function TwgGlyphAtlas.FindEntry(AGlyphIndex: LongWord; out AIndex: Integer): Boolean;
 var
   i: Integer;
 begin
@@ -400,7 +400,7 @@ begin
   Result := False;
 end;
 
-procedure TGlyphAtlas.StoreEntry(const AEntry: TGlyphEntry);
+procedure TwgGlyphAtlas.StoreEntry(const AEntry: TGlyphEntry);
 begin
   if FEntryCount = Length(FEntries) then
     SetLength(FEntries, Length(FEntries) * 2 + 64);
@@ -408,29 +408,29 @@ begin
   Inc(FEntryCount);
 end;
 
-{ IGlyphSource }
+{ IwgGlyphSource }
 
-function TGlyphAtlas.GetAscent: Single;
+function TwgGlyphAtlas.GetAscent: Single;
 begin
   Result := FAscent;
 end;
 
-function TGlyphAtlas.GetDescent: Single;
+function TwgGlyphAtlas.GetDescent: Single;
 begin
   Result := FDescent;
 end;
 
-function TGlyphAtlas.GetLineHeight: Single;
+function TwgGlyphAtlas.GetLineHeight: Single;
 begin
   Result := FLineHeight;
 end;
 
-function TGlyphAtlas.GetGlyphIndex(ACodePoint: LongWord): LongWord;
+function TwgGlyphAtlas.GetGlyphIndex(ACodePoint: LongWord): LongWord;
 begin
   Result := FT_Get_Char_Index(FFace, ACodePoint);
 end;
 
-function TGlyphAtlas.GetGlyph(AGlyphIndex: LongWord; out AGlyph: TGlyphInfo): Boolean;
+function TwgGlyphAtlas.GetGlyph(AGlyphIndex: LongWord; out AGlyph: TwgGlyphInfo): Boolean;
 var
   lIdx: Integer;
   lEntry: TGlyphEntry;
@@ -474,7 +474,7 @@ begin
   Result := True;
 end;
 
-function TGlyphAtlas.GetKerning(ALeftIndex, ARightIndex: LongWord): Single;
+function TwgGlyphAtlas.GetKerning(ALeftIndex, ARightIndex: LongWord): Single;
 var
   lVec: FT_Vector;
 begin
@@ -489,10 +489,10 @@ begin
   Result := From26Dot6(lVec.x);
 end;
 
-procedure TGlyphAtlas.Prewarm(const AText: String);
+procedure TwgGlyphAtlas.Prewarm(const AText: String);
 var
   i: Integer;
-  lInfo: TGlyphInfo;
+  lInfo: TwgGlyphInfo;
 begin
   // Byte-wise is enough: any lead byte of a multi-byte sequence maps to no
   // glyph and is simply skipped, while ASCII — the common prewarm case — is

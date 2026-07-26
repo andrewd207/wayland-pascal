@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_soft_canvas — a CPU implementation of the accelerated canvas.
+{ wlg.canvas.software — a CPU implementation of the accelerated canvas.
 
-  TWaylandSoftCanvas is the second backend behind TWaylandAccelCanvas's five-call
-  device protocol. Same API as TWaylandGLCanvas, same tessellation, same results
+  TwgSoftCanvas is the second backend behind TwgCanvas's five-call
+  device protocol. Same API as TwgGLCanvas, same tessellation, same results
   — it just rasterises the triangles itself, into ordinary ARGB8888 memory such
   as a wl_shm buffer. That is what lets a widget layer target ONE drawing API and
   still run where there is no GL 3.3 core context, no EGL, or no dma-buf export.
 
   It has no dependencies beyond the RTL, so it lives in rt alongside the abstract
   canvas rather than in the (libEGL/libGL-linking) gl module. Text is the one
-  exception: glyphs come from an IGlyphSource, and the FreeType-backed atlas that
+  exception: glyphs come from an IwgGlyphSource, and the FreeType-backed atlas that
   provides them lives in the text module — but the atlas hands out ordinary
   sfA8 CPU surfaces, which this backend samples with no special casing.
 
-  DO NOT confuse this with TWaylandCanvas in wayland_canvas. That one is an
+  DO NOT confuse this with TwgRasterCanvas in wlg.canvas.raster. That one is an
   integer-coordinate pixel poker with replace semantics and no transform; this is
   the full float/transform/blend/anti-aliased API, implemented in software.
 
@@ -31,21 +31,21 @@
   memory. Pass 2 when quality matters more than time; the box-filter resolve
   averages the whole SxS block, so unlike the GL path a single resolve pass is
   correct at any factor. }
-unit wayland_soft_canvas;
+unit wlg.canvas.software;
 
 {$mode ObjFPC}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Math, Types, wayland_surface, wayland_accel_canvas;
+  Classes, SysUtils, Math, Types, wlg.surface, wlg.canvas.base;
 
 type
-  ESoftCanvas = class(Exception);
+  EwgSoftCanvas = class(Exception);
 
-  { TWaylandSoftCanvas }
+  { TwgSoftCanvas }
 
-  TWaylandSoftCanvas = class(TWaylandAccelCanvas, IPixelSurface)
+  TwgSoftCanvas = class(TwgCanvas, IwgPixelSurface)
   private
     // Destination supplied by the caller (a wl_shm buffer, say).
     FTarget: PByte;
@@ -60,7 +60,7 @@ type
     FSuperSample: Integer;
 
     FClip: TRect;          // in RENDER-buffer pixels
-    FBlend: TCanvasBlendMode;
+    FBlend: TwgBlendMode;
     FLocked: Boolean;
 
     // Texture source for the batch being drawn.
@@ -68,15 +68,15 @@ type
     FTexStride: Integer;
     FTexWidth: Integer;
     FTexHeight: Integer;
-    FTexFormat: TSurfaceFormat;
-    FTexLocked: IPixelSurface;
+    FTexFormat: TwgSurfaceFormat;
+    FTexLocked: IwgPixelSurface;
 
     procedure EnsureBuffer;
     procedure ReleaseBuffer;
-    function  RowPtr(Y: Integer): PCanvasColor; inline;
-    procedure BlendPixel(X, Y: Integer; AColor: TCanvasColor); inline;
-    function  SampleTexture(U, V: Single): TCanvasColor;
-    procedure RasterTriangle(const V0, V1, V2: TCanvasVertex; ATextured: Boolean);
+    function  RowPtr(Y: Integer): PwgColor; inline;
+    procedure BlendPixel(X, Y: Integer; AColor: TwgColor); inline;
+    function  SampleTexture(U, V: Single): TwgColor;
+    procedure RasterTriangle(const V0, V1, V2: TwgVertex; ATextured: Boolean);
     procedure Resolve;
   protected
     function GetSurfaceWidth: Integer; override;
@@ -87,11 +87,11 @@ type
 
     procedure DeviceBeginFrame; override;
     procedure DeviceEndFrame; override;
-    procedure DeviceClear(AColor: TCanvasColor); override;
+    procedure DeviceClear(AColor: TwgColor); override;
     procedure DeviceSetClip(const ARect: TRect; AEnabled: Boolean); override;
-    procedure DeviceSetBlend(AMode: TCanvasBlendMode); override;
-    procedure DeviceDrawTriangles(const AVerts: TCanvasVertexArray;
-      ACount: Integer; ATexture: ISurface); override;
+    procedure DeviceSetBlend(AMode: TwgBlendMode); override;
+    procedure DeviceDrawTriangles(const AVerts: TwgVertexArray;
+      ACount: Integer; ATexture: IwgSurface); override;
   public
     // ASuperSample must be a power of two; 1 (the default) disables AA.
     constructor Create(AWidth, AHeight: Integer; ASuperSample: Integer = 1);
@@ -107,27 +107,27 @@ type
 
 implementation
 
-{ TWaylandSoftCanvas }
+{ TwgSoftCanvas }
 
-constructor TWaylandSoftCanvas.Create(AWidth, AHeight: Integer;
+constructor TwgSoftCanvas.Create(AWidth, AHeight: Integer;
   ASuperSample: Integer);
 begin
   inherited Create(AWidth, AHeight);
   if (ASuperSample < 1) or ((ASuperSample and (ASuperSample - 1)) <> 0) then
-    raise ESoftCanvas.CreateFmt(
-      'TWaylandSoftCanvas: SuperSample must be a power of two, got %d',
+    raise EwgSoftCanvas.CreateFmt(
+      'TwgSoftCanvas: SuperSample must be a power of two, got %d',
       [ASuperSample]);
   FSuperSample := ASuperSample;
   FBlend := cbmSourceOver;
 end;
 
-destructor TWaylandSoftCanvas.Destroy;
+destructor TwgSoftCanvas.Destroy;
 begin
   ReleaseBuffer;
   inherited Destroy;
 end;
 
-procedure TWaylandSoftCanvas.ReleaseBuffer;
+procedure TwgSoftCanvas.ReleaseBuffer;
 begin
   if FOwnsBuffer and (FBuffer <> nil) then
     FreeMem(FBuffer);
@@ -135,12 +135,12 @@ begin
   FOwnsBuffer := False;
 end;
 
-procedure TWaylandSoftCanvas.SetTarget(AData: Pointer; AStride: Integer);
+procedure TwgSoftCanvas.SetTarget(AData: Pointer; AStride: Integer);
 begin
   if InFrame then
-    raise ESoftCanvas.Create('SetTarget called during a frame');
+    raise EwgSoftCanvas.Create('SetTarget called during a frame');
   if AData = nil then
-    raise ESoftCanvas.Create('TWaylandSoftCanvas: nil target');
+    raise EwgSoftCanvas.Create('TwgSoftCanvas: nil target');
   FTarget := AData;
   if AStride > 0 then
     FTargetStride := AStride
@@ -148,7 +148,7 @@ begin
     FTargetStride := Width * 4;
 end;
 
-procedure TWaylandSoftCanvas.EnsureBuffer;
+procedure TwgSoftCanvas.EnsureBuffer;
 begin
   if FSuperSample = 1 then
   begin
@@ -172,42 +172,42 @@ begin
   FOwnsBuffer := True;
 end;
 
-function TWaylandSoftCanvas.RowPtr(Y: Integer): PCanvasColor;
+function TwgSoftCanvas.RowPtr(Y: Integer): PwgColor;
 begin
-  Result := PCanvasColor(FBuffer + PtrUInt(Y) * PtrUInt(FBufferStride));
+  Result := PwgColor(FBuffer + PtrUInt(Y) * PtrUInt(FBufferStride));
 end;
 
-function TWaylandSoftCanvas.GetSurfaceWidth: Integer;
+function TwgSoftCanvas.GetSurfaceWidth: Integer;
 begin
   Result := Width;
 end;
 
-function TWaylandSoftCanvas.GetSurfaceHeight: Integer;
+function TwgSoftCanvas.GetSurfaceHeight: Integer;
 begin
   Result := Height;
 end;
 
-function TWaylandSoftCanvas.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+function TwgSoftCanvas.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
 begin
   if FLocked then
-    raise ESoftCanvas.Create('TWaylandSoftCanvas: pixels are already locked');
+    raise EwgSoftCanvas.Create('TwgSoftCanvas: pixels are already locked');
   FLocked := True;
   AData := FTarget;
   AStride := FTargetStride;
   Result := FTarget <> nil;
 end;
 
-procedure TWaylandSoftCanvas.UnlockPixels;
+procedure TwgSoftCanvas.UnlockPixels;
 begin
   FLocked := False;
 end;
 
 { --- compositing --- }
 
-procedure TWaylandSoftCanvas.BlendPixel(X, Y: Integer; AColor: TCanvasColor);
+procedure TwgSoftCanvas.BlendPixel(X, Y: Integer; AColor: TwgColor);
 var
-  p: PCanvasColor;
-  d: TCanvasColor;
+  p: PwgColor;
+  d: TwgColor;
   sa, ia: Cardinal;
   dr, dg, db, da: Cardinal;
 begin
@@ -221,7 +221,7 @@ begin
     cbmAdd:
       begin
         d := p^;
-        p^ := ARGB(
+        p^ := wgARGB(
           Min(255, ((d shr 24) and $FF) + ((AColor shr 24) and $FF)),
           Min(255, ((d shr 16) and $FF) + ((AColor shr 16) and $FF)),
           Min(255, ((d shr 8) and $FF) + ((AColor shr 8) and $FF)),
@@ -231,7 +231,7 @@ begin
     cbmMultiply:
       begin
         d := p^;
-        p^ := ARGB(
+        p^ := wgARGB(
           (((d shr 24) and $FF) * ((AColor shr 24) and $FF) + 127) div 255,
           (((d shr 16) and $FF) * ((AColor shr 16) and $FF) + 127) div 255,
           (((d shr 8) and $FF) * ((AColor shr 8) and $FF) + 127) div 255,
@@ -257,19 +257,19 @@ begin
   dr := ((AColor shr 16) and $FF) + ((((d shr 16) and $FF) * ia + 127) div 255);
   dg := ((AColor shr 8) and $FF) + ((((d shr 8) and $FF) * ia + 127) div 255);
   db := (AColor and $FF) + (((d and $FF) * ia + 127) div 255);
-  p^ := ARGB(Min(255, da), Min(255, dr), Min(255, dg), Min(255, db));
+  p^ := wgARGB(Min(255, da), Min(255, dr), Min(255, dg), Min(255, db));
 end;
 
 // Bilinear sample of the bound texture. U/V are already mapped into the
 // texture's own space by the caller.
-function TWaylandSoftCanvas.SampleTexture(U, V: Single): TCanvasColor;
+function TwgSoftCanvas.SampleTexture(U, V: Single): TwgColor;
 var
   fx, fy: Single;
   x0, y0, x1, y1: Integer;
   wx, wy: Cardinal;
-  c00, c01, c10, c11: TCanvasColor;
+  c00, c01, c10, c11: TwgColor;
 
-  function Texel(X, Y: Integer): TCanvasColor; inline;
+  function Texel(X, Y: Integer): TwgColor; inline;
   var
     lCov: Byte;
   begin
@@ -281,13 +281,13 @@ var
       lCov := (FTexData + PtrUInt(Y) * PtrUInt(FTexStride) + PtrUInt(X))^;
       // Coverage only: white at that alpha, premultiplied — the vertex colour
       // supplies the actual colour when the two are multiplied.
-      Result := ARGB(lCov, lCov, lCov, lCov);
+      Result := wgARGB(lCov, lCov, lCov, lCov);
     end
     else
-      Result := PCanvasColor(FTexData + PtrUInt(Y) * PtrUInt(FTexStride))[X];
+      Result := PwgColor(FTexData + PtrUInt(Y) * PtrUInt(FTexStride))[X];
   end;
 
-  function Lerp2(A, B, C, D: TCanvasColor; AShift: Integer): Cardinal; inline;
+  function Lerp2(A, B, C, D: TwgColor; AShift: Integer): Cardinal; inline;
   var
     top, bot: Cardinal;
   begin
@@ -314,20 +314,20 @@ begin
   c10 := Texel(x0, y1);
   c11 := Texel(x1, y1);
 
-  Result := ARGB(Lerp2(c00, c01, c10, c11, 24), Lerp2(c00, c01, c10, c11, 16),
+  Result := wgARGB(Lerp2(c00, c01, c10, c11, 24), Lerp2(c00, c01, c10, c11, 16),
                  Lerp2(c00, c01, c10, c11, 8), Lerp2(c00, c01, c10, c11, 0));
 end;
 
 { Half-space triangle rasteriser with per-vertex colour (and optionally texture)
   interpolation. }
-procedure TWaylandSoftCanvas.RasterTriangle(const V0, V1, V2: TCanvasVertex;
+procedure TwgSoftCanvas.RasterTriangle(const V0, V1, V2: TwgVertex;
   ATextured: Boolean);
 var
   lMinX, lMinY, lMaxX, lMaxY, x, y: Integer;
   lArea, w0, w1, w2, lInvArea: Single;
   lR, lG, lB, lA: Single;
   lU, lV: Single;
-  lColor, lTexel: TCanvasColor;
+  lColor, lTexel: TwgColor;
   lTopLeft0, lTopLeft1, lTopLeft2: Boolean;
 
   function Edge(const AX, AY, BX, BY, PX, PY: Single): Single; inline;
@@ -400,7 +400,7 @@ begin
           + w2 * ((V2.Color shr 8) and $FF);
       lB := w0 * (V0.Color and $FF) + w1 * (V1.Color and $FF)
           + w2 * (V2.Color and $FF);
-      lColor := ARGB(Round(lA), Round(lR), Round(lG), Round(lB));
+      lColor := wgARGB(Round(lA), Round(lR), Round(lG), Round(lB));
 
       if ATextured then
       begin
@@ -408,7 +408,7 @@ begin
         lV := w0 * V0.V + w1 * V1.V + w2 * V2.V;
         lTexel := SampleTexture(lU, lV);
         // Componentwise modulate, exactly as the GL fragment shader does.
-        lColor := ARGB(
+        lColor := wgARGB(
           ((((lTexel shr 24) and $FF) * ((lColor shr 24) and $FF)) + 127) div 255,
           ((((lTexel shr 16) and $FF) * ((lColor shr 16) and $FF)) + 127) div 255,
           ((((lTexel shr 8) and $FF) * ((lColor shr 8) and $FF)) + 127) div 255,
@@ -419,19 +419,19 @@ begin
     end;
 end;
 
-procedure TWaylandSoftCanvas.Resolve;
+procedure TwgSoftCanvas.Resolve;
 var
   x, y, sx, sy, s: Integer;
   lA, lR, lG, lB, lCount: Cardinal;
-  c: TCanvasColor;
-  lSrc: PCanvasColor;
-  lDst: PCanvasColor;
+  c: TwgColor;
+  lSrc: PwgColor;
+  lDst: PwgColor;
 begin
   s := FSuperSample;
   lCount := Cardinal(s) * Cardinal(s);
   for y := 0 to Height - 1 do
   begin
-    lDst := PCanvasColor(FTarget + PtrUInt(y) * PtrUInt(FTargetStride));
+    lDst := PwgColor(FTarget + PtrUInt(y) * PtrUInt(FTargetStride));
     for x := 0 to Width - 1 do
     begin
       // Box filter over the whole SxS block: unlike a bilinear GPU resolve this
@@ -439,7 +439,7 @@ begin
       lA := 0; lR := 0; lG := 0; lB := 0;
       for sy := 0 to s - 1 do
       begin
-        lSrc := PCanvasColor(FBuffer
+        lSrc := PwgColor(FBuffer
           + PtrUInt(y * s + sy) * PtrUInt(FBufferStride)) + x * s;
         for sx := 0 to s - 1 do
         begin
@@ -450,32 +450,32 @@ begin
           Inc(lB, c and $FF);
         end;
       end;
-      lDst[x] := ARGB(lA div lCount, lR div lCount, lG div lCount, lB div lCount);
+      lDst[x] := wgARGB(lA div lCount, lR div lCount, lG div lCount, lB div lCount);
     end;
   end;
 end;
 
 { --- device protocol --- }
 
-procedure TWaylandSoftCanvas.DeviceBeginFrame;
+procedure TwgSoftCanvas.DeviceBeginFrame;
 begin
   if FTarget = nil then
-    raise ESoftCanvas.Create('BeginFrame without a target; call SetTarget first');
+    raise EwgSoftCanvas.Create('BeginFrame without a target; call SetTarget first');
   EnsureBuffer;
   FClip := Rect(0, 0, FBufferWidth, FBufferHeight);
   FBlend := cbmSourceOver;
 end;
 
-procedure TWaylandSoftCanvas.DeviceEndFrame;
+procedure TwgSoftCanvas.DeviceEndFrame;
 begin
   if FSuperSample > 1 then
     Resolve;
 end;
 
-procedure TWaylandSoftCanvas.DeviceClear(AColor: TCanvasColor);
+procedure TwgSoftCanvas.DeviceClear(AColor: TwgColor);
 var
   x, y: Integer;
-  p: PCanvasColor;
+  p: PwgColor;
 begin
   // Clear covers the whole target, ignoring the clip.
   for y := 0 to FBufferHeight - 1 do
@@ -486,7 +486,7 @@ begin
   end;
 end;
 
-procedure TWaylandSoftCanvas.DeviceSetClip(const ARect: TRect; AEnabled: Boolean);
+procedure TwgSoftCanvas.DeviceSetClip(const ARect: TRect; AEnabled: Boolean);
 begin
   if not AEnabled then
   begin
@@ -504,23 +504,23 @@ begin
   if FClip.Bottom < FClip.Top then FClip.Bottom := FClip.Top;
 end;
 
-procedure TWaylandSoftCanvas.DeviceSetBlend(AMode: TCanvasBlendMode);
+procedure TwgSoftCanvas.DeviceSetBlend(AMode: TwgBlendMode);
 begin
   FBlend := AMode;
 end;
 
-procedure TWaylandSoftCanvas.DeviceDrawTriangles(const AVerts: TCanvasVertexArray;
-  ACount: Integer; ATexture: ISurface);
+procedure TwgSoftCanvas.DeviceDrawTriangles(const AVerts: TwgVertexArray;
+  ACount: Integer; ATexture: IwgSurface);
 var
   i: Integer;
   lTextured: Boolean;
   lU0, lV0, lU1, lV1: Single;
-  lNative: ITextureSurface;
-  lVerts: array[0..2] of TCanvasVertex;
+  lNative: IwgTextureSurface;
+  lVerts: array[0..2] of TwgVertex;
 
   // Map surface-normalised UVs into the texture's own extent, as the GL
   // backend does when pushing vertices.
-  procedure MapUV(var AVert: TCanvasVertex); inline;
+  procedure MapUV(var AVert: TwgVertex); inline;
   begin
     AVert.U := lU0 + AVert.U * (lU1 - lU0);
     AVert.V := lV0 + AVert.V * (lV1 - lV0);
@@ -531,7 +531,7 @@ var
   // here the rasteriser writes buffer pixels directly, so it has to be applied
   // by hand — otherwise the whole scene lands in the top-left 1/S of the
   // buffer and the resolve shrinks it.
-  procedure ScaleToBuffer(var AVert: TCanvasVertex); inline;
+  procedure ScaleToBuffer(var AVert: TwgVertex); inline;
   begin
     AVert.X := AVert.X * FSuperSample;
     AVert.Y := AVert.Y * FSuperSample;
@@ -549,7 +549,7 @@ begin
     begin
       // A GPU-only surface has no pixels this backend can read. Skip it rather
       // than draw a wrong colour; nothing else can be done in software.
-      if not Supports(ATexture, IPixelSurface, FTexLocked) then
+      if not Supports(ATexture, IwgPixelSurface, FTexLocked) then
         Exit;
       if not FTexLocked.LockPixels(FTexData, FTexStride) then
         Exit;
@@ -557,7 +557,7 @@ begin
       FTexHeight := ATexture.Height;
       FTexFormat := ATexture.Format;
       lTextured := True;
-      if Supports(ATexture, ITextureSurface, lNative) then
+      if Supports(ATexture, IwgTextureSurface, lNative) then
         lNative.GetTextureUV(lU0, lV0, lU1, lV1);
     end;
 

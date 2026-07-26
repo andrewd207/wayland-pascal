@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_gl_texture — a GL texture that presents itself as an ISurface.
+{ wlg.gl.texture — a GL texture that presents itself as an IwgSurface.
 
-  TGLTexture is the single texture type the GL backend uses for everything: the
+  TwgGLTexture is the single texture type the GL backend uses for everything: the
   render targets a canvas draws into, the uploaded copies of CPU images in the
   canvas's texture cache, and the glyph atlas pages. Because it implements
-  ITextureSurface, any of those can be handed straight back to the canvas as a
+  IwgTextureSurface, any of those can be handed straight back to the canvas as a
   blit source with no upload and no copy.
 
   Two colour layouts, chosen at construction:
 
-    RGBA8 — ordinary colour. Uploads take TCanvasColor pixels (host DWord
+    RGBA8 — ordinary colour. Uploads take TwgColor pixels (host DWord
             0xAARRGGBB) and go up as GL_BGRA + GL_UNSIGNED_INT_8_8_8_8_REV,
             which on little-endian desktop GL is the native memory order, so
             the driver does a straight copy rather than a swizzle.
@@ -21,39 +21,39 @@
   ORIENTATION: every texture here is top-down — texel row 0 is the image's top
   row. Uploads get that for free, and render targets get it because the canvas
   projects canvas-Y directly onto NDC-Y rather than flipping (see the vertex
-  shader in wayland_gl_canvas), so nothing needs inverting. FlipV exists for the
-  case ITextureSurface explicitly allows — a bottom-up texture from somewhere
+  shader in wlg.canvas.gl), so nothing needs inverting. FlipV exists for the
+  case IwgTextureSurface explicitly allows — a bottom-up texture from somewhere
   else, e.g. a decoder — and makes GetTextureUV report V inverted so the canvas
   samples it correctly without anyone copying pixels. Leave it False for
   textures this unit produces. }
-unit wayland_gl_texture;
+unit wlg.gl.texture;
 
 {$mode ObjFPC}{$H+}
 
 interface
 
 uses
-  SysUtils, ctypes, gl_fpc, gl_core_fpc, wayland_surface;
+  SysUtils, ctypes, gl_fpc, gl_core_fpc, wlg.surface;
 
 type
-  EGLTexture = class(Exception);
+  EwgGLTexture = class(Exception);
 
-  TGLTextureFormat = (
+  TwgGLTextureFormat = (
     tfRGBA8,      // colour
     tfR8          // single-channel coverage (glyph atlas)
   );
 
-  TGLTextureFilter = (tflNearest, tflLinear);
+  TwgGLTextureFilter = (tflNearest, tflLinear);
 
-  { TGLTexture }
+  { TwgGLTexture }
 
-  TGLTexture = class(TWaylandSurfaceObject, ITextureSurface)
+  TwgGLTexture = class(TwgSurfaceObject, IwgTextureSurface)
   private
     FHandle: GLuint;
     FWidth: Integer;
     FHeight: Integer;
-    FFormat: TGLTextureFormat;
-    FFilter: TGLTextureFilter;
+    FFormat: TwgGLTextureFormat;
+    FFilter: TwgGLTextureFilter;
     FFlipV: Boolean;
     FOwnsHandle: Boolean;
     FHasAlpha: Boolean;
@@ -62,41 +62,41 @@ type
     function GetSurfaceWidth: Integer; override;
     function GetSurfaceHeight: Integer; override;
     function GetSurfaceHasAlpha: Boolean; override;
-    // Reported through ISurface now, so a CPU consumer sees it too.
-    function GetSurfaceFormat: TSurfaceFormat; override;
+    // Reported through IwgSurface now, so a CPU consumer sees it too.
+    function GetSurfaceFormat: TwgSurfaceFormat; override;
   public
-    { ITextureSurface — public rather than protected, because the GL backend
-      calls these on a concrete TGLTexture as well as through the interface. }
+    { IwgTextureSurface — public rather than protected, because the GL backend
+      calls these on a concrete TwgGLTexture as well as through the interface. }
     function GetTextureHandle: PtrUInt;
     procedure GetTextureUV(out AU0, AV0, AU1, AV1: Single);
 
     // Allocate an uninitialised texture of the given size and format.
     constructor Create(AWidth, AHeight: Integer;
-      AFormat: TGLTextureFormat = tfRGBA8; AFilter: TGLTextureFilter = tflLinear);
+      AFormat: TwgGLTextureFormat = tfRGBA8; AFilter: TwgGLTextureFilter = tflLinear);
     // Adopt an existing GL texture name. AOwnsHandle decides whether Destroy
     // deletes it — pass False for a texture someone else allocated.
     constructor CreateFromHandle(AHandle: GLuint; AWidth, AHeight: Integer;
-      AFormat: TGLTextureFormat; AOwnsHandle: Boolean);
+      AFormat: TwgGLTextureFormat; AOwnsHandle: Boolean);
     destructor Destroy; override;
 
     procedure Bind(AUnit: Integer = 0);
 
     // Replace the whole image. AData must hold AHeight rows of AStride bytes
-    // (TCanvasColor pixels for tfRGBA8, single bytes for tfR8). AStride <= 0
+    // (TwgColor pixels for tfRGBA8, single bytes for tfR8). AStride <= 0
     // means tightly packed.
     procedure Upload(AData: Pointer; AStride: Integer = 0);
     // Replace a sub-rectangle. Same pixel layout rules as Upload.
     procedure UploadRect(AX, AY, AWidth, AHeight: Integer; AData: Pointer;
       AStride: Integer = 0);
-    // Copy an ISurface's CPU pixels in. Sizes must match. Returns False if the
+    // Copy an IwgSurface's CPU pixels in. Sizes must match. Returns False if the
     // surface will not hand out pixels.
-    function UploadFromSurface(ASurface: ISurface): Boolean;
+    function UploadFromSurface(ASurface: IwgSurface): Boolean;
     // Fill the whole texture with zeroes.
     procedure Clear;
 
     property Handle: GLuint read FHandle;
-    property Format: TGLTextureFormat read FFormat;
-    property Filter: TGLTextureFilter read FFilter write FFilter;
+    property Format: TwgGLTextureFormat read FFormat;
+    property Filter: TwgGLTextureFilter read FFilter write FFilter;
     // Set for textures GL renders into, whose rows run bottom-up.
     property FlipV: Boolean read FFlipV write FFlipV;
     property HasAlpha: Boolean read FHasAlpha write FHasAlpha;
@@ -104,17 +104,17 @@ type
 
 implementation
 
-{ TGLTexture }
+{ TwgGLTexture }
 
-constructor TGLTexture.Create(AWidth, AHeight: Integer;
-  AFormat: TGLTextureFormat; AFilter: TGLTextureFilter);
+constructor TwgGLTexture.Create(AWidth, AHeight: Integer;
+  AFormat: TwgGLTextureFormat; AFilter: TwgGLTextureFilter);
 var
   lInternal: GLint;
   lFormat, lType: GLenum;
 begin
   inherited Create;
   if (AWidth <= 0) or (AHeight <= 0) then
-    raise EGLTexture.CreateFmt('TGLTexture: invalid size %dx%d', [AWidth, AHeight]);
+    raise EwgGLTexture.CreateFmt('TwgGLTexture: invalid size %dx%d', [AWidth, AHeight]);
   FWidth := AWidth;
   FHeight := AHeight;
   FFormat := AFormat;
@@ -124,7 +124,7 @@ begin
 
   glGenTextures(1, @FHandle);
   if FHandle = 0 then
-    raise EGLTexture.Create('glGenTextures returned 0 (is a context current?)');
+    raise EwgGLTexture.Create('glGenTextures returned 0 (is a context current?)');
   glBindTexture(GL_TEXTURE_2D, FHandle);
   ApplyFilter;
 
@@ -143,8 +143,8 @@ begin
   glTexImage2D(GL_TEXTURE_2D, 0, lInternal, FWidth, FHeight, 0, lFormat, lType, nil);
 end;
 
-constructor TGLTexture.CreateFromHandle(AHandle: GLuint; AWidth, AHeight: Integer;
-  AFormat: TGLTextureFormat; AOwnsHandle: Boolean);
+constructor TwgGLTexture.CreateFromHandle(AHandle: GLuint; AWidth, AHeight: Integer;
+  AFormat: TwgGLTextureFormat; AOwnsHandle: Boolean);
 begin
   inherited Create;
   FHandle := AHandle;
@@ -156,7 +156,7 @@ begin
   FHasAlpha := True;
 end;
 
-destructor TGLTexture.Destroy;
+destructor TwgGLTexture.Destroy;
 begin
   if FOwnsHandle and (FHandle <> 0) then
     glDeleteTextures(1, @FHandle);
@@ -164,7 +164,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TGLTexture.ApplyFilter;
+procedure TwgGLTexture.ApplyFilter;
 var
   lFilter: GLint;
 begin
@@ -180,27 +180,27 @@ begin
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLint(GL_CLAMP_TO_EDGE));
 end;
 
-function TGLTexture.GetSurfaceWidth: Integer;
+function TwgGLTexture.GetSurfaceWidth: Integer;
 begin
   Result := FWidth;
 end;
 
-function TGLTexture.GetSurfaceHeight: Integer;
+function TwgGLTexture.GetSurfaceHeight: Integer;
 begin
   Result := FHeight;
 end;
 
-function TGLTexture.GetSurfaceHasAlpha: Boolean;
+function TwgGLTexture.GetSurfaceHasAlpha: Boolean;
 begin
   Result := FHasAlpha;
 end;
 
-function TGLTexture.GetTextureHandle: PtrUInt;
+function TwgGLTexture.GetTextureHandle: PtrUInt;
 begin
   Result := FHandle;
 end;
 
-function TGLTexture.GetSurfaceFormat: TSurfaceFormat;
+function TwgGLTexture.GetSurfaceFormat: TwgSurfaceFormat;
 begin
   if FFormat = tfR8 then
     Result := sfA8
@@ -208,7 +208,7 @@ begin
     Result := sfARGB32;
 end;
 
-procedure TGLTexture.GetTextureUV(out AU0, AV0, AU1, AV1: Single);
+procedure TwgGLTexture.GetTextureUV(out AU0, AV0, AU1, AV1: Single);
 begin
   AU0 := 0;
   AU1 := 1;
@@ -226,18 +226,18 @@ begin
   end;
 end;
 
-procedure TGLTexture.Bind(AUnit: Integer);
+procedure TwgGLTexture.Bind(AUnit: Integer);
 begin
   glActiveTexture(GL_TEXTURE0 + GLenum(AUnit));
   glBindTexture(GL_TEXTURE_2D, FHandle);
 end;
 
-procedure TGLTexture.Upload(AData: Pointer; AStride: Integer);
+procedure TwgGLTexture.Upload(AData: Pointer; AStride: Integer);
 begin
   UploadRect(0, 0, FWidth, FHeight, AData, AStride);
 end;
 
-procedure TGLTexture.UploadRect(AX, AY, AWidth, AHeight: Integer; AData: Pointer;
+procedure TwgGLTexture.UploadRect(AX, AY, AWidth, AHeight: Integer; AData: Pointer;
   AStride: Integer);
 var
   lFormat, lType: GLenum;
@@ -264,8 +264,8 @@ begin
   // GL wants the row length in PIXELS, not bytes. A stride that is not a whole
   // number of pixels cannot be expressed this way.
   if (AStride mod lPixelBytes) <> 0 then
-    raise EGLTexture.CreateFmt(
-      'TGLTexture: stride %d is not a multiple of the %d-byte pixel size',
+    raise EwgGLTexture.CreateFmt(
+      'TwgGLTexture: stride %d is not a multiple of the %d-byte pixel size',
       [AStride, lPixelBytes]);
   lRowPixels := AStride div lPixelBytes;
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -275,20 +275,20 @@ begin
   Changed;
 end;
 
-function TGLTexture.UploadFromSurface(ASurface: ISurface): Boolean;
+function TwgGLTexture.UploadFromSurface(ASurface: IwgSurface): Boolean;
 var
-  lPixels: IPixelSurface;
+  lPixels: IwgPixelSurface;
   lData: PByte;
   lStride: Integer;
 begin
   Result := False;
   if ASurface = nil then
     Exit;
-  if not Supports(ASurface, IPixelSurface, lPixels) then
+  if not Supports(ASurface, IwgPixelSurface, lPixels) then
     Exit;
   if (ASurface.Width <> FWidth) or (ASurface.Height <> FHeight) then
-    raise EGLTexture.CreateFmt(
-      'TGLTexture: surface is %dx%d but the texture is %dx%d',
+    raise EwgGLTexture.CreateFmt(
+      'TwgGLTexture: surface is %dx%d but the texture is %dx%d',
       [ASurface.Width, ASurface.Height, FWidth, FHeight]);
   if not lPixels.LockPixels(lData, lStride) then
     Exit;
@@ -301,7 +301,7 @@ begin
   end;
 end;
 
-procedure TGLTexture.Clear;
+procedure TwgGLTexture.Clear;
 var
   lZero: PByte;
   lBytes: PtrUInt;

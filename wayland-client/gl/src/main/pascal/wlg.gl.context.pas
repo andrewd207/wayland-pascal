@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_gl_context — a surfaceless OpenGL 3.3 core context, and the EGL
+{ wlg.gl.context — a surfaceless OpenGL 3.3 core context, and the EGL
   extension entry points needed to hand GPU memory to a compositor.
 
   There is deliberately no Wayland EGL platform here. We never ask EGL for a
   window surface; we create an EGL_PLATFORM_SURFACELESS_MESA display and render
   entirely into framebuffer objects. Frames reach the compositor as dmabuf file
-  descriptors exported from those FBOs' textures (see wayland_gl_target), which
+  descriptors exported from those FBOs' textures (see wlg.gl.target), which
   means this stack needs neither libwayland-egl nor the EGL Wayland platform,
   matching the rest of the project's no-libwayland stance.
 
   The context is GL 3.3 CORE — no fixed-function pipeline. Everything is drawn
-  with shaders and vertex buffers by TWaylandGLCanvas. gl_fpc supplies the
+  with shaders and vertex buffers by TwgGLCanvas. gl_fpc supplies the
   GL 1.3 calls that survived into core; gl_core_fpc supplies the rest, loaded
   through eglGetProcAddress by LoadGLCore.
 
   One context can back several targets and canvases. Whoever draws must have
   called MakeCurrent first; the class does not do so implicitly on every call. }
-unit wayland_gl_context;
+unit wlg.gl.context;
 
 {$mode ObjFPC}{$H+}
 {$PACKRECORDS C}
@@ -29,7 +29,7 @@ uses
   SysUtils, ctypes, gl_fpc, gl_core_fpc, egl_fpc;
 
 type
-  EGLContextError = class(Exception);
+  EwgGLContext = class(Exception);
 
   EGLuint64 = QWord;
   PEGLuint64 = ^EGLuint64;
@@ -51,9 +51,9 @@ const
 
 type
 
-  { TWaylandGLContext }
+  { TwgGLContext }
 
-  TWaylandGLContext = class
+  TwgGLContext = class
   private
     FDisplay: EGLDisplay;
     FContext: EGLContext;
@@ -73,7 +73,7 @@ type
     function  HasEGLExtension(const AName: String): Boolean;
   public
     // Bring up a surfaceless EGL display and a GL AMajor.AMinor core context.
-    // Raises EGLContextError with the failing step named if anything refuses.
+    // Raises EwgGLContext with the failing step named if anything refuses.
     constructor Create(AMajor: Integer = 3; AMinor: Integer = 3);
     destructor Destroy; override;
 
@@ -108,9 +108,9 @@ type
 
 implementation
 
-{ TWaylandGLContext }
+{ TwgGLContext }
 
-constructor TWaylandGLContext.Create(AMajor: Integer; AMinor: Integer);
+constructor TwgGLContext.Create(AMajor: Integer; AMinor: Integer);
 begin
   inherited Create;
   FMajor := AMajor;
@@ -124,7 +124,7 @@ begin
   LoadExtensions;
 end;
 
-destructor TWaylandGLContext.Destroy;
+destructor TwgGLContext.Destroy;
 begin
   if FDisplay <> nil then
   begin
@@ -138,7 +138,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TWaylandGLContext.InitDisplay;
+procedure TwgGLContext.InitDisplay;
 var
   lGetPlatformDisplay: TeglGetPlatformDisplayEXT;
   lMajor, lMinor: cint;
@@ -146,18 +146,18 @@ begin
   lGetPlatformDisplay := TeglGetPlatformDisplayEXT(
     eglGetProcAddress('eglGetPlatformDisplayEXT'));
   if lGetPlatformDisplay = nil then
-    raise EGLContextError.Create(
+    raise EwgGLContext.Create(
       'EGL_EXT_platform_base is missing; cannot create a surfaceless display');
 
   FDisplay := lGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, nil, nil);
   if FDisplay = nil then
-    raise EGLContextError.Create('eglGetPlatformDisplay(SURFACELESS_MESA) failed');
+    raise EwgGLContext.Create('eglGetPlatformDisplay(SURFACELESS_MESA) failed');
   if eglInitialize(FDisplay, @lMajor, @lMinor) <> EGL_TRUE then
-    raise EGLContextError.CreateFmt('eglInitialize failed (EGL error 0x%.4x)',
+    raise EwgGLContext.CreateFmt('eglInitialize failed (EGL error 0x%.4x)',
       [eglGetError]);
 end;
 
-function TWaylandGLContext.HasEGLExtension(const AName: String): Boolean;
+function TwgGLContext.HasEGLExtension(const AName: String): Boolean;
 var
   lExts: PAnsiChar;
 begin
@@ -169,7 +169,7 @@ begin
   Result := Pos(' ' + AName + ' ', ' ' + String(lExts) + ' ') > 0;
 end;
 
-procedure TWaylandGLContext.CreateContext;
+procedure TwgGLContext.CreateContext;
 var
   lCfgAttr: array[0..12] of cint;
   lCtxAttr: array[0..6] of cint;
@@ -184,10 +184,10 @@ begin
   lCfgAttr[12] := EGL_NONE;
   if (eglChooseConfig(FDisplay, @lCfgAttr[0], @FConfig, 1, @lNum) <> EGL_TRUE)
      or (lNum < 1) then
-    raise EGLContextError.Create('eglChooseConfig found no RGBA8 config');
+    raise EwgGLContext.Create('eglChooseConfig found no RGBA8 config');
 
   if eglBindAPI(EGL_OPENGL_API) <> EGL_TRUE then
-    raise EGLContextError.Create('eglBindAPI(EGL_OPENGL_API) failed');
+    raise EwgGLContext.Create('eglBindAPI(EGL_OPENGL_API) failed');
 
   lCtxAttr[0] := EGL_CONTEXT_MAJOR_VERSION;       lCtxAttr[1] := FMajor;
   lCtxAttr[2] := EGL_CONTEXT_MINOR_VERSION;       lCtxAttr[3] := FMinor;
@@ -197,12 +197,12 @@ begin
 
   FContext := eglCreateContext(FDisplay, FConfig, nil, @lCtxAttr[0]);
   if FContext = nil then
-    raise EGLContextError.CreateFmt(
+    raise EwgGLContext.CreateFmt(
       'eglCreateContext for GL %d.%d core failed (EGL error 0x%.4x)',
       [FMajor, FMinor, eglGetError]);
 end;
 
-procedure TWaylandGLContext.LoadExtensions;
+procedure TwgGLContext.LoadExtensions;
 begin
   // These four come as a set. Treat a partial set as unavailable rather than
   // discovering the gap at export time.
@@ -218,63 +218,63 @@ begin
                       HasEGLExtension('EGL_MESA_image_dma_buf_export');
 end;
 
-procedure TWaylandGLContext.MakeCurrent;
+procedure TwgGLContext.MakeCurrent;
 begin
   // Surfaceless: no draw or read surface, only the context.
   if eglMakeCurrent(FDisplay, nil, nil, FContext) <> EGL_TRUE then
-    raise EGLContextError.CreateFmt('eglMakeCurrent failed (EGL error 0x%.4x)',
+    raise EwgGLContext.CreateFmt('eglMakeCurrent failed (EGL error 0x%.4x)',
       [eglGetError]);
 end;
 
-procedure TWaylandGLContext.ReleaseCurrent;
+procedure TwgGLContext.ReleaseCurrent;
 begin
   eglMakeCurrent(FDisplay, nil, nil, nil);
 end;
 
-function TWaylandGLContext.GetProcAddress(const AName: String): Pointer;
+function TwgGLContext.GetProcAddress(const AName: String): Pointer;
 begin
   Result := Pointer(eglGetProcAddress(PAnsiChar(AName)));
 end;
 
-function TWaylandGLContext.CreateImageFromTexture(ATexture: GLuint): EGLImage;
+function TwgGLContext.CreateImageFromTexture(ATexture: GLuint): EGLImage;
 begin
   if not FCanExportDmabuf then
-    raise EGLContextError.Create(
+    raise EwgGLContext.Create(
       'EGL_MESA_image_dma_buf_export is unavailable on this driver');
   Result := FCreateImage(FDisplay, FContext, EGL_GL_TEXTURE_2D,
     EGLClientBuffer(PtrUInt(ATexture)), nil);
   if Result = nil then
-    raise EGLContextError.CreateFmt(
+    raise EwgGLContext.CreateFmt(
       'eglCreateImageKHR(GL_TEXTURE_2D) failed (EGL error 0x%.4x)', [eglGetError]);
 end;
 
-procedure TWaylandGLContext.DestroyImage(AImage: EGLImage);
+procedure TwgGLContext.DestroyImage(AImage: EGLImage);
 begin
   if (AImage <> nil) and (FDestroyImage <> nil) then
     FDestroyImage(FDisplay, AImage);
 end;
 
-procedure TWaylandGLContext.QueryExport(AImage: EGLImage; out AFourcc: Integer;
+procedure TwgGLContext.QueryExport(AImage: EGLImage; out AFourcc: Integer;
   out APlanes: Integer; out AModifier: QWord);
 var
   lFourcc, lPlanes: cint;
   lMod: EGLuint64;
 begin
   if FExportQuery(FDisplay, AImage, @lFourcc, @lPlanes, @lMod) <> EGL_TRUE then
-    raise EGLContextError.CreateFmt(
+    raise EwgGLContext.CreateFmt(
       'eglExportDMABUFImageQueryMESA failed (EGL error 0x%.4x)', [eglGetError]);
   AFourcc := lFourcc;
   APlanes := lPlanes;
   AModifier := lMod;
 end;
 
-procedure TWaylandGLContext.ExportImage(AImage: EGLImage; out AFd: Integer;
+procedure TwgGLContext.ExportImage(AImage: EGLImage; out AFd: Integer;
   out AStride: Integer; out AOffset: Integer);
 var
   lFd, lStride, lOffset: cint;
 begin
   if FExportImage(FDisplay, AImage, @lFd, @lStride, @lOffset) <> EGL_TRUE then
-    raise EGLContextError.CreateFmt(
+    raise EwgGLContext.CreateFmt(
       'eglExportDMABUFImageMESA failed (EGL error 0x%.4x)', [eglGetError]);
   AFd := lFd;
   AStride := lStride;

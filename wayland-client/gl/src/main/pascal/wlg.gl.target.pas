@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // SPDX-FileCopyrightText: 2026 Andrew Haines <https://github.com/andrewd207>
 
-{ wayland_gl_target — FBO-backed render targets, optionally exported as dmabufs.
+{ wlg.gl.target — FBO-backed render targets, optionally exported as dmabufs.
 
-  TGLRenderTarget is one texture plus the framebuffer object that renders into
-  it. It is an ITextureSurface (via its texture), so a target that has been
+  TwgGLRenderTarget is one texture plus the framebuffer object that renders into
+  it. It is an IwgTextureSurface (via its texture), so a target that has been
   drawn into can immediately be blitted from — that is how the canvas's
   supersample buffer is resolved into the presentation target.
 
-  TGLTargetRing is a small ring of those, for presentation. A compositor holds
+  TwgGLTargetRing is a small ring of those, for presentation. A compositor holds
   on to a buffer while it is on screen, so a client that draws into the buffer
   it just committed will tear; the ring hands out a target that is not currently
   held. Each slot's texture is exported once at construction as a dmabuf file
@@ -24,7 +24,7 @@
   FD OWNERSHIP: each slot owns its exported fd and closes it on Free. A caller
   that passes the fd to zwp_linux_dmabuf_v1 is only lending it — the protocol
   dups what it needs — so the caller must NOT close it. }
-unit wayland_gl_target;
+unit wlg.gl.target;
 
 {$mode ObjFPC}{$H+}
 
@@ -32,17 +32,17 @@ interface
 
 uses
   SysUtils, BaseUnix, ctypes, gl_fpc, gl_core_fpc, egl_fpc,
-  wayland_surface, wayland_gl_context, wayland_gl_texture;
+  wlg.surface, wlg.gl.context, wlg.gl.texture;
 
 type
-  EGLTarget = class(Exception);
+  EwgGLTarget = class(Exception);
 
-  { TGLRenderTarget — a texture with an FBO attached. }
+  { TwgGLRenderTarget — a texture with an FBO attached. }
 
-  TGLRenderTarget = class
+  TwgGLRenderTarget = class
   private
-    FContext: TWaylandGLContext;
-    FTexture: TGLTexture;
+    FContext: TwgGLContext;
+    FTexture: TwgGLTexture;
     FFbo: GLuint;
     FWidth: Integer;
     FHeight: Integer;
@@ -60,14 +60,14 @@ type
     // AExport asks for the texture to be exported as a dmabuf as well; it
     // raises if the driver cannot, so pass False for purely internal targets
     // (the supersample buffer) that never reach a compositor.
-    constructor Create(AContext: TWaylandGLContext; AWidth, AHeight: Integer;
+    constructor Create(AContext: TwgGLContext; AWidth, AHeight: Integer;
       AExport: Boolean);
     destructor Destroy; override;
 
     // Direct all subsequent drawing here, with the viewport set to its size.
     procedure Bind;
 
-    property Texture: TGLTexture read FTexture;
+    property Texture: TwgGLTexture read FTexture;
     property Fbo: GLuint read FFbo;
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -82,20 +82,20 @@ type
     property Modifier: QWord read FModifier;
   end;
 
-  { TGLTargetRing — several exported targets, cycled for presentation. }
+  { TwgGLTargetRing — several exported targets, cycled for presentation. }
 
-  TGLTargetRing = class
+  TwgGLTargetRing = class
   private
-    FTargets: array of TGLRenderTarget;
+    FTargets: array of TwgGLRenderTarget;
     FBusy: array of Boolean;
     FWidth: Integer;
     FHeight: Integer;
-    function GetTarget(AIndex: Integer): TGLRenderTarget;
+    function GetTarget(AIndex: Integer): TwgGLRenderTarget;
     function GetCount: Integer;
   public
     // ACount below 2 will deadlock against a compositor that holds the buffer
     // it is displaying, so it is clamped to at least 2.
-    constructor Create(AContext: TWaylandGLContext; AWidth, AHeight: Integer;
+    constructor Create(AContext: TwgGLContext; AWidth, AHeight: Integer;
       ACount: Integer = 2);
     destructor Destroy; override;
 
@@ -107,7 +107,7 @@ type
     procedure MarkFree(AIndex: Integer);
     function IsBusy(AIndex: Integer): Boolean;
 
-    property Targets[AIndex: Integer]: TGLRenderTarget read GetTarget; default;
+    property Targets[AIndex: Integer]: TwgGLRenderTarget read GetTarget; default;
     property Count: Integer read GetCount;
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -115,22 +115,22 @@ type
 
 implementation
 
-{ TGLRenderTarget }
+{ TwgGLRenderTarget }
 
-constructor TGLRenderTarget.Create(AContext: TWaylandGLContext;
+constructor TwgGLRenderTarget.Create(AContext: TwgGLContext;
   AWidth, AHeight: Integer; AExport: Boolean);
 begin
   inherited Create;
   if AContext = nil then
-    raise EGLTarget.Create('TGLRenderTarget: nil context');
+    raise EwgGLTarget.Create('TwgGLRenderTarget: nil context');
   FContext := AContext;
   FWidth := AWidth;
   FHeight := AHeight;
   FDmabufFd := -1;
 
-  FTexture := TGLTexture.Create(AWidth, AHeight, tfRGBA8, tflLinear);
+  FTexture := TwgGLTexture.Create(AWidth, AHeight, tfRGBA8, tflLinear);
   // NOT flipped. The canvas projects canvas-Y straight onto NDC-Y (see the
-  // vertex shader in wayland_gl_canvas), so canvas row 0 rasterises into
+  // vertex shader in wlg.canvas.gl), so canvas row 0 rasterises into
   // framebuffer memory row 0. That makes this texture top-down like any
   // uploaded image, and makes the exported dmabuf's first row the top row —
   // which is what a wl_buffer means. Setting FlipV here would present
@@ -141,7 +141,7 @@ begin
     ExportDmabuf;
 end;
 
-destructor TGLRenderTarget.Destroy;
+destructor TwgGLRenderTarget.Destroy;
 begin
   if FImage <> nil then
     FContext.DestroyImage(FImage);
@@ -153,7 +153,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TGLRenderTarget.BuildFbo;
+procedure TwgGLRenderTarget.BuildFbo;
 var
   lStatus: GLenum;
   lPrev: GLint;
@@ -168,39 +168,39 @@ begin
   lStatus := glCheckFramebufferStatus(GL_FRAMEBUFFER);
   glBindFramebuffer(GL_FRAMEBUFFER, GLuint(lPrev));
   if lStatus <> GL_FRAMEBUFFER_COMPLETE then
-    raise EGLTarget.CreateFmt(
+    raise EwgGLTarget.CreateFmt(
       'framebuffer incomplete for a %dx%d RGBA8 target (status 0x%.4x)',
       [FWidth, FHeight, lStatus]);
 end;
 
-procedure TGLRenderTarget.ExportDmabuf;
+procedure TwgGLRenderTarget.ExportDmabuf;
 var
   lPlanes: Integer;
 begin
   if not FContext.CanExportDmabuf then
-    raise EGLTarget.Create(
+    raise EwgGLTarget.Create(
       'this driver cannot export GL textures as dmabufs ' +
       '(EGL_MESA_image_dma_buf_export missing)');
 
   FImage := FContext.CreateImageFromTexture(FTexture.Handle);
   FContext.QueryExport(FImage, FFourcc, lPlanes, FModifier);
   if lPlanes <> 1 then
-    raise EGLTarget.CreateFmt(
+    raise EwgGLTarget.CreateFmt(
       'exported dmabuf has %d planes; only single-plane targets are supported',
       [lPlanes]);
   FContext.ExportImage(FImage, FDmabufFd, FStride, FOffset);
   FExported := True;
 end;
 
-procedure TGLRenderTarget.Bind;
+procedure TwgGLRenderTarget.Bind;
 begin
   glBindFramebuffer(GL_FRAMEBUFFER, FFbo);
   glViewport(0, 0, FWidth, FHeight);
 end;
 
-{ TGLTargetRing }
+{ TwgGLTargetRing }
 
-constructor TGLTargetRing.Create(AContext: TWaylandGLContext;
+constructor TwgGLTargetRing.Create(AContext: TwgGLContext;
   AWidth, AHeight: Integer; ACount: Integer);
 var
   i: Integer;
@@ -213,10 +213,10 @@ begin
   SetLength(FTargets, ACount);
   SetLength(FBusy, ACount);
   for i := 0 to ACount - 1 do
-    FTargets[i] := TGLRenderTarget.Create(AContext, AWidth, AHeight, True);
+    FTargets[i] := TwgGLRenderTarget.Create(AContext, AWidth, AHeight, True);
 end;
 
-destructor TGLTargetRing.Destroy;
+destructor TwgGLTargetRing.Destroy;
 var
   i: Integer;
 begin
@@ -227,17 +227,17 @@ begin
   inherited Destroy;
 end;
 
-function TGLTargetRing.GetTarget(AIndex: Integer): TGLRenderTarget;
+function TwgGLTargetRing.GetTarget(AIndex: Integer): TwgGLRenderTarget;
 begin
   Result := FTargets[AIndex];
 end;
 
-function TGLTargetRing.GetCount: Integer;
+function TwgGLTargetRing.GetCount: Integer;
 begin
   Result := Length(FTargets);
 end;
 
-function TGLTargetRing.Acquire: Integer;
+function TwgGLTargetRing.Acquire: Integer;
 var
   i: Integer;
 begin
@@ -247,19 +247,19 @@ begin
   Result := -1;
 end;
 
-procedure TGLTargetRing.MarkBusy(AIndex: Integer);
+procedure TwgGLTargetRing.MarkBusy(AIndex: Integer);
 begin
   if (AIndex >= 0) and (AIndex <= High(FBusy)) then
     FBusy[AIndex] := True;
 end;
 
-procedure TGLTargetRing.MarkFree(AIndex: Integer);
+procedure TwgGLTargetRing.MarkFree(AIndex: Integer);
 begin
   if (AIndex >= 0) and (AIndex <= High(FBusy)) then
     FBusy[AIndex] := False;
 end;
 
-function TGLTargetRing.IsBusy(AIndex: Integer): Boolean;
+function TwgGLTargetRing.IsBusy(AIndex: Integer): Boolean;
 begin
   Result := (AIndex >= 0) and (AIndex <= High(FBusy)) and FBusy[AIndex];
 end;

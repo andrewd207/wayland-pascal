@@ -7,7 +7,7 @@
   CPU-addressable, with no GPU and no external library: a sealed memfd is
   exposed as a dma-buf through /dev/udmabuf, and the memfd's mmap'd memory IS
   the pixel buffer. Present the resulting fd with zwp_linux_dmabuf_v1 using the
-  LINEAR modifier; draw into Data (e.g. with TWaylandCanvas).
+  LINEAR modifier; draw into Data (e.g. with TwgRasterCanvas).
 
   This unit is protocol-agnostic (it only knows syscalls), so both the runtime
   classes layer and standalone examples can share it.
