@@ -39,9 +39,10 @@ interface
 
 uses
   Classes, SysUtils, Types, Math,
+  wayland,               // TWlPointer, for the seat event signatures
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base, wlg.canvas.software,
-  wlg.widget.types, wlg.widget.core;
+  wlg.widget.types, wlg.widget.core, wlg.widget.input;
 
 type
   EwgWindow = class(Exception);
@@ -104,11 +105,33 @@ type
     FScale: Single;
     FLayoutDirty: Boolean;
     FClosed: Boolean;
+    FRouter: TwgInputRouter;
+    FInputHooked: Boolean;
+    // wl_pointer.button and .axis carry no coordinates — only .motion and
+    // .enter do — so the last known position is kept here for them.
+    FLastMouseX, FLastMouseY: Integer;
     FOnCloseQuery: TwgWindowCloseEvent;
     FOnLayout: TNotifyEvent;
 
     procedure HandleConfigure(Sender: TObject; AEdges: LongWord;
       AWidth, AHeight: LongInt);
+    procedure HookInput;
+    // Seat events are dispatched with Sender = the window's Owner, which is
+    // this object; anything addressed elsewhere belongs to another window.
+    function  IsForMe(Sender: TObject): Boolean; inline;
+    procedure HandleMouseEnter(Sender: TObject; AX, AY: Integer);
+    procedure HandleMouseLeave(Sender: TObject);
+    procedure HandleMouseMotion(Sender: TObject; ATime: LongWord; AX, AY: Integer);
+    procedure HandleMouseButton(Sender: TObject; ATime: LongWord;
+      AButton: LongWord; AState: TWlPointer.TButtonState);
+    procedure HandleMouseAxis(Sender: TObject; ATime: LongWord;
+      AAxis: TWlPointer.TAxis; AValue: LongInt);
+    procedure HandleTouchDown(Sender: TObject; ATime: LongWord; AId: Integer;
+      AX, AY: Integer);
+    procedure HandleTouchUp(Sender: TObject; ATime: LongWord; AId: Integer);
+    procedure HandleTouchMotion(Sender: TObject; ATime: LongWord; AId: Integer;
+      AX, AY: Integer);
+    procedure HandleTouchCancel(Sender: TObject);
     procedure HandleClose(Sender: TObject);
     procedure HandlePaint(Sender: TObject);
     function  GetClientWidth: Integer;
@@ -154,6 +177,8 @@ type
     // Return ACanClose False to veto a close request.
     property OnCloseQuery: TwgWindowCloseEvent read FOnCloseQuery write FOnCloseQuery;
     property OnLayout: TNotifyEvent read FOnLayout write FOnLayout;
+    // Hit testing, capture, hover, focus and key routing for this window.
+    property Router: TwgInputRouter read FRouter;
   end;
 
 implementation
@@ -293,6 +318,9 @@ begin
   FRoot.SetBounds(0, 0, AWidth, AHeight);
   FRoot.ClipChildren := True;
 
+  FRouter := TwgInputRouter.Create(FRoot);
+  HookInput;
+
   FDamage.AddAll(AWidth, AHeight);
   FLayoutDirty := True;
 end;
@@ -302,6 +330,7 @@ begin
   // Drop the tree before the surface: a widget's Invalidate reaches back into
   // this object, and the host reference must still be valid while it does.
   FreeAndNil(FRoot);
+  FreeAndNil(FRouter);
   FPresenter := nil;
   FreeAndNil(FDamage);
   FreeAndNil(FWindow);
@@ -436,6 +465,114 @@ end;
 procedure TwgWindow.Close;
 begin
   FClosed := True;
+end;
+
+{ --- input --- }
+
+function TwgWindow.IsForMe(Sender: TObject): Boolean;
+begin
+  Result := Sender = Self;
+end;
+
+procedure TwgWindow.HookInput;
+begin
+  if FInputHooked then
+    Exit;
+  FInputHooked := True;
+  { Seat input is global to the display, not per window, so these handlers are
+    shared: every TwgWindow installs the same ones and each ignores what is not
+    addressed to it. Chaining rather than overwriting would be nicer for
+    multi-window apps, but the display exposes one slot per event, so the
+    Sender check is what keeps them apart. }
+  FDisplay.OnMouseEnter := @HandleMouseEnter;
+  FDisplay.OnMouseLeave := @HandleMouseLeave;
+  FDisplay.OnMouseMotion := @HandleMouseMotion;
+  FDisplay.OnMouseButton := @HandleMouseButton;
+  FDisplay.OnMouseAxis := @HandleMouseAxis;
+  FDisplay.OnTouchDown := @HandleTouchDown;
+  FDisplay.OnTouchUp := @HandleTouchUp;
+  FDisplay.OnTouchMotion := @HandleTouchMotion;
+  FDisplay.OnTouchCancel := @HandleTouchCancel;
+end;
+
+procedure TwgWindow.HandleMouseEnter(Sender: TObject; AX, AY: Integer);
+begin
+  if not IsForMe(Sender) then
+    Exit;
+  FLastMouseX := AX;
+  FLastMouseY := AY;
+  FRouter.MouseMove(AX, AY, 0);
+end;
+
+procedure TwgWindow.HandleMouseLeave(Sender: TObject);
+begin
+  if IsForMe(Sender) then
+    FRouter.MouseLeaveSurface;
+end;
+
+procedure TwgWindow.HandleMouseMotion(Sender: TObject; ATime: LongWord;
+  AX, AY: Integer);
+begin
+  if not IsForMe(Sender) then
+    Exit;
+  FLastMouseX := AX;
+  FLastMouseY := AY;
+  FRouter.MouseMove(AX, AY, ATime);
+end;
+
+procedure TwgWindow.HandleMouseButton(Sender: TObject; ATime: LongWord;
+  AButton: LongWord; AState: TWlPointer.TButtonState);
+begin
+  if not IsForMe(Sender) then
+    Exit;
+  if AState = TWlPointer.TButtonState.buPressed then
+    FRouter.MouseDown(FLastMouseX, FLastMouseY, AButton, ATime)
+  else
+    FRouter.MouseUp(FLastMouseX, FLastMouseY, AButton, ATime);
+end;
+
+procedure TwgWindow.HandleMouseAxis(Sender: TObject; ATime: LongWord;
+  AAxis: TWlPointer.TAxis; AValue: LongInt);
+var
+  lDX, lDY: Single;
+begin
+  if not IsForMe(Sender) then
+    Exit;
+  // wl_pointer.axis is wl_fixed already converted to an integer here; treat it
+  // as logical pixels of scroll.
+  lDX := 0;
+  lDY := 0;
+  if AAxis = TWlPointer.TAxis.axVerticalScroll then
+    lDY := AValue
+  else
+    lDX := AValue;
+  FRouter.MouseScroll(FLastMouseX, FLastMouseY, lDX, lDY, ATime);
+end;
+
+procedure TwgWindow.HandleTouchDown(Sender: TObject; ATime: LongWord;
+  AId: Integer; AX, AY: Integer);
+begin
+  if IsForMe(Sender) then
+    FRouter.TouchDown(AId, AX, AY, ATime);
+end;
+
+procedure TwgWindow.HandleTouchUp(Sender: TObject; ATime: LongWord; AId: Integer);
+begin
+  if IsForMe(Sender) then
+    FRouter.TouchUp(AId, ATime);
+end;
+
+procedure TwgWindow.HandleTouchMotion(Sender: TObject; ATime: LongWord;
+  AId: Integer; AX, AY: Integer);
+begin
+  if IsForMe(Sender) then
+    FRouter.TouchMove(AId, AX, AY, ATime);
+end;
+
+procedure TwgWindow.HandleTouchCancel(Sender: TObject);
+begin
+  if IsForMe(Sender) then
+    FRouter.TouchCancel;
 end;
 
 { --- TfpgwWindow callbacks --- }

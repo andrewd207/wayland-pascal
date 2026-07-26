@@ -26,11 +26,11 @@ program gl_widget_demo;
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  SysUtils, Classes, Types, Math,
+  SysUtils, Classes, Types, Math, StrUtils,
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base,
   wlg.text.fontcache,
-  wlg.widget.types, wlg.widget.core, wlg.widget.window;
+  wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.window;
 
 type
 
@@ -52,6 +52,40 @@ type
     property Radius: Integer read FRadius write FRadius;
   end;
 
+  { TButton — an actual interactive widget.
+
+    Implements IwgInputTarget, which is how the router finds it. Note that it
+    paints from States rather than tracking its own hover/press flags: the
+    router maintains those, so the visual and the routing can never disagree. }
+
+  TButton = class(TwgWidget, IwgInputTarget)
+  private
+    FCaption: String;
+    FClicks: Integer;
+    FOnClick: TNotifyEvent;
+  protected
+    procedure Paint(ACanvas: TwgCanvas); override;
+  public
+    { IwgInputTarget }
+    procedure PointerDown(var AEvent: TwgPointerEvent);
+    procedure PointerUp(var AEvent: TwgPointerEvent);
+    procedure PointerMove(var AEvent: TwgPointerEvent);
+    procedure PointerEnter(var AEvent: TwgPointerEvent);
+    procedure PointerLeave(var AEvent: TwgPointerEvent);
+    procedure Click(var AEvent: TwgPointerEvent);
+    procedure PointerCancel(var AEvent: TwgPointerEvent);
+    procedure Scroll(var AEvent: TwgScrollEvent);
+    procedure KeyDown(var AEvent: TwgKeyEvent);
+    procedure KeyUp(var AEvent: TwgKeyEvent);
+    procedure FocusIn;
+    procedure FocusOut;
+    function  CanFocus: Boolean;
+
+    property Caption: String read FCaption write FCaption;
+    property Clicks: Integer read FClicks;
+    property OnClick: TNotifyEvent read FOnClick write FOnClick;
+  end;
+
   { TApp }
 
   TApp = class
@@ -62,10 +96,14 @@ type
     FPanel: TBox;
     FMover: TBox;
     FStatus: TBox;
+    FHint: TBox;
+    FButtons: array[0..2] of TButton;
+    FLastClicked: String;
     FFrames: Integer;
     FStart: QWord;
     FDirX: Integer;
     procedure BuildUI;
+    procedure ButtonClicked(Sender: TObject);
     procedure Animate;
     procedure DoLayout(Sender: TObject);
   public
@@ -100,6 +138,93 @@ begin
       ACanvas.Font := lFont;
       ACanvas.DrawTextTopLeft(FCaption, 10, 7, wgARGB(255, 240, 243, 250));
     end;
+  end;
+end;
+
+{ TButton }
+
+procedure TButton.Paint(ACanvas: TwgCanvas);
+var
+  lFace, lText: TwgColor;
+  lFont: IwgGlyphSource;
+  lDY: Integer;
+begin
+  // Straight from the router-maintained state set.
+  if wsDisabled in States then
+    lFace := wgARGB(255, 48, 52, 62)
+  else if wsPressed in States then
+    lFace := wgARGB(255, 44, 92, 168)
+  else if wsHovered in States then
+    lFace := wgARGB(255, 92, 152, 240)
+  else
+    lFace := wgARGB(255, 70, 122, 210);
+
+  if wsPressed in States then lDY := 1 else lDY := 0;
+
+  ACanvas.FillRoundRect(0, lDY, Width, Height - lDY, 8, 8, lFace);
+  if wsFocused in States then
+  begin
+    // Focus ring, so keyboard traversal is visible.
+    ACanvas.LineWidth := 2;
+    ACanvas.RoundRect(1, 1 + lDY, Width - 2, Height - 2 - lDY, 8, 8,
+      wgARGB(255, 250, 220, 120));
+  end;
+
+  lFont := EffectiveFont;
+  if lFont <> nil then
+  begin
+    ACanvas.Font := lFont;
+    lText := wgARGB(255, 245, 248, 255);
+    ACanvas.DrawTextTopLeft(Format('%s (%d)', [FCaption, FClicks]),
+      Round((Width - ACanvas.TextWidth(Format('%s (%d)', [FCaption, FClicks]))) / 2),
+      Round((Height - lFont.GetLineHeight) / 2) + lDY, lText);
+  end;
+end;
+
+procedure TButton.PointerDown(var AEvent: TwgPointerEvent);
+begin
+  AEvent.Handled := True;   // claim it, so it does not bubble to the panel
+end;
+
+procedure TButton.PointerUp(var AEvent: TwgPointerEvent);
+begin
+  AEvent.Handled := True;
+end;
+
+procedure TButton.Click(var AEvent: TwgPointerEvent);
+begin
+  Inc(FClicks);
+  Invalidate;
+  AEvent.Handled := True;
+  if Assigned(FOnClick) then
+    FOnClick(Self);
+end;
+
+procedure TButton.PointerCancel(var AEvent: TwgPointerEvent);
+begin
+  // A gesture or the compositor took the sequence: unwind, do NOT click.
+  Invalidate;
+end;
+
+procedure TButton.PointerMove(var AEvent: TwgPointerEvent); begin end;
+procedure TButton.PointerEnter(var AEvent: TwgPointerEvent); begin end;
+procedure TButton.PointerLeave(var AEvent: TwgPointerEvent); begin end;
+procedure TButton.Scroll(var AEvent: TwgScrollEvent); begin end;
+procedure TButton.KeyUp(var AEvent: TwgKeyEvent); begin end;
+procedure TButton.FocusIn; begin Invalidate; end;
+procedure TButton.FocusOut; begin Invalidate; end;
+function  TButton.CanFocus: Boolean; begin Result := Enabled and Visible; end;
+
+procedure TButton.KeyDown(var AEvent: TwgKeyEvent);
+var
+  lFake: TwgPointerEvent;
+begin
+  // Space and Return activate a focused button, as they should.
+  if (AEvent.KeySym = wgKeySpace) or (AEvent.KeySym = wgKeyReturn) then
+  begin
+    lFake := Default(TwgPointerEvent);
+    Click(lFake);
+    AEvent.Handled := True;
   end;
 end;
 
@@ -179,11 +304,28 @@ begin
   FMover.Caption := 'moving';
   FMover.SetBounds(24, 300, 120, 60);
 
+  // Three interactive buttons: hover, press, click, focus and Tab traversal.
+  for i := 0 to 2 do
+  begin
+    FButtons[i] := TButton.Create(FWin);
+    FButtons[i].Parent := lBg;
+    FButtons[i].Caption := Format('button %d', [i + 1]);
+    FButtons[i].SetBounds(470, 40 + i * 62, 210, 48);
+    FButtons[i].OnClick := @ButtonClicked;
+  end;
+  FButtons[2].Enabled := False;   // proves disabled widgets are not hit
+
   FStatus := TBox.Create(FWin);
   FStatus.Parent := lBg;
   FStatus.Color := wgARGB(255, 28, 34, 48);
   FStatus.Radius := 8;
   FStatus.SetBounds(24, 380, 660, 52);
+end;
+
+procedure TApp.ButtonClicked(Sender: TObject);
+begin
+  FLastClicked := Format('%s clicked %d time(s)',
+    [TButton(Sender).Caption, TButton(Sender).Clicks]);
 end;
 
 procedure TApp.DoLayout(Sender: TObject);
@@ -218,8 +360,11 @@ begin
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs > 0 then
     FStatus.Caption := Format(
-      '%d frames · %.1f fps · software canvas · partial repaint',
-      [FFrames, FFrames / lSecs]);
+      '%d frames · %.1f fps · %s',
+      [FFrames, FFrames / lSecs,
+       IfThen(FLastClicked = '',
+              'hover/click the buttons · Tab to move focus · Space to press',
+              FLastClicked)]);
   FStatus.Invalidate;
 end;
 

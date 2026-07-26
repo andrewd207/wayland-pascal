@@ -141,6 +141,24 @@ type
   end;
 
 const
+  { Common xkb keysyms, so the widget layer does not have to depend on the xkb
+    binding just to recognise Tab or Escape. Values are from keysymdef.h. }
+  wgKeyBackSpace = $FF08;
+  wgKeyTab       = $FF09;
+  wgKeyReturn    = $FF0D;
+  wgKeyEscape    = $FF1B;
+  wgKeyHome      = $FF50;
+  wgKeyLeft      = $FF51;
+  wgKeyUp        = $FF52;
+  wgKeyRight     = $FF53;
+  wgKeyDown      = $FF54;
+  wgKeyPageUp    = $FF55;
+  wgKeyPageDown  = $FF56;
+  wgKeyEnd       = $FF57;
+  wgKeyInsert    = $FF63;
+  wgKeyDelete    = $FFFF;
+  wgKeySpace     = $0020;
+
   wgMouseSequence: TwgSequenceId = 0;
   // Touch ids start above the mouse so the two can never collide.
   wgFirstTouchSequence: TwgSequenceId = 1;
