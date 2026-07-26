@@ -1,10 +1,19 @@
-# The accelerated canvas — `TWaylandAccelCanvas` and `TWaylandGLCanvas`
+# The accelerated canvas — `TWaylandAccelCanvas` and its backends
 
 Where [`wayland_canvas`](wayland-canvas.md) pokes pixels in a CPU buffer, this is
-the GPU path: float coordinates, a transform stack, real alpha blending,
-anti-aliasing, textured image blits and FreeType text — presented to the
-compositor as a **dmabuf**, so the GPU writes exactly the memory the compositor
-scans out.
+the real drawing API: float coordinates, a transform stack, alpha blending,
+anti-aliasing, textured image blits and FreeType text.
+
+It has **two interchangeable backends** behind one API:
+
+- `TWaylandGLCanvas` — OpenGL 3.3 core, presented to the compositor as a
+  **dmabuf**, so the GPU writes exactly the memory the compositor scans out.
+- `TWaylandSoftCanvas` — a CPU rasteriser writing into ordinary ARGB8888 memory
+  such as a `wl_shm` buffer. Pure RTL, no libraries.
+
+Code that draws sees only `TWaylandAccelCanvas` and cannot tell which it has —
+that is verified, not asserted: one scene routine renders through both and the
+outputs differ only in anti-aliasing edge detail.
 
 The two canvases are separate hierarchies that meet only at
 [`ISurface`](#isurface--the-common-currency), so either can be a source for the
@@ -16,17 +25,21 @@ other.
 |---|---|---|
 | `wayland_surface` | `wayland-rt` | `ISurface` / `IPixelSurface` / `ITextureSurface`, `TWaylandImage`, the `TCanvasColor` pixel type and colour helpers |
 | `wayland_accel_canvas` | `wayland-rt` | `TWaylandAccelCanvas` — the whole drawing API, and all the tessellation. Backend-agnostic |
+| `wayland_soft_canvas` | `wayland-rt` | `TWaylandSoftCanvas` — CPU backend. Half-space rasteriser, RTL-only |
+| `wayland_glyph_atlas`, `freetype_fpc` | `wayland-text` | `TGlyphAtlas` — FreeType into coverage (`sfA8`) CPU pages, as an `IGlyphSource`. Serves **both** backends |
 | `wayland_gl_context` | `wayland-gl` | `TWaylandGLContext` — surfaceless EGL + a GL 3.3 core context |
 | `wayland_gl_texture` | `wayland-gl` | `TGLTexture` — a GL texture that is an `ITextureSurface` |
 | `wayland_gl_target` | `wayland-gl` | `TGLRenderTarget` (texture + FBO), `TGLTargetRing` (dmabuf-exported presentation ring) |
-| `wayland_glyph_atlas` | `wayland-gl` | `TGlyphAtlas` — FreeType rasterising into a GL atlas, as an `IGlyphSource` |
 | `wayland_gl_canvas` | `wayland-gl` | `TWaylandGLCanvas` — the OpenGL backend |
-| `gl_core_fpc`, `freetype_fpc` | `wayland-gl` | GL 3.3 core loader; hand-written FreeType 2 subset binding |
+| `gl_core_fpc` | `wayland-gl` | GL 3.3 core entry-point loader |
 
-`wayland-gl` is the one module in the project that is **not** RTL-only — it links
-`libEGL`, `libGL` and `libfreetype`. It is `activeByDefault="false"` and nothing
-else in the stack depends on it, so code that only wants the software canvas
-never pulls those in.
+`wayland-text` (links `libfreetype`) and `wayland-gl` (links `libEGL`/`libGL`)
+are the only modules that are not RTL-only. Both are `activeByDefault="false"`
+and nothing in the core stack depends on either, so code that only wants the
+software canvas never pulls them in. Note the consequence: **`rt` alone can now
+draw the full anti-aliased, transformed, blended API into a `wl_shm` buffer**,
+with no external library at all — text is the only thing that needs
+`wayland-text`.
 
 ## The device protocol
 
@@ -69,7 +82,7 @@ presents mirrored frames. Consequences: render-target textures are top-down, so
 
 ## Anti-aliasing
 
-Supersampling, owned by the canvas. It renders into an offscreen target
+Supersampling, owned by each backend. It renders into an offscreen target
 `SuperSample`× larger per axis and resolves down to the presentation target.
 Unlike MSAA this antialiases *everything* uniformly — polygon edges, glyph edges,
 and the interiors of scaled-down images — because the scene really is rendered at
@@ -89,10 +102,17 @@ IPixelSurface    // + LockPixels(out AData, out AStride) / UnlockPixels
 ITextureSurface  // + GetTextureHandle, GetTextureIsAlphaOnly, GetTextureUV
 ```
 
-Implemented by `TWaylandImage` (CPU), the software `TWaylandCanvas` (CPU),
-`TGLTexture`, `TGLRenderTarget`'s texture, and `TWaylandGLCanvas` itself. The GL
-backend prefers `ITextureSurface` and uses it with no upload at all; otherwise it
-uploads through `IPixelSurface` and caches the result.
+Implemented by `TWaylandImage` and `TWaylandAlphaImage` (CPU), the software
+`TWaylandCanvas` (CPU), `TGLTexture`, `TGLRenderTarget`'s texture,
+`TWaylandSoftCanvas` and `TWaylandGLCanvas`. The GL backend prefers
+`ITextureSurface` and uses it with no upload at all; otherwise it uploads through
+`IPixelSurface` and caches the result. The software backend always takes the
+`IPixelSurface` route, and skips a surface that offers only a GPU handle.
+
+`ISurface.Format` distinguishes `sfARGB32` from `sfA8` — one byte of coverage per
+pixel, no colour. That is what a glyph atlas page is, and putting it on `ISurface`
+rather than only on the GPU-side interface is precisely what lets one FreeType
+atlas feed both backends.
 
 **`Generation`** is the cache key: process-wide, monotonic, bumped on every
 content change, never reused. That is what lets the texture cache re-upload only
@@ -109,10 +129,17 @@ freed explicitly by whoever created them.
 ## Text
 
 `TGlyphAtlas` is an `IGlyphSource`: one font face at one pixel size, rasterising
-glyphs on demand into a single-channel (`R8`) GL texture. The canvas does layout
+glyphs on demand into coverage (`sfA8`) **CPU** pages. The canvas does layout
 only — glyph lookup, kerning, newlines — and emits one textured quad per glyph,
 so a whole run in one atlas page is a single draw call. Bold, italic and other
 sizes are separate `TGlyphAtlas` instances.
+
+Pages are CPU surfaces rather than GPU textures on purpose: the GL canvas picks
+them up through its ordinary `IPixelSurface` cache (seeing `sfA8`, it allocates an
+R8 texture) and the software canvas samples the same bytes directly, so neither
+contains a line of atlas-specific code. The cost is that rasterising a new glyph
+bumps the page's generation and re-uploads the whole page to the GPU; that
+converges quickly, since glyphs are cached and steady-state text uploads nothing.
 
 Packing is a shelf allocator, near-optimal for one font at one size. When a page
 fills, a new larger page is allocated and glyphs already handed out keep pointing
