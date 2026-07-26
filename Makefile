@@ -24,13 +24,30 @@ STABLE_SRC   := $(ROOT)/wayland-client/stable/src/main/pascal
 UNSTABLE_SRC := $(ROOT)/wayland-client/unstable/src/main/pascal
 STAGING_SRC  := $(ROOT)/wayland-client/staging/src/main/pascal
 CLASSES_SRC  := $(ROOT)/wayland-client/classes/src/main/pascal
+GL_SRC       := $(ROOT)/wayland-client/gl/src/main/pascal
 DEMO_SRC     := $(ROOT)/wayland-demo/src/main/pascal
 EX_SRC       := $(ROOT)/wayland-examples/src/main/pascal
 
 # Unit search paths for the library stack (common -> rt -> stable/unstable/staging -> classes).
+# GL_SRC is deliberately NOT in here: the GL canvas module links libEGL, libGL
+# and libfreetype, so it stays out of the paths of everything that only wants
+# the RTL-only software stack. Targets that need it add -Fu$(GL_SRC) themselves.
 UNITPATHS := -Fu$(COMMON_SRC) -Fu$(RT_SRC) -Fu$(STABLE_SRC) -Fu$(UNSTABLE_SRC) -Fu$(STAGING_SRC) -Fu$(CLASSES_SRC)
 # Match pasbuild's default flags (mode objfpc, long strings, -O1).
 FPCFLAGS  := -Mobjfpc -Sh -O1
+
+# The EGL/GL/FreeType bindings declare `external 'libGL'` and friends, which
+# makes fpc emit -lGL — that needs the -dev symlinks. Link the SONAMEs by full
+# path instead, as the opengl examples do, so a runtime-only system works.
+# Override LIBDIR if your libraries live elsewhere.
+MULTIARCH := $(shell cc -print-multiarch 2>/dev/null)
+ifeq ($(MULTIARCH),)
+LIBDIR ?= /usr/lib
+else
+LIBDIR ?= /usr/lib/$(MULTIARCH)
+endif
+GL_LINK := -k"-rpath=$(LIBDIR)" -k"$(LIBDIR)/libGL.so.1" -k"$(LIBDIR)/libEGL.so.1" \
+           -k"$(LIBDIR)/libfreetype.so.6"
 
 DEMO_OUT := $(ROOT)/wayland-demo/target
 EX_OUT   := $(ROOT)/wayland-examples/target
@@ -54,7 +71,12 @@ endif
 # pasbuild's application module builds a single executable, so we fpc-build each
 # example program here (same paths). When pasbuild is available we first let it
 # build/refresh the library dependencies.
-examples:
+examples: examples-software examples-gl
+	@echo ">> examples built in $(EX_OUT)"
+
+# Everything that needs only the RTL-only stack. gl_* is skipped here because
+# those need the GL unit path and the explicit library links.
+examples-software:
 ifneq ($(PASBUILD),)
 	@echo ">> building library deps with pasbuild"
 	$(PASBUILD) compile
@@ -62,11 +84,21 @@ endif
 	@mkdir -p $(EX_OUT)/units
 	@for f in $(EX_SRC)/*.pas; do \
 	  b=$$(basename $$f .pas); \
+	  case $$b in gl_*) continue;; esac; \
 	  echo ">> fpc $$b"; \
 	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(EX_SRC) \
 	    -FU$(EX_OUT)/units -FE$(EX_OUT) -o$$b $$f || exit 1; \
 	done
-	@echo ">> examples built in $(EX_OUT)"
+
+# The accelerated-canvas examples: GL unit path plus the EGL/GL/FreeType links.
+examples-gl:
+	@mkdir -p $(EX_OUT)/units-gl
+	@for f in $(EX_SRC)/gl_*.pas; do \
+	  b=$$(basename $$f .pas); \
+	  echo ">> fpc $$b (GL)"; \
+	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(GL_SRC) -Fu$(EX_SRC) \
+	    -FU$(EX_OUT)/units-gl -FE$(EX_OUT) -o$$b $(GL_LINK) $$f || exit 1; \
+	done
 
 # ---- Clean -----------------------------------------------------------------
 clean:
@@ -76,7 +108,7 @@ endif
 	rm -rf $(ROOT)/wayland-common/target \
 	       $(ROOT)/wayland-client/rt/target $(ROOT)/wayland-client/stable/target \
 	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
-	       $(ROOT)/wayland-client/classes/target \
+	       $(ROOT)/wayland-client/classes/target $(ROOT)/wayland-client/gl/target \
 	       $(ROOT)/wayland-server/rt/target $(ROOT)/wayland-server/stable/target \
 	       $(ROOT)/wayland-server/unstable/target $(ROOT)/wayland-server/staging/target \
 	       $(DEMO_OUT) $(EX_OUT)

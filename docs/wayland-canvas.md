@@ -15,6 +15,11 @@ with out of the box. It is intentionally a starting point:
   to any other raster/canvas library and let that write the pixels. The canvas
   has no special status; it's one convenient way to fill the buffer.
 
+If you want anti-aliasing, transforms, blending, gradients or text, that is the
+GPU canvas — [`TWaylandGLCanvas`](wayland-accel-canvas.md) — a separate hierarchy
+that meets this one at `ISurface`, so a software canvas can be a blit source for
+it and vice versa.
+
 It knows nothing about Wayland — give it any CPU-addressable ARGB8888 memory (a
 wl_shm buffer's data, a CPU-mapped dma-buf, a plain heap block) plus its stride.
 
