@@ -18,8 +18,11 @@
     <module>unstable</module>
     <module>staging</module>
     <module>classes</module>
-    <!-- GPU canvas backend (EGL/GL/FreeType). Not RTL-only, so it is excluded
-         from the default build; nothing else in the stack depends on it. -->
+    <!-- FreeType glyph atlas for the accelerated canvas. Produces coverage
+         (sfA8) CPU pages, so it serves the GL and software backends alike. -->
+    <module activeByDefault="false">text</module>
+    <!-- GPU canvas backend (EGL/GL). Not RTL-only, so it is excluded from the
+         default build; nothing else in the stack depends on it. -->
     <module activeByDefault="false">gl</module>
   </modules>
 </project>

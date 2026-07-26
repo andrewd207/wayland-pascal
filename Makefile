@@ -24,14 +24,16 @@ STABLE_SRC   := $(ROOT)/wayland-client/stable/src/main/pascal
 UNSTABLE_SRC := $(ROOT)/wayland-client/unstable/src/main/pascal
 STAGING_SRC  := $(ROOT)/wayland-client/staging/src/main/pascal
 CLASSES_SRC  := $(ROOT)/wayland-client/classes/src/main/pascal
+TEXT_SRC     := $(ROOT)/wayland-client/text/src/main/pascal
 GL_SRC       := $(ROOT)/wayland-client/gl/src/main/pascal
 DEMO_SRC     := $(ROOT)/wayland-demo/src/main/pascal
 EX_SRC       := $(ROOT)/wayland-examples/src/main/pascal
 
 # Unit search paths for the library stack (common -> rt -> stable/unstable/staging -> classes).
-# GL_SRC is deliberately NOT in here: the GL canvas module links libEGL, libGL
-# and libfreetype, so it stays out of the paths of everything that only wants
-# the RTL-only software stack. Targets that need it add -Fu$(GL_SRC) themselves.
+# GL_SRC and TEXT_SRC are deliberately NOT in here: the GL canvas links libEGL
+# and libGL, and the glyph atlas links libfreetype, so both stay out of the
+# paths of everything that only wants the RTL-only stack (which now includes a
+# complete software canvas). Targets that need them add the -Fu themselves.
 UNITPATHS := -Fu$(COMMON_SRC) -Fu$(RT_SRC) -Fu$(STABLE_SRC) -Fu$(UNSTABLE_SRC) -Fu$(STAGING_SRC) -Fu$(CLASSES_SRC)
 # Match pasbuild's default flags (mode objfpc, long strings, -O1).
 FPCFLAGS  := -Mobjfpc -Sh -O1
@@ -96,7 +98,7 @@ examples-gl:
 	@for f in $(EX_SRC)/gl_*.pas; do \
 	  b=$$(basename $$f .pas); \
 	  echo ">> fpc $$b (GL)"; \
-	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(GL_SRC) -Fu$(EX_SRC) \
+	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(TEXT_SRC) -Fu$(GL_SRC) -Fu$(EX_SRC) \
 	    -FU$(EX_OUT)/units-gl -FE$(EX_OUT) -o$$b $(GL_LINK) $$f || exit 1; \
 	done
 
@@ -108,7 +110,8 @@ endif
 	rm -rf $(ROOT)/wayland-common/target \
 	       $(ROOT)/wayland-client/rt/target $(ROOT)/wayland-client/stable/target \
 	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
-	       $(ROOT)/wayland-client/classes/target $(ROOT)/wayland-client/gl/target \
+	       $(ROOT)/wayland-client/classes/target \
+	       $(ROOT)/wayland-client/text/target $(ROOT)/wayland-client/gl/target \
 	       $(ROOT)/wayland-server/rt/target $(ROOT)/wayland-server/stable/target \
 	       $(ROOT)/wayland-server/unstable/target $(ROOT)/wayland-server/staging/target \
 	       $(DEMO_OUT) $(EX_OUT)

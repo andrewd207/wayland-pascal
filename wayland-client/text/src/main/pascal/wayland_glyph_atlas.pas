@@ -4,10 +4,18 @@
 { wayland_glyph_atlas — FreeType text rendering for the accelerated canvas.
 
   TGlyphAtlas is an IGlyphSource: give it a font file and a pixel size and it
-  rasterises glyphs on demand into a single-channel GL texture, handing the
-  canvas back UV rectangles. The canvas then draws text as ordinary textured
-  quads — text costs no more than any other blit, and a whole run of glyphs in
-  one page becomes one draw call.
+  rasterises glyphs on demand into a coverage atlas, handing the canvas back UV
+  rectangles. The canvas then draws text as ordinary textured quads — text costs
+  no more than any other blit, and a whole run of glyphs in one page becomes one
+  draw call.
+
+  BACKEND-AGNOSTIC ON PURPOSE. Pages are plain CPU TWaylandAlphaImage surfaces
+  (sfA8), not GPU textures, which is why this module sits beside the GL one
+  rather than inside it. The GL canvas picks them up through its ordinary
+  IPixelSurface texture cache — seeing sfA8, it allocates an R8 texture — while
+  the software canvas samples the same bytes directly. One atlas, both backends,
+  and no atlas-specific code in either. It does link libfreetype, so it is its
+  own module and stays out of the RTL-only stack's way.
 
   PACKING is a shelf allocator: glyphs are laid down left to right on a row
   whose height is that of the tallest glyph placed on it; when a glyph will not
@@ -34,7 +42,7 @@ interface
 
 uses
   Classes, SysUtils, ctypes, freetype_fpc,
-  wayland_surface, wayland_accel_canvas, wayland_gl_texture;
+  wayland_surface, wayland_accel_canvas;
 
 type
   EGlyphAtlas = class(Exception);
@@ -63,7 +71,7 @@ type
     FDescent: Single;
     FLineHeight: Single;
 
-    FPages: array of TGLTexture;
+    FPages: array of TWaylandAlphaImage;
     FPageSize: Integer;
     // shelf allocator state for the current (last) page
     FPenX: Integer;
@@ -115,7 +123,7 @@ type
     property LineHeight: Single read FLineHeight;
     // Number of texture pages currently allocated; > 1 means the atlas grew.
     function PageCount: Integer;
-    function Page(AIndex: Integer): TGLTexture;
+    function Page(AIndex: Integer): TWaylandAlphaImage;
   end;
 
 // The shared FreeType library handle, initialised on first use.
@@ -251,18 +259,19 @@ begin
   Result := Length(FPages);
 end;
 
-function TGlyphAtlas.Page(AIndex: Integer): TGLTexture;
+function TGlyphAtlas.Page(AIndex: Integer): TWaylandAlphaImage;
 begin
   Result := FPages[AIndex];
 end;
 
 function TGlyphAtlas.NewPage: Integer;
 var
-  lTex: TGLTexture;
+  lTex: TWaylandAlphaImage;
 begin
-  lTex := TGLTexture.Create(FPageSize, FPageSize, tfR8, tflLinear);
-  // Uninitialised texture memory would show as speckle around glyphs.
-  lTex.Clear;
+  // A plain CPU coverage page. The GL backend uploads it as an R8 texture
+  // through the ordinary IPixelSurface cache; the software backend samples it
+  // directly. Neither needs atlas-specific code.
+  lTex := TWaylandAlphaImage.Create(FPageSize, FPageSize);
   Result := Length(FPages);
   SetLength(FPages, Result + 1);
   FPages[Result] := lTex;
@@ -321,9 +330,9 @@ function TGlyphAtlas.Rasterise(AGlyphIndex: LongWord; out AEntry: TGlyphEntry): 
 var
   lSlot: FT_GlyphSlot;
   lBmp: FT_Bitmap;
-  lPage, lX, lY, lRow, lW, lH: Integer;
-  lSrc, lPacked: PByte;
-  lTex: TGLTexture;
+  lPage, lX, lY, lW, lH: Integer;
+  lSrc: PByte;
+  lTex: TWaylandAlphaImage;
 begin
   Result := False;
   FillChar(AEntry, SizeOf(AEntry), 0);
@@ -358,23 +367,12 @@ begin
   Allocate(lW, lH, lPage, lX, lY);
   lTex := FPages[lPage];
 
-  if lBmp.pitch >= 0 then
-    lTex.UploadRect(lX, lY, lW, lH, lBmp.buffer, lBmp.pitch)
-  else
-  begin
-    // Negative pitch means the rows are stored bottom-up: repack top-down,
-    // since GL cannot express a negative row stride.
-    lPacked := GetMem(PtrUInt(lW) * PtrUInt(lH));
-    try
-      lSrc := lBmp.buffer;
-      for lRow := 0 to lH - 1 do
-        Move((lSrc + PtrInt(lRow) * lBmp.pitch)^,
-             (lPacked + PtrUInt(lRow) * PtrUInt(lW))^, lW);
-      lTex.UploadRect(lX, lY, lW, lH, lPacked, lW);
-    finally
-      FreeMem(lPacked);
-    end;
-  end;
+  // CopyCoverage copies row by row, so FreeType's negative pitch (rows stored
+  // bottom-up) needs no repacking: the source pointer is simply walked backwards.
+  lSrc := lBmp.buffer;
+  if lBmp.pitch < 0 then
+    lSrc := lSrc + PtrInt(lH - 1) * lBmp.pitch;
+  lTex.CopyCoverage(lX, lY, lW, lH, lSrc, lBmp.pitch);
 
   AEntry.Page := lPage;
   AEntry.Width := lW;

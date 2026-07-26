@@ -130,7 +130,6 @@ type
 
     { ITextureSurface — the canvas as a blit source }
     function GetTextureHandle: PtrUInt;
-    function GetTextureIsAlphaOnly: Boolean;
     procedure GetTextureUV(out AU0, AV0, AU1, AV1: Single);
   public
     // ASuperSample must be a power of two: 1 disables anti-aliasing, 2 is the
@@ -417,7 +416,10 @@ begin
       if FCache[i].Texture <> ATexture then
       begin
         // The pending batch may still be referencing the texture we are about
-        // to delete, and FlushBatch would then bind a dead name.
+        // to delete, and FlushBatch would then bind a dead name. This is not
+        // hypothetical: a second run of text rasterises new glyphs, which bumps
+        // the atlas page's generation and lands here while the first run is
+        // still batched.
         if FCache[i].Texture.Handle = FBatchTexture then
         begin
           FlushBatch;
@@ -459,24 +461,33 @@ var
   lNative: ITextureSurface;
   lTex: TGLTexture;
 begin
-  AAlphaOnly := False;
   AU0 := 0; AV0 := 0; AU1 := 1; AV1 := 1;
   Result := 0;
+  AAlphaOnly := False;
   if ASurface = nil then
     Exit;
+  // Decided once, for BOTH paths below. Deriving it per-path is how coverage
+  // pages previously ended up drawn in colour mode, sampling GL_RED as
+  // (r, 0, 0, 1) and rendering all text red.
+  AAlphaOnly := ASurface.Format = sfA8;
 
   // Already on the GPU: use it directly, no upload, no cache entry.
   if Supports(ASurface, ITextureSurface, lNative) then
   begin
     lNative.GetTextureUV(AU0, AV0, AU1, AV1);
-    AAlphaOnly := lNative.GetTextureIsAlphaOnly;
     Exit(GLuint(lNative.GetTextureHandle));
   end;
 
   lTex := CacheLookup(ASurface);
   if lTex = nil then
   begin
-    lTex := TGLTexture.Create(ASurface.Width, ASurface.Height, tfRGBA8, tflLinear);
+    // A coverage surface (a glyph atlas page from the text module) becomes an
+    // R8 texture; anything else is colour. This is what lets one backend-
+    // agnostic FreeType atlas feed the GPU path with no atlas-specific code.
+    if ASurface.Format = sfA8 then
+      lTex := TGLTexture.Create(ASurface.Width, ASurface.Height, tfR8, tflLinear)
+    else
+      lTex := TGLTexture.Create(ASurface.Width, ASurface.Height, tfRGBA8, tflLinear);
     if not lTex.UploadFromSurface(ASurface) then
     begin
       // Not CPU-readable and not a texture: nothing can be drawn from it.
@@ -756,11 +767,6 @@ begin
     Result := FTarget.Texture.Handle
   else
     Result := 0;
-end;
-
-function TWaylandGLCanvas.GetTextureIsAlphaOnly: Boolean;
-begin
-  Result := False;
 end;
 
 procedure TWaylandGLCanvas.GetTextureUV(out AU0, AV0, AU1, AV1: Single);

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-text</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- FreeType glyph rasterisation for the accelerated canvas: a subset
+       FreeType 2 binding and TGlyphAtlas, an IGlyphSource that packs rendered
+       glyphs into coverage (sfA8) CPU pages.
+
+       Deliberately backend-agnostic and separate from wayland-gl: the pages are
+       ordinary ISurface objects, so the GL canvas uploads them as R8 textures
+       through its normal texture cache while the software canvas samples them
+       directly. Both get text from this one module.
+
+       Not RTL-only (it links libfreetype), so like wayland-gl it is excluded
+       from the default build and nothing in the core stack depends on it. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

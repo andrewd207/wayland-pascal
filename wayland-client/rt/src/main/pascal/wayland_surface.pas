@@ -59,6 +59,16 @@ type
   TCanvasColor = type DWord;
   PCanvasColor = ^TCanvasColor;
 
+  { TSurfaceFormat — how to read a surface's pixels.
+
+    sfARGB32 is the normal case: 4 bytes per pixel, a TCanvasColor.
+    sfA8 is ONE byte per pixel of coverage, with no colour at all — what a glyph
+    atlas produces. A backend samples it as alpha and takes the colour from the
+    vertex, so the same atlas page serves any text colour. Keeping this on
+    ISurface (rather than only on the GPU-side interface) is what lets one
+    FreeType atlas feed both the GL and the software canvas. }
+  TSurfaceFormat = (sfARGB32, sfA8);
+
   { ISurface }
 
   ISurface = interface
@@ -66,15 +76,22 @@ type
     function GetSurfaceWidth: Integer;
     function GetSurfaceHeight: Integer;
     function GetSurfaceHasAlpha: Boolean;
+    function GetSurfaceFormat: TSurfaceFormat;
     function GetSurfaceGeneration: QWord;
 
     property Width: Integer read GetSurfaceWidth;
     property Height: Integer read GetSurfaceHeight;
     // False promises every pixel is opaque, letting a backend skip blending.
     property HasAlpha: Boolean read GetSurfaceHasAlpha;
+    property Format: TSurfaceFormat read GetSurfaceFormat;
     // Bumped on every content change; texture caches key on it.
     property Generation: QWord read GetSurfaceGeneration;
   end;
+
+// Bytes per pixel for a surface format.
+function SurfaceFormatBytes(AFormat: TSurfaceFormat): Integer; inline;
+
+type
 
   { IPixelSurface — CPU-addressable pixels. }
 
@@ -96,10 +113,8 @@ type
   ITextureSurface = interface(ISurface)
     ['{3F0B8E77-91A4-4D26-B5C8-1A6E42D9F083}']
     // Backend-native handle; a GL texture name for the GL backend.
+    // Whether it holds colour or coverage comes from ISurface.Format.
     function GetTextureHandle: PtrUInt;
-    // True when the texture holds single-channel coverage (a glyph atlas)
-    // rather than colour — the backend then samples red as alpha.
-    function GetTextureIsAlphaOnly: Boolean;
     procedure GetTextureUV(out AU0, AV0, AU1, AV1: Single);
   end;
 
@@ -118,6 +133,7 @@ type
     function GetSurfaceWidth: Integer; virtual; abstract;
     function GetSurfaceHeight: Integer; virtual; abstract;
     function GetSurfaceHasAlpha: Boolean; virtual;
+    function GetSurfaceFormat: TSurfaceFormat; virtual;
     function GetSurfaceGeneration: QWord;
   public
     constructor Create;
@@ -181,9 +197,50 @@ type
     property HasAlpha: Boolean read FHasAlpha;
   end;
 
+  { TWaylandAlphaImage — a CPU coverage bitmap, one byte per pixel (sfA8).
+
+    What a glyph atlas page is. Deliberately a separate, small class rather than
+    a mode of TWaylandImage: the colour accessors would be meaningless here, and
+    keeping it distinct means a backend that receives one knows to take its
+    colour from the vertex. The GL canvas uploads these as R8 textures through
+    the ordinary IPixelSurface path; the software canvas samples them directly.
+    That is what lets one FreeType atlas serve both backends. }
+
+  TWaylandAlphaImage = class(TWaylandSurfaceObject, IPixelSurface)
+  private
+    FData: PByte;
+    FWidth: Integer;
+    FHeight: Integer;
+    FStride: Integer;
+    FLocked: Boolean;
+  protected
+    function GetSurfaceWidth: Integer; override;
+    function GetSurfaceHeight: Integer; override;
+    function GetSurfaceFormat: TSurfaceFormat; override;
+
+    function LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+    procedure UnlockPixels;
+  public
+    // Zero-filled (fully transparent).
+    constructor Create(AWidth, AHeight: Integer);
+    destructor Destroy; override;
+
+    procedure Clear;
+    procedure PutCoverage(X, Y: Integer; AValue: Byte); inline;
+    function  GetCoverage(X, Y: Integer): Byte;
+    // Copy an 8-bit coverage bitmap into the sub-rectangle at (AX, AY).
+    // ASrcStride may be negative for a bottom-up source, as FreeType allows.
+    procedure CopyCoverage(AX, AY, AWidth, AHeight: Integer; ASrc: PByte;
+      ASrcStride: Integer);
+
+    property Data: PByte read FData;
+    property Stride: Integer read FStride;
+  end;
+
 { --- colour helpers --- }
 
 function ARGB(A, R, G, B: Byte): TCanvasColor; inline;   // explicit alpha
+
 function RGB(R, G, B: Byte): TCanvasColor; inline;       // opaque (A = 255)
 function FPColorToCanvas(const AColor: TFPColor): TCanvasColor; inline;
 
@@ -199,6 +256,14 @@ function UnpremultiplyColor(AColor: TCanvasColor): TCanvasColor;
 function ColorWithAlpha(AColor: TCanvasColor; AAlpha: Byte): TCanvasColor;
 
 implementation
+
+function SurfaceFormatBytes(AFormat: TSurfaceFormat): Integer;
+begin
+  if AFormat = sfA8 then
+    Result := 1
+  else
+    Result := 4;
+end;
 
 { --- colour helpers --- }
 
@@ -312,6 +377,11 @@ end;
 function TWaylandSurfaceObject.GetSurfaceHasAlpha: Boolean;
 begin
   Result := True;
+end;
+
+function TWaylandSurfaceObject.GetSurfaceFormat: TSurfaceFormat;
+begin
+  Result := sfARGB32;
 end;
 
 function TWaylandSurfaceObject.GetSurfaceGeneration: QWord;
@@ -507,6 +577,98 @@ begin
   if FHasAlpha = not AValue then
     Exit;
   FHasAlpha := not AValue;
+  Changed;
+end;
+
+{ TWaylandAlphaImage }
+
+constructor TWaylandAlphaImage.Create(AWidth, AHeight: Integer);
+begin
+  inherited Create;
+  if (AWidth <= 0) or (AHeight <= 0) then
+    raise ESurface.CreateFmt('TWaylandAlphaImage: invalid size %dx%d',
+      [AWidth, AHeight]);
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FStride := AWidth;
+  FData := GetMem(PtrUInt(FStride) * PtrUInt(FHeight));
+  FillChar(FData^, PtrUInt(FStride) * PtrUInt(FHeight), 0);
+end;
+
+destructor TWaylandAlphaImage.Destroy;
+begin
+  if FData <> nil then
+    FreeMem(FData);
+  FData := nil;
+  inherited Destroy;
+end;
+
+function TWaylandAlphaImage.GetSurfaceWidth: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TWaylandAlphaImage.GetSurfaceHeight: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TWaylandAlphaImage.GetSurfaceFormat: TSurfaceFormat;
+begin
+  Result := sfA8;
+end;
+
+function TWaylandAlphaImage.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+begin
+  if FLocked then
+    raise ESurface.Create('TWaylandAlphaImage: pixels are already locked');
+  FLocked := True;
+  AData := FData;
+  AStride := FStride;
+  Result := FData <> nil;
+end;
+
+procedure TWaylandAlphaImage.UnlockPixels;
+begin
+  FLocked := False;
+end;
+
+procedure TWaylandAlphaImage.Clear;
+begin
+  FillChar(FData^, PtrUInt(FStride) * PtrUInt(FHeight), 0);
+  Changed;
+end;
+
+procedure TWaylandAlphaImage.PutCoverage(X, Y: Integer; AValue: Byte);
+begin
+  if (X < 0) or (Y < 0) or (X >= FWidth) or (Y >= FHeight) then
+    Exit;
+  (FData + PtrUInt(Y) * PtrUInt(FStride) + PtrUInt(X))^ := AValue;
+end;
+
+function TWaylandAlphaImage.GetCoverage(X, Y: Integer): Byte;
+begin
+  if (X < 0) or (Y < 0) or (X >= FWidth) or (Y >= FHeight) then
+    Exit(0);
+  Result := (FData + PtrUInt(Y) * PtrUInt(FStride) + PtrUInt(X))^;
+end;
+
+procedure TWaylandAlphaImage.CopyCoverage(AX, AY, AWidth, AHeight: Integer;
+  ASrc: PByte; ASrcStride: Integer);
+var
+  y: Integer;
+begin
+  if (ASrc = nil) or (AWidth <= 0) or (AHeight <= 0) then
+    Exit;
+  // Callers are the atlas, which has already reserved a fitting rectangle;
+  // clamp anyway so a bad glyph cannot scribble outside the page.
+  if (AX < 0) or (AY < 0) or (AX + AWidth > FWidth) or (AY + AHeight > FHeight) then
+    raise ESurface.CreateFmt(
+      'TWaylandAlphaImage: %dx%d at (%d,%d) does not fit a %dx%d page',
+      [AWidth, AHeight, AX, AY, FWidth, FHeight]);
+  for y := 0 to AHeight - 1 do
+    Move((ASrc + PtrInt(y) * ASrcStride)^,
+         (FData + PtrUInt(AY + y) * PtrUInt(FStride) + PtrUInt(AX))^, AWidth);
   Changed;
 end;
 

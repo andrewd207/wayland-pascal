@@ -62,11 +62,12 @@ type
     function GetSurfaceWidth: Integer; override;
     function GetSurfaceHeight: Integer; override;
     function GetSurfaceHasAlpha: Boolean; override;
+    // Reported through ISurface now, so a CPU consumer sees it too.
+    function GetSurfaceFormat: TSurfaceFormat; override;
   public
     { ITextureSurface — public rather than protected, because the GL backend
       calls these on a concrete TGLTexture as well as through the interface. }
     function GetTextureHandle: PtrUInt;
-    function GetTextureIsAlphaOnly: Boolean;
     procedure GetTextureUV(out AU0, AV0, AU1, AV1: Single);
 
     // Allocate an uninitialised texture of the given size and format.
@@ -199,9 +200,12 @@ begin
   Result := FHandle;
 end;
 
-function TGLTexture.GetTextureIsAlphaOnly: Boolean;
+function TGLTexture.GetSurfaceFormat: TSurfaceFormat;
 begin
-  Result := FFormat = tfR8;
+  if FFormat = tfR8 then
+    Result := sfA8
+  else
+    Result := sfARGB32;
 end;
 
 procedure TGLTexture.GetTextureUV(out AU0, AV0, AU1, AV1: Single);
