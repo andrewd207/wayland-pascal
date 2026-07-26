@@ -15,7 +15,17 @@
   Pixel format: each pixel is a 32-bit ARGB value 0xAARRGGBB as a host DWord,
   stored little-endian (byte order B,G,R,A) — i.e. wl_shm ARGB8888/XRGB8888.
 
-  All primitives clip to the canvas bounds, so off-edge coordinates are safe. }
+  All primitives clip to the canvas bounds, so off-edge coordinates are safe.
+
+  It also implements ISurface / IPixelSurface (see wayland_surface), so a
+  software canvas can be used as a blit SOURCE by anything that consumes
+  surfaces — notably TWaylandGLCanvas, which uploads it as a texture. Note the
+  format mismatch that implies: surfaces are defined as premultiplied, while
+  this canvas writes colours verbatim. Content drawn with an alpha other than
+  255 is therefore straight, not premultiplied, and should be run through
+  RoundCorners (which premultiplies) or premultiplied by the caller before
+  being handed to a compositor or a GPU blend. Fully opaque content — the
+  common case — is identical either way. }
 unit wayland_canvas;
 
 {$mode ObjFPC}{$H+}
@@ -24,28 +34,43 @@ unit wayland_canvas;
 interface
 
 uses
-  Classes, SysUtils, Types, FPImage;
+  Classes, SysUtils, Types, FPImage, wayland_surface;
 
 type
   // 0xAARRGGBB as a host DWord (little-endian bytes B,G,R,A = wl_shm ARGB8888).
-  TCanvasColor = type DWord;
+  // Declared in wayland_surface so canvases and images share one pixel type;
+  // aliased here so `uses wayland_canvas` alone still names it.
+  TCanvasColor = wayland_surface.TCanvasColor;
 
   { TWaylandCanvas }
 
-  TWaylandCanvas = class
+  TWaylandCanvas = class(TWaylandSurfaceObject, IPixelSurface)
   private
     FData: PByte;
     FWidth: Integer;
     FHeight: Integer;
     FStride: Integer; // bytes per row (>= Width*4)
+    FLocked: Boolean;
     function RowPtr(Y: Integer): PDWord; inline;
+  protected
+    function GetSurfaceWidth: Integer; override;
+    function GetSurfaceHeight: Integer; override;
+
+    function LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+    procedure UnlockPixels;
   public
     // Wrap existing memory. AData must hold at least AHeight*AStride bytes and
     // stay alive for the canvas's lifetime (the canvas does not own it). AStride
     // defaults to AWidth*4 (tightly packed) when passed <= 0.
     constructor Create(AData: Pointer; AWidth, AHeight: Integer; AStride: Integer = 0);
 
-    { --- pixels --- }
+    { --- pixels ---
+
+      PutPixel deliberately does NOT bump the surface generation: it is inline
+      and hot, and doubling its cost to maintain a cache key would be a poor
+      trade. Every higher-level primitive below does bump it. If you write
+      pixels through PutPixel (or through a locked Data pointer) and the canvas
+      is being used as an ISurface source, call Changed once when you are done. }
     procedure PutPixel(X, Y: Integer; AColor: TCanvasColor); inline;
     function  GetPixel(X, Y: Integer): TCanvasColor;
 
@@ -101,7 +126,8 @@ type
     property Data: PByte read FData;
   end;
 
-// Pack/convert helpers.
+// Pack/convert helpers. These live in wayland_surface, where the pixel type is
+// defined; they are re-exported here so `uses wayland_canvas` remains enough.
 function ARGB(A, R, G, B: Byte): TCanvasColor; inline;       // explicit alpha
 function RGB(R, G, B: Byte): TCanvasColor; inline;           // opaque (A=255)
 function FPColorToCanvas(const AColor: TFPColor): TCanvasColor; inline;
@@ -110,21 +136,17 @@ implementation
 
 function ARGB(A, R, G, B: Byte): TCanvasColor;
 begin
-  Result := (TCanvasColor(A) shl 24) or (TCanvasColor(R) shl 16) or
-            (TCanvasColor(G) shl 8) or TCanvasColor(B);
+  Result := wayland_surface.ARGB(A, R, G, B);
 end;
 
 function RGB(R, G, B: Byte): TCanvasColor;
 begin
-  Result := $FF000000 or (TCanvasColor(R) shl 16) or
-            (TCanvasColor(G) shl 8) or TCanvasColor(B);
+  Result := wayland_surface.RGB(R, G, B);
 end;
 
 function FPColorToCanvas(const AColor: TFPColor): TCanvasColor;
 begin
-  // FPColor channels are 16-bit; take the high byte of each.
-  Result := ARGB(AColor.alpha shr 8, AColor.red shr 8,
-                 AColor.green shr 8, AColor.blue shr 8);
+  Result := wayland_surface.FPColorToCanvas(AColor);
 end;
 
 { TWaylandCanvas }
@@ -132,6 +154,7 @@ end;
 constructor TWaylandCanvas.Create(AData: Pointer; AWidth, AHeight: Integer;
   AStride: Integer);
 begin
+  inherited Create;
   FData := AData;
   FWidth := AWidth;
   FHeight := AHeight;
@@ -139,6 +162,31 @@ begin
     FStride := AStride
   else
     FStride := AWidth * 4;
+end;
+
+function TWaylandCanvas.GetSurfaceWidth: Integer;
+begin
+  Result := FWidth;
+end;
+
+function TWaylandCanvas.GetSurfaceHeight: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TWaylandCanvas.LockPixels(out AData: PByte; out AStride: Integer): Boolean;
+begin
+  if FLocked then
+    raise ESurface.Create('TWaylandCanvas: pixels are already locked');
+  FLocked := True;
+  AData := FData;
+  AStride := FStride;
+  Result := FData <> nil;
+end;
+
+procedure TWaylandCanvas.UnlockPixels;
+begin
+  FLocked := False;
 end;
 
 function TWaylandCanvas.RowPtr(Y: Integer): PDWord;
@@ -183,6 +231,7 @@ begin
     for lCol := X to lX2 - 1 do
       p[lCol] := AColor;
   end;
+  Changed;
 end;
 
 procedure TWaylandCanvas.HLine(X, Y, W: Integer; AColor: TCanvasColor);
@@ -222,6 +271,7 @@ begin
       Y1 := Y1 + sy;
     end;
   end;
+  Changed;
 end;
 
 procedure TWaylandCanvas.Rectangle(X, Y, W, H: Integer; AColor: TCanvasColor);
@@ -390,6 +440,7 @@ begin
         Round(((d shr 8) and $FF) * cov),
         Round((d and $FF) * cov)));
     end;
+  Changed;
 end;
 
 procedure TWaylandCanvas.Ellipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
@@ -451,6 +502,7 @@ begin
     end;
     Plot4;
   end;
+  Changed;
 end;
 
 procedure TWaylandCanvas.FillEllipse(CX, CY, RX, RY: Integer; AColor: TCanvasColor);
@@ -553,6 +605,7 @@ begin
       p[dx] := FPColorToCanvas(AImage.Colors[ASrcX + sx, ASrcY + sy]);
     end;
   end;
+  Changed;
 end;
 
 end.
