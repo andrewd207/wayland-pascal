@@ -174,6 +174,9 @@ type
     // The region buffer AIndex must repaint; clears it.
     function  Take(AIndex: Integer): TRect;
     function  IsDirty(AIndex: Integer): Boolean;
+    // True if ANY buffer has pending damage — the cheap check a frame loop
+    // makes before going to the trouble of acquiring a buffer.
+    function  AnyDirty: Boolean;
     property  Region[AIndex: Integer]: TRect read GetRegion;
     function  BufferCount: Integer;
   end;
@@ -582,6 +585,16 @@ end;
 function TwgDamage.IsDirty(AIndex: Integer): Boolean;
 begin
   Result := not wgRectEmpty(FRegions[AIndex]);
+end;
+
+function TwgDamage.AnyDirty: Boolean;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FRegions) do
+    if not wgRectEmpty(FRegions[i]) then
+      Exit(True);
+  Result := False;
 end;
 
 end.

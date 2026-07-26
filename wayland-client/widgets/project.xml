@@ -21,8 +21,15 @@
     </unitPaths>
   </build>
 
+  <!-- rt for the canvas, plus the classes layer (and the protocol tiers it
+       needs) for the surface, buffers and seat input. All still RTL-only, so
+       the software path never drags in a C library. -->
   <moduleDependencies>
     <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
+    <module>../staging</module>
+    <module>../classes</module>
   </moduleDependencies>
 
   <profiles>
