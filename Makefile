@@ -49,7 +49,7 @@ else
 LIBDIR ?= /usr/lib/$(MULTIARCH)
 endif
 GL_LINK := -k"-rpath=$(LIBDIR)" -k"$(LIBDIR)/libGL.so.1" -k"$(LIBDIR)/libEGL.so.1" \
-           -k"$(LIBDIR)/libfreetype.so.6"
+           -k"$(LIBDIR)/libfreetype.so.6" -k"$(LIBDIR)/libfontconfig.so.1"
 
 DEMO_OUT := $(ROOT)/wayland-demo/target
 EX_OUT   := $(ROOT)/wayland-examples/target

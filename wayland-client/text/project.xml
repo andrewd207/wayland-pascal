@@ -14,8 +14,14 @@
        through its normal texture cache while the software canvas samples them
        directly. Both get text from this one module.
 
-       Not RTL-only (it links libfreetype), so like wayland-gl it is excluded
-       from the default build and nothing in the core stack depends on it. -->
+       Also resolves font DESCRIPTIONS to files: fontconfig_fpc plus
+       wlg.text.fontcache turn ("Sans", 11pt, bold, scale) into a shared
+       IwgGlyphSource, keyed on the resolved PIXEL size so HiDPI and large
+       logical sizes share one atlas where they coincide.
+
+       Not RTL-only (it links libfreetype and libfontconfig), so like
+       wayland-gl it is excluded from the default build and nothing in the core
+       stack depends on it. -->
   <build>
     <packaging>library</packaging>
     <outputDirectory>target</outputDirectory>
