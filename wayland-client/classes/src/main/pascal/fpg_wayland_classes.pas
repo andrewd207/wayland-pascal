@@ -63,6 +63,19 @@ type
   TfpgwMouseAxisEvent = procedure(Sender: TObject; ATime: LongWord; AAxis: TWlPointer.TAxis; AValue: LongInt) of object;
   TfpgwMouseButtonEvent = procedure(Sender: TObject; ATime: LongWord; AButton: LongWord; AState: TWlPointer.TButtonState) of object;
 
+  { Touch. Unlike the pointer there may be SEVERAL of these live at once, so
+    every event carries the compositor's touch-point id; a widget layer keys its
+    per-finger state on it. Only `down` names a surface, so the id -> window
+    mapping is held here for the life of each contact. }
+  TfpgwTouchDownEvent = procedure(Sender: TObject; ATime: LongWord; AId: Integer; AX, AY: Integer) of object;
+  TfpgwTouchUpEvent = procedure(Sender: TObject; ATime: LongWord; AId: Integer) of object;
+  TfpgwTouchMotionEvent = procedure(Sender: TObject; ATime: LongWord; AId: Integer; AX, AY: Integer) of object;
+  { End of an atomic batch of touch events — apply them together. }
+  TfpgwTouchFrameEvent = procedure(Sender: TObject) of object;
+  { The compositor took the gesture over (edge swipe, say). Abandon all
+    in-progress contacts WITHOUT treating them as taps. }
+  TfpgwTouchCancelEvent = procedure(Sender: TObject) of object;
+
   TfpgwKeyboardKeymap = procedure(Sender: TObject; AFormat: TWlKeyboard.TKeymapFormat; AFileDesc: LongInt; ASize: LongInt) of object;
   TfpgwKeyboardEnter = procedure(Sender: TObject; AKeys: TBytes)of object;
   TfpgwKeyboardLeave = procedure(Sender: TObject) of object;
@@ -94,6 +107,7 @@ type
                        IWlSeatListener,
                        IWlPointerListener,
                        IWlKeyboardListener,
+                       IWlTouchListener,
                        IWlDataDeviceListener,
                        IXdgWmBaseListener)
   private
@@ -114,6 +128,17 @@ type
     FXDGShell: TXdgWmBase;
     FMouse: TWlPointer;
     FKeyboard: TWlKeyboard;
+    FTouch: TWlTouch;
+    { Live contacts: touch id -> window. wl_touch only names a surface on
+      `down`, so motion and up would otherwise have nowhere to go. }
+    FTouchWins: array of record Id: Integer; Win: TfpgwWindow; end;
+    FLastTouchWin: TfpgwWindow;   { for frame/cancel, which name no surface }
+    FOnTouchDown: TfpgwTouchDownEvent;
+    FOnTouchUp: TfpgwTouchUpEvent;
+    FOnTouchMotion: TfpgwTouchMotionEvent;
+    FOnTouchFrame: TfpgwTouchFrameEvent;
+    FOnTouchCancel: TfpgwTouchCancelEvent;
+
     FDecorationManager: TXdgDecorationManagerV1;
     FRegList: TfpgwRegistryList;
     { Data device (drag-and-drop + clipboard). }
@@ -132,6 +157,10 @@ type
     procedure SetupDataDevice;        { create the data device once seat+mgr exist }
     function  ClaimPendingOffer(AId: TWlDataOffer): TfpgwDataOffer;
     function GetConnected: Boolean;
+    function  TouchWin(AId: Integer): TfpgwWindow;
+    procedure SetTouchWin(AId: Integer; AWin: TfpgwWindow);
+    procedure DropTouchWin(AId: Integer);
+    procedure DropTouchWinsFor(AWin: TfpgwWindow);
     // interface implementations
     // registry
     procedure wl_registry_global(AWlRegistry: TWlRegistry; AName: DWord; AInterface: String; AVersion: DWord);
@@ -148,6 +177,14 @@ type
     procedure wl_pointer_button(AWlPointer: TWlPointer; ASerial: DWord; ATime: DWord; AButton: DWord; AState: TWlPointer.TButtonState);
     procedure wl_pointer_axis(AWlPointer: TWlPointer; ATime: DWord; AAxis: TWlPointer.TAxis; AValue: TWaylandFixed);
     procedure wl_pointer_frame(AWlPointer: TWlPointer);
+    // touch
+    procedure wl_touch_down(AWlTouch: TWlTouch; aSerial: DWord; aTime: DWord; aSurface: TWlSurface; aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wl_touch_up(AWlTouch: TWlTouch; aSerial: DWord; aTime: DWord; aId: Integer);
+    procedure wl_touch_motion(AWlTouch: TWlTouch; aTime: DWord; aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
+    procedure wl_touch_frame(AWlTouch: TWlTouch);
+    procedure wl_touch_cancel(AWlTouch: TWlTouch);
+    procedure wl_touch_shape(AWlTouch: TWlTouch; aId: Integer; aMajor: TWaylandFixed; aMinor: TWaylandFixed);
+    procedure wl_touch_orientation(AWlTouch: TWlTouch; aId: Integer; aOrientation: TWaylandFixed);
     procedure wl_pointer_axis_source(AWlPointer: TWlPointer; AAxisSource: TWlPointer.TAxisSource);
     procedure wl_pointer_axis_stop(AWlPointer: TWlPointer; ATime: DWord; AAxis: TWlPointer.TAxis);
     procedure wl_pointer_axis_discrete(AWlPointer: TWlPointer; AAxis: TWlPointer.TAxis; ADiscrete: LongInt);
@@ -224,6 +261,14 @@ type
     property OnKeyboardKey: TfpgwKeyboardKey read FOnKeyboardKey write FOnKeyboardKey;
     property OnKeyboardModifiers: TfpgwKeyboardModifiers read FOnKeyboardModifiers write FOnKeyboardModifiers;
     property OnKeyBoardRepeatInfo: TfpgwKeyboardRepeatInfo read FOnKeyBoardRepeatInfo write FOnKeyBoardRepeatInfo;
+    { Touch. Sender is the window's Owner, as for the mouse events. Several
+      contacts can be live at once, distinguished by AId. }
+    property OnTouchDown: TfpgwTouchDownEvent read FOnTouchDown write FOnTouchDown;
+    property OnTouchUp: TfpgwTouchUpEvent read FOnTouchUp write FOnTouchUp;
+    property OnTouchMotion: TfpgwTouchMotionEvent read FOnTouchMotion write FOnTouchMotion;
+    property OnTouchFrame: TfpgwTouchFrameEvent read FOnTouchFrame write FOnTouchFrame;
+    property OnTouchCancel: TfpgwTouchCancelEvent read FOnTouchCancel write FOnTouchCancel;
+    property Touch: TWlTouch read FTouch;
 
 
     property Connected: Boolean read GetConnected;
@@ -2122,6 +2167,13 @@ begin
         FKeyboard := FSeat.GetKeyboard;
         if Assigned(FKeyboard) then
           FKeyboard.AddListener(Self);
+
+        { Ask for touch unconditionally, as we already do for pointer and
+          keyboard: wl_seat.capabilities may not have arrived yet at bind time,
+          and a seat that has no touch simply never sends touch events. }
+        FTouch := FSeat.GetTouch;
+        if Assigned(FTouch) then
+          FTouch.AddListener(Self);
         SetupDataDevice;
       end;
     'zwp_linux_dmabuf_v1':
@@ -2166,6 +2218,129 @@ procedure TfpgwDisplay.wl_shm_format(AWlShm: TWlShm; AFormat: TWlShm.TFormat);
 begin
   // supported pixel formats WL_SHM_FORMAT_xxxxx;
   FFormats:=FFormats or (1 shl Ord(AFormat));
+end;
+
+function TfpgwDisplay.TouchWin(AId: Integer): TfpgwWindow;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FTouchWins) do
+    if FTouchWins[i].Id = AId then
+      Exit(FTouchWins[i].Win);
+  Result := nil;
+end;
+
+procedure TfpgwDisplay.SetTouchWin(AId: Integer; AWin: TfpgwWindow);
+var
+  i: Integer;
+begin
+  for i := 0 to High(FTouchWins) do
+    if FTouchWins[i].Id = AId then
+    begin
+      FTouchWins[i].Win := AWin;
+      Exit;
+    end;
+  SetLength(FTouchWins, Length(FTouchWins) + 1);
+  FTouchWins[High(FTouchWins)].Id := AId;
+  FTouchWins[High(FTouchWins)].Win := AWin;
+end;
+
+procedure TfpgwDisplay.DropTouchWin(AId: Integer);
+var
+  i, j: Integer;
+begin
+  for i := 0 to High(FTouchWins) do
+    if FTouchWins[i].Id = AId then
+    begin
+      for j := i to High(FTouchWins) - 1 do
+        FTouchWins[j] := FTouchWins[j + 1];
+      SetLength(FTouchWins, Length(FTouchWins) - 1);
+      Exit;
+    end;
+end;
+
+procedure TfpgwDisplay.DropTouchWinsFor(AWin: TfpgwWindow);
+var
+  i: Integer;
+begin
+  { A window can be destroyed with contacts still down on it; drop them so a
+    later up/motion cannot dispatch through a freed window. }
+  for i := High(FTouchWins) downto 0 do
+    if FTouchWins[i].Win = AWin then
+      DropTouchWin(FTouchWins[i].Id);
+  if FLastTouchWin = AWin then
+    FLastTouchWin := nil;
+end;
+
+procedure TfpgwDisplay.wl_touch_down(AWlTouch: TWlTouch; aSerial: DWord;
+  aTime: DWord; aSurface: TWlSurface; aId: Integer; aX: TWaylandFixed;
+  aY: TWaylandFixed);
+var
+  lWin: TfpgwWindow;
+begin
+  FEventSerial := aSerial;
+  lWin := TfpgwWindow(GetUserData(aSurface));
+  if not Assigned(lWin) then
+    lWin := TfpgwWindow(aSurface.UserData);
+  if not Assigned(lWin) then
+    Exit;   { touch on a surface we do not own (a cursor, say) }
+  SetTouchWin(aId, lWin);
+  FLastTouchWin := lWin;
+  if Assigned(FOnTouchDown) then
+    FOnTouchDown(lWin.Owner, aTime, aId, aX.AsInteger, aY.AsInteger);
+end;
+
+procedure TfpgwDisplay.wl_touch_up(AWlTouch: TWlTouch; aSerial: DWord;
+  aTime: DWord; aId: Integer);
+var
+  lWin: TfpgwWindow;
+begin
+  FEventSerial := aSerial;
+  lWin := TouchWin(aId);
+  { Release the mapping before dispatching: a handler may destroy the window. }
+  DropTouchWin(aId);
+  if Assigned(lWin) and Assigned(FOnTouchUp) then
+    FOnTouchUp(lWin.Owner, aTime, aId);
+end;
+
+procedure TfpgwDisplay.wl_touch_motion(AWlTouch: TWlTouch; aTime: DWord;
+  aId: Integer; aX: TWaylandFixed; aY: TWaylandFixed);
+var
+  lWin: TfpgwWindow;
+begin
+  lWin := TouchWin(aId);
+  if Assigned(lWin) and Assigned(FOnTouchMotion) then
+    FOnTouchMotion(lWin.Owner, aTime, aId, aX.AsInteger, aY.AsInteger);
+end;
+
+procedure TfpgwDisplay.wl_touch_frame(AWlTouch: TWlTouch);
+begin
+  if Assigned(FLastTouchWin) and Assigned(FOnTouchFrame) then
+    FOnTouchFrame(FLastTouchWin.Owner);
+end;
+
+procedure TfpgwDisplay.wl_touch_cancel(AWlTouch: TWlTouch);
+var
+  lWin: TfpgwWindow;
+begin
+  { The compositor has taken the gesture. Every contact is void — not a tap,
+    not a release — so drop them all and let the consumer unwind. }
+  lWin := FLastTouchWin;
+  SetLength(FTouchWins, 0);
+  if Assigned(lWin) and Assigned(FOnTouchCancel) then
+    FOnTouchCancel(lWin.Owner);
+end;
+
+procedure TfpgwDisplay.wl_touch_shape(AWlTouch: TWlTouch; aId: Integer;
+  aMajor: TWaylandFixed; aMinor: TWaylandFixed);
+begin
+  { Contact ellipse; not surfaced yet. }
+end;
+
+procedure TfpgwDisplay.wl_touch_orientation(AWlTouch: TWlTouch; aId: Integer;
+  aOrientation: TWaylandFixed);
+begin
+  { Contact orientation; not surfaced yet. }
 end;
 
 procedure TfpgwDisplay.wl_seat_capabilities(AWlSeat: TWlSeat;
@@ -2927,6 +3102,9 @@ begin
     FActiveMouseWin := nil;
   if FActiveKeyboardWin = AWin then
     FActiveKeyboardWin := nil;
+  { Contacts can still be down on a window being destroyed; without this a
+    later up/motion would dispatch through freed memory. }
+  DropTouchWinsFor(AWin);
 end;
 
 function TfpgwDisplay.HasEvent(ATimeout: Integer = 0; AWillRead: Boolean = False): Boolean;
