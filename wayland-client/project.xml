@@ -24,5 +24,7 @@
     <!-- GPU canvas backend (EGL/GL). Not RTL-only, so it is excluded from the
          default build; nothing else in the stack depends on it. -->
     <module activeByDefault="false">gl</module>
+    <!-- Retained widget toolkit on TwgCanvas; runs on either backend. -->
+    <module activeByDefault="false">widgets</module>
   </modules>
 </project>

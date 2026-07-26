@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-widgets</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Retained widget toolkit drawing through TwgCanvas, so it runs on either
+       canvas backend unchanged. See docs/wayland-widgets-design.md.
+
+       Depends on rt only, which is what keeps the software path always
+       available: pulling in libEGL/libGL for the GL backend, or libfreetype +
+       libfontconfig for text, stays a deliberate act by the application rather
+       than a transitive surprise. Excluded from the default build, following
+       the wayland-gl / wayland-text precedent. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

@@ -26,6 +26,7 @@ STAGING_SRC  := $(ROOT)/wayland-client/staging/src/main/pascal
 CLASSES_SRC  := $(ROOT)/wayland-client/classes/src/main/pascal
 TEXT_SRC     := $(ROOT)/wayland-client/text/src/main/pascal
 GL_SRC       := $(ROOT)/wayland-client/gl/src/main/pascal
+WIDGETS_SRC  := $(ROOT)/wayland-client/widgets/src/main/pascal
 DEMO_SRC     := $(ROOT)/wayland-demo/src/main/pascal
 EX_SRC       := $(ROOT)/wayland-examples/src/main/pascal
 
@@ -98,7 +99,8 @@ examples-gl:
 	@for f in $(EX_SRC)/gl_*.pas; do \
 	  b=$$(basename $$f .pas); \
 	  echo ">> fpc $$b (GL)"; \
-	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(TEXT_SRC) -Fu$(GL_SRC) -Fu$(EX_SRC) \
+	  $(FPC) $(FPCFLAGS) $(UNITPATHS) -Fu$(TEXT_SRC) -Fu$(GL_SRC) \
+	    -Fu$(WIDGETS_SRC) -Fu$(EX_SRC) \
 	    -FU$(EX_OUT)/units-gl -FE$(EX_OUT) -o$$b $(GL_LINK) $$f || exit 1; \
 	done
 
@@ -112,6 +114,7 @@ endif
 	       $(ROOT)/wayland-client/unstable/target $(ROOT)/wayland-client/staging/target \
 	       $(ROOT)/wayland-client/classes/target \
 	       $(ROOT)/wayland-client/text/target $(ROOT)/wayland-client/gl/target \
+	       $(ROOT)/wayland-client/widgets/target \
 	       $(ROOT)/wayland-server/rt/target $(ROOT)/wayland-server/stable/target \
 	       $(ROOT)/wayland-server/unstable/target $(ROOT)/wayland-server/staging/target \
 	       $(DEMO_OUT) $(EX_OUT)
