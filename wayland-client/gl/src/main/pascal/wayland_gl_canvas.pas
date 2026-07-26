@@ -415,7 +415,16 @@ begin
     if FCache[i].SourceKey = lKey then
     begin
       if FCache[i].Texture <> ATexture then
+      begin
+        // The pending batch may still be referencing the texture we are about
+        // to delete, and FlushBatch would then bind a dead name.
+        if FCache[i].Texture.Handle = FBatchTexture then
+        begin
+          FlushBatch;
+          FBatchValid := False;
+        end;
         FCache[i].Texture.Free;
+      end;
       FCache[i].Texture := ATexture;
       FCache[i].Generation := ASurface.Generation;
       Exit;
