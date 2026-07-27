@@ -276,6 +276,8 @@ type
     function DebugLayoutCount: Integer;
     function DebugTickRuns: Integer;
     function DebugPendingTicks: Integer;
+    function DebugPaintPixels: Int64;
+    function DebugLastDamage: TRect;
     {$ENDIF}
   end;
 
@@ -286,6 +288,8 @@ var
   wgDamageCount: Integer = 0;
   wgLayoutCount: Integer = 0;
   wgTickRunCount: Integer = 0;
+  wgPaintPixels: Int64 = 0;
+  wgLastDamage: TRect;
 {$ENDIF}
 
 { TwgShmPresenter }
@@ -592,6 +596,11 @@ begin
     Exit;
   end;
 
+  {$IFDEF WG_TRACE_DAMAGE}
+  wgLastDamage := lDamage;
+  Inc(wgPaintPixels, Int64(lDamage.Right - lDamage.Left) *
+                     Int64(lDamage.Bottom - lDamage.Top));
+  {$ENDIF}
   lCanvas.BeginFrame;
   try
     if FScale <> 1.0 then
@@ -634,6 +643,10 @@ function TwgWindow.DebugTickRuns: Integer;
 begin Result := wgTickRunCount; end;
 function TwgWindow.DebugPendingTicks: Integer;
 begin Result := Length(FTicks); end;
+function TwgWindow.DebugPaintPixels: Int64;
+begin Result := wgPaintPixels; end;
+function TwgWindow.DebugLastDamage: TRect;
+begin Result := wgLastDamage; end;
 {$ENDIF}
 
 { --- ticks --- }

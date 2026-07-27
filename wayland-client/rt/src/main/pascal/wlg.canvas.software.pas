@@ -43,7 +43,7 @@ uses
 type
   EwgSoftCanvas = class(Exception);
 
-  { TwgSoftCanvas }
+{ TwgSoftCanvas }
 
   TwgSoftCanvas = class(TwgCanvas, IwgPixelSurface)
   private
@@ -105,7 +105,51 @@ type
     property SuperSample: Integer read FSuperSample;
   end;
 
+{$IFDEF WG_TRACE_RASTER}
+function wgRasterReport: String;
+{$ENDIF}
+
 implementation
+
+{ Integer floor/ceil for Single, avoiding the RTL's Extended-precision
+  versions (which route through Frac and dominated triangle setup). }
+function FloorS(A: Single): Integer; inline;
+begin
+  Result := Trunc(A);
+  if (A < 0) and (A <> Result) then
+    Dec(Result);
+end;
+
+function CeilS(A: Single): Integer; inline;
+begin
+  Result := Trunc(A);
+  if (A > 0) and (A <> Result) then
+    Inc(Result);
+end;
+
+function MinS(A, B: Single): Single; inline;
+begin
+  if A < B then Result := A else Result := B;
+end;
+
+function MaxS(A, B: Single): Single; inline;
+begin
+  if A > B then Result := A else Result := B;
+end;
+
+
+{$IFDEF WG_TRACE_RASTER}
+var
+  wgTriCount: Int64 = 0;
+  wgPixelTests: Int64 = 0;
+  wgShaded: Int64 = 0;
+
+function wgRasterReport: String;
+begin
+  Result := Format('tris=%d pixelTests=%d shaded=%d',
+    [wgTriCount, wgPixelTests, wgShaded]);
+end;
+{$ENDIF}
 
 { TwgSoftCanvas }
 
@@ -329,10 +373,44 @@ var
   lU, lV: Single;
   lColor, lTexel: TwgColor;
   lTopLeft0, lTopLeft1, lTopLeft2: Boolean;
+  lRowLo, lRowHi: Integer;
+  lPY: Single;
 
   function Edge(const AX, AY, BX, BY, PX, PY: Single): Single; inline;
   begin
     Result := (BX - AX) * (PY - AY) - (BY - AY) * (PX - AX);
+  end;
+
+  { Narrow [ALo, AHi] to where this edge is inside on row APY. False when the
+    edge excludes the whole row. Deliberately generous by one pixel: the exact
+    test in the loop is what actually decides, so a span that is slightly too
+    wide costs a rejected pixel while one that is too narrow would drop a
+    pixel the top-left rule says belongs to us. }
+  function RowSpan(const AX, AY, BX, BY, APY: Single;
+    var ALo, AHi: Integer): Boolean; inline;
+  var
+    lW, lDwDx, lX: Single;
+  begin
+    // w(x) = Edge(a, b, x, APY), linear in x with this slope.
+    lDwDx := -(BY - AY);
+    if lArea < 0 then
+      lDwDx := -lDwDx;
+    lW := Edge(AX, AY, BX, BY, ALo + 0.5, APY);
+    if lArea < 0 then
+      lW := -lW;
+    if Abs(lDwDx) < 1e-12 then
+      // Parallel to the row: the whole row is in or out together.
+      Exit(lW >= 0);
+    lX := ALo - lW / lDwDx;      // where w crosses zero, in pixel coordinates
+    if lDwDx > 0 then
+    begin
+      if lX > ALo then
+        ALo := FloorS(lX);       // inside to the RIGHT of the crossing
+    end
+    else
+      if lX < AHi then
+        AHi := CeilS(lX);        // inside to the LEFT of it
+    Result := ALo <= AHi;
   end;
 
   // An edge "owns" the pixels exactly on it when it is a top or a left edge.
@@ -346,10 +424,14 @@ begin
   if Abs(lArea) < 1e-9 then
     Exit;  // degenerate
 
-  lMinX := Max(FClip.Left, Floor(Min(V0.X, Min(V1.X, V2.X))));
-  lMaxX := Min(FClip.Right - 1, Ceil(Max(V0.X, Max(V1.X, V2.X))));
-  lMinY := Max(FClip.Top, Floor(Min(V0.Y, Min(V1.Y, V2.Y))));
-  lMaxY := Min(FClip.Bottom - 1, Ceil(Max(V0.Y, Max(V1.Y, V2.Y))));
+  { Integer floor/ceil on Single rather than Math.Floor/Ceil, which take an
+    Extended and go through Frac — that showed up as 11% of a profile spent
+    setting up bounding boxes for a spinner animation, because a stroked arc
+    is thousands of small triangles and the setup is per triangle. }
+  lMinX := Max(FClip.Left, FloorS(MinS(V0.X, MinS(V1.X, V2.X))));
+  lMaxX := Min(FClip.Right - 1, CeilS(MaxS(V0.X, MaxS(V1.X, V2.X))));
+  lMinY := Max(FClip.Top, FloorS(MinS(V0.Y, MinS(V1.Y, V2.Y))));
+  lMaxY := Min(FClip.Bottom - 1, CeilS(MaxS(V0.Y, MaxS(V1.Y, V2.Y))));
   if (lMinX > lMaxX) or (lMinY > lMaxY) then
     Exit;
 
@@ -369,8 +451,31 @@ begin
     lTopLeft2 := IsTopLeft(V1.X, V1.Y, V0.X, V0.Y);
   end;
 
+  {$IFDEF WG_TRACE_RASTER}
+  Inc(wgTriCount);
+  Inc(wgPixelTests, Int64(lMaxX - lMinX + 1) * Int64(lMaxY - lMinY + 1));
+  {$ENDIF}
+  { Per-row SPAN rather than the whole bounding box.
+
+    A triangle covers a fraction of its bbox, and thin diagonal geometry — a
+    stroked arc, a rotated quad — covers very little of it: measured on the
+    spinner, 20213 pixels tested per frame to shade 3572. Each edge is linear
+    in x, so the inside region on a row is an interval; intersecting the three
+    gives the span directly instead of testing every pixel and rejecting most.
+
+    The span is computed CONSERVATIVELY (widened by a pixel each side) and the
+    exact per-pixel test below is unchanged, so the top-left rule still decides
+    coverage to the bit. This only skips pixels that would have been rejected
+    anyway — it cannot change what is drawn. }
   for y := lMinY to lMaxY do
-    for x := lMinX to lMaxX do
+  begin
+    lRowLo := lMinX;
+    lRowHi := lMaxX;
+    lPY := y + 0.5;
+    if not RowSpan(V1.X, V1.Y, V2.X, V2.Y, lPY, lRowLo, lRowHi) then Continue;
+    if not RowSpan(V2.X, V2.Y, V0.X, V0.Y, lPY, lRowLo, lRowHi) then Continue;
+    if not RowSpan(V0.X, V0.Y, V1.X, V1.Y, lPY, lRowLo, lRowHi) then Continue;
+    for x := lRowLo to lRowHi do
     begin
       // Barycentric weights at the pixel centre.
       w0 := Edge(V1.X, V1.Y, V2.X, V2.Y, x + 0.5, y + 0.5);
@@ -388,6 +493,9 @@ begin
          or ((w2 = 0) and not lTopLeft2) then
         Continue;
 
+      {$IFDEF WG_TRACE_RASTER}
+      Inc(wgShaded);
+      {$ENDIF}
       w0 := w0 * Abs(lInvArea);
       w1 := w1 * Abs(lInvArea);
       w2 := w2 * Abs(lInvArea);
@@ -417,6 +525,7 @@ begin
 
       BlendPixel(x, y, lColor);
     end;
+  end;
 end;
 
 procedure TwgSoftCanvas.Resolve;

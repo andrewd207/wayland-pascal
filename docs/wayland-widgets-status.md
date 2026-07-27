@@ -55,8 +55,8 @@ weston, whole process:
 
 | state | client CPU | compositor |
 |---|---|---|
-| idle | **0.1%** | 0.1% |
-| spinner animating | 12.7% | 1.9% |
+| idle | **0.0-0.1%** | 0.0-0.1% |
+| spinner animating (software canvas) | **6.7%** | 2.0% |
 
 The old figure of "190 fps" was the demo measuring itself: it rewrote a frame
 counter into a label every loop iteration, which damaged the window every
@@ -159,7 +159,38 @@ controlled test; there is no key injector here.
 - `pasbuild compile --all` fails on `wayland-common`, which is documented as not
   standalone-buildable. Pre-existing, not a regression.
 
+## Where the animating time goes
+
+Profiled with `perf` (`-g -gw3` build, nested weston). A spinner damaging a
+32x32 rectangle was costing 12.7%, which is far more than the area suggests.
+The profile said 75% in `RasterTriangle` and 11% in `Frac`, and instrumenting
+the rasteriser explained why: **47 triangles per frame, 20213 pixels tested,
+3572 actually shaded**. Thin diagonal geometry — a stroked arc is exactly that
+— covers very little of its own bounding box, and the rasteriser scanned the
+box.
+
+Two fixes, output byte-identical (verified by rendering the comparison scene
+before and after):
+
+- Per-row spans instead of the bounding box. Each edge is linear in x, so the
+  inside region on a row is an interval; intersecting the three gives the span.
+  The span is computed conservatively and the exact per-pixel test is
+  unchanged, so the top-left rule still decides coverage — this only skips
+  pixels that would have been rejected.
+- Integer floor/ceil on Single instead of `Math.Floor`/`Ceil`, which take an
+  Extended and route through `Frac`. That is per triangle, and a stroked arc is
+  thousands of them.
+
+Result 12.7% -> 6.7%. `RasterTriangle` is still ~76% of what remains; the next
+step would be incremental edge functions (accumulate `w += dw/dx` instead of
+recomputing), but that introduces float drift into the exact `= 0` comparisons
+the top-left rule depends on, so it trades a seam risk for speed and has not
+been done.
+
 ## Debugging damage
+
+`-dWG_TRACE_RASTER` counts triangles, pixel tests and shaded pixels in the
+software canvas — the numbers above came from it.
 
 `-dWG_TRACE_DAMAGE` adds counters to the widget core and window: how many
 invalidations happened and **which widget classes asked for them**
