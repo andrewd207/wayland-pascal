@@ -24,7 +24,8 @@ uses
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base, wlg.text.fontcache,
   wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.layout,
-  wlg.widget.theme, wlg.widget.controls, wlg.widget.window;
+  wlg.widget.theme, wlg.widget.controls, wlg.widget.window,
+  wlg.widget.presenter.gl;
 
 type
 
@@ -43,6 +44,7 @@ type
     FClicks: Integer;
     FFrames: Integer;
     FStart: QWord;
+    FBackend: String;
     procedure BuildUI;
     procedure ButtonClicked(Sender: TObject);
     procedure SliderChanged(Sender: TObject);
@@ -85,6 +87,18 @@ begin
   FWin := TwgWindow.Create(FDisplay, 'wlg — widgets', 760, 500);
   FWin.Font := FFonts.GetFont(FTheme.FontFamily, FTheme.FontSize);
   FWin.Window.SurfaceShell.SetServerSideDecorations;
+
+  // The ONLY difference between a CPU-rendered and a GPU-rendered window.
+  // Everything below this line — tree, layouts, theme, controls, input — is
+  // identical either way.
+  FBackend := 'software (wl_shm)';
+  if ParamStr(1) = '--gl' then
+  begin
+    if wgUseGLPresenter(FWin, 2) then
+      FBackend := 'OpenGL (dmabuf, 2x AA)'
+    else
+      FBackend := 'software (GL unavailable, fell back)';
+  end;
 
   BuildUI;
   FStart := GetTickCount64;
@@ -234,14 +248,14 @@ begin
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs <= 0 then
     Exit;
-  FStatus.Caption := Format('%d frames · %.0f fps · %d clicks · theme: %s (%s)',
-    [FFrames, FFrames / lSecs, FClicks, FTheme.FontFamily,
-     specialize IfThen<String>(FTheme.IsDark, 'dark', 'light')]);
+  FStatus.Caption := Format('%d frames · %.0f fps · %d clicks · %s · %s',
+    [FFrames, FFrames / lSecs, FClicks, FBackend, FTheme.FontFamily]);
 end;
 
 procedure TApp.Run;
 begin
-  WriteLn('widget demo open — close the window to quit');
+  WriteLn('widget demo open (', FBackend, ') — close the window to quit');
+  WriteLn('  pass --gl to render on the GPU');
   Flush(Output);
   while not FWin.Closed do
   begin

@@ -26,5 +26,8 @@
     <module activeByDefault="false">gl</module>
     <!-- Retained widget toolkit on TwgCanvas; runs on either backend. -->
     <module activeByDefault="false">widgets</module>
+    <!-- Bridge: renders a widget window on the GPU and presents it as a
+         dmabuf. Separate so neither gl nor widgets depends on the other. -->
+    <module activeByDefault="false">widgets-gl</module>
   </modules>
 </project>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-widgets-gl</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- The GL presenter: lets a TwgWindow render its widget tree on the GPU and
+       hand the compositor a dmabuf, instead of drawing into wl_shm.
+
+       This is its own module rather than living in wayland-gl or wayland-widgets
+       because it is the only thing that needs BOTH. Keeping it separate leaves
+       wayland-gl a pure canvas backend (rt only) and wayland-widgets RTL-only,
+       so neither drags the other in — a program that just wants the GL canvas
+       does not acquire the widget toolkit, and a widget program does not link
+       libEGL/libGL unless it asks for this. -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
+    <module>../staging</module>
+    <module>../classes</module>
+    <module>../gl</module>
+    <module>../widgets</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>
