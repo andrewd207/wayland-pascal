@@ -43,6 +43,7 @@ uses
 
 type
   TwgWidget = class;
+  TwgLayout = class;
 
   { IwgWidgetHost — whatever owns the surface a widget tree paints into.
 
@@ -58,6 +59,22 @@ type
   end;
 
   TwgWidgetList = array of TwgWidget;
+
+  { TwgLayout — how a container arranges its children.
+
+    Declared here rather than in the layout unit so TwgWidget can own one
+    without a circular dependency; the concrete strategies live in
+    wlg.widget.layout.
+
+    Two phases, because one is not enough: a label's natural width depends on
+    its text, so a container cannot place anything until it has asked. Measure
+    reports what the container would like given what is available; Arrange
+    commits to actual rectangles. }
+  TwgLayout = class
+  public
+    function  Measure(AContainer: TwgWidget; AAvailW, AAvailH: Integer): TSize; virtual; abstract;
+    procedure Arrange(AContainer: TwgWidget; const AClient: TRect); virtual; abstract;
+  end;
 
   { TwgWidget }
 
@@ -75,6 +92,10 @@ type
     FHints: TwgLayoutHints;
     FStates: TwgWidgetStates;
     FFont: IwgGlyphSource;
+    FLayout: TwgLayout;
+    FPadding: TwgMargin;
+    FInLayout: Boolean;
+    procedure SetLayout(AValue: TwgLayout);
 
     procedure AddChild(AChild: TwgWidget);
     procedure RemoveChild(AChild: TwgWidget);
@@ -89,7 +110,9 @@ type
     procedure Paint(ACanvas: TwgCanvas); virtual;
     // Called after the bounds change; override to re-lay-out children.
     procedure BoundsChanged; virtual;
-    // Natural size when unconstrained. Containers override to consult a layout.
+    // Natural size when unconstrained. With a layout assigned this defers to
+    // it; a leaf widget overrides to report its own intrinsic size (a label
+    // measures its text, say).
     function  MeasureSize(AAvailW, AAvailH: Integer): TSize; virtual;
 
     property Host: IwgWidgetHost read GetHost;
@@ -143,6 +166,16 @@ type
     property Enabled: Boolean read FEnabled write SetEnabled;
     property ClipChildren: Boolean read FClipChildren write FClipChildren;
     property LayoutHints: TwgLayoutHints read FHints write FHints;
+    // Arranges the children. Owned by the widget and freed with it; assigning
+    // a new one frees the old.
+    property Layout: TwgLayout read FLayout write SetLayout;
+    // Inset applied by the layout inside this widget's bounds.
+    property Padding: TwgMargin read FPadding write FPadding;
+    // Re-run this widget's layout now. Cascades: setting a child's bounds
+    // triggers its own layout in turn.
+    procedure PerformLayout;
+    // What this widget would like to be, honouring its Min/Max hints.
+    function  PreferredSize(AAvailW, AAvailH: Integer): TSize;
     // Falls back to the host's font when unset.
     property Font: IwgGlyphSource read FFont write FFont;
     function EffectiveFont: IwgGlyphSource;
@@ -207,6 +240,7 @@ begin
     FChildren[i].FParent := nil;
   FChildCount := 0;
   SetLength(FChildren, 0);
+  FreeAndNil(FLayout);
   FHost := nil;
   FFont := nil;
   inherited Destroy;
@@ -406,12 +440,63 @@ end;
 
 procedure TwgWidget.BoundsChanged;
 begin
+  // A resize invalidates the arrangement of whatever is inside.
+  PerformLayout;
 end;
 
 function TwgWidget.MeasureSize(AAvailW, AAvailH: Integer): TSize;
 begin
-  Result.cx := FWidth;
-  Result.cy := FHeight;
+  if FLayout <> nil then
+    Result := FLayout.Measure(Self, AAvailW, AAvailH)
+  else
+  begin
+    Result.cx := FWidth;
+    Result.cy := FHeight;
+  end;
+end;
+
+function TwgWidget.PreferredSize(AAvailW, AAvailH: Integer): TSize;
+begin
+  Result := MeasureSize(AAvailW, AAvailH);
+  // The hints are the caller's last word, applied after the widget (or its
+  // layout) has had its say.
+  if (FHints.MinWidth > 0) and (Result.cx < FHints.MinWidth) then
+    Result.cx := FHints.MinWidth;
+  if (FHints.MinHeight > 0) and (Result.cy < FHints.MinHeight) then
+    Result.cy := FHints.MinHeight;
+  if (FHints.MaxWidth > 0) and (Result.cx > FHints.MaxWidth) then
+    Result.cx := FHints.MaxWidth;
+  if (FHints.MaxHeight > 0) and (Result.cy > FHints.MaxHeight) then
+    Result.cy := FHints.MaxHeight;
+end;
+
+procedure TwgWidget.SetLayout(AValue: TwgLayout);
+begin
+  if FLayout = AValue then
+    Exit;
+  FLayout.Free;
+  FLayout := AValue;
+  InvalidateLayout;
+end;
+
+procedure TwgWidget.PerformLayout;
+var
+  lClient: TRect;
+begin
+  if (FLayout = nil) or FInLayout then
+    Exit;
+  // Arrange sets child bounds, and a child's BoundsChanged lays IT out in
+  // turn; the guard stops a container that resizes itself from recursing.
+  FInLayout := True;
+  try
+    lClient := Rect(FPadding.Left, FPadding.Top,
+                    FWidth - FPadding.Right, FHeight - FPadding.Bottom);
+    if lClient.Right < lClient.Left then lClient.Right := lClient.Left;
+    if lClient.Bottom < lClient.Top then lClient.Bottom := lClient.Top;
+    FLayout.Arrange(Self, lClient);
+  finally
+    FInLayout := False;
+  end;
 end;
 
 procedure TwgWidget.PaintTree(ACanvas: TwgCanvas; const AClipRoot: TRect);

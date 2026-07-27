@@ -393,7 +393,12 @@ end;
 
 procedure TwgWindow.DoLayout;
 begin
+  // Sizing the root cascades: BoundsChanged runs its layout, which sizes the
+  // children, which runs theirs. SetBounds is a no-op when nothing moved, so
+  // the explicit PerformLayout covers the first pass and any case where only
+  // the CONTENT changed.
   FRoot.SetBounds(0, 0, ClientWidth, ClientHeight);
+  FRoot.PerformLayout;
   if Assigned(FOnLayout) then
     FOnLayout(Self);
 end;

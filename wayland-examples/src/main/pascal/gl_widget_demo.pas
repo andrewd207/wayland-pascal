@@ -30,7 +30,8 @@ uses
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base,
   wlg.text.fontcache,
-  wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.window;
+  wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.layout,
+  wlg.widget.window;
 
 type
 
@@ -96,7 +97,7 @@ type
     FPanel: TBox;
     FMover: TBox;
     FStatus: TBox;
-    FHint: TBox;
+    FMoverStrip: TwgWidget;
     FButtons: array[0..2] of TButton;
     FLastClicked: String;
     FFrames: Integer;
@@ -261,65 +262,115 @@ end;
 
 procedure TApp.BuildUI;
 var
-  lRoot, lBg, lChild: TwgWidget;
+  lBg, lRow, lCol: TwgWidget;
+  lChild: TBox;
+  lHints: TwgLayoutHints;
   i: Integer;
-begin
-  lRoot := FWin.Root;
 
-  // Opaque backdrop. The root TwgWidget paints nothing, so without this a
-  // partial repaint would show whatever was in the buffer before.
+  // Hints live on the CHILD, so this is the ergonomic way to set them.
+  procedure Hint(AWidget: TwgWidget; AWeight: Single; AMargin: Integer);
+  var h: TwgLayoutHints;
+  begin
+    h := AWidget.LayoutHints;
+    h.Weight := AWeight;
+    h.Margin := wgMargin(AMargin);
+    AWidget.LayoutHints := h;
+  end;
+
+begin
+  // The ROOT needs a layout too, or nothing below it is ever given bounds —
+  // TwgWindow sizes the root, and the root's layout sizes what is inside.
+  FWin.Root.Layout := TwgBoxLayout.Create(bdVertical, 0, caStretch);
+
+  // Backdrop fills the window and is itself a vertical box: content on top,
+  // status bar pinned below. No coordinates anywhere in this routine.
   lBg := TBox.Create(FWin);
-  lBg.Parent := lRoot;
+  lBg.Parent := FWin.Root;
   TBox(lBg).Color := wgARGB(255, 20, 24, 34);
-  TBox(lBg).Radius := 0;
-  lBg.SetBounds(0, 0, 720, 460);
+  lBg.Padding := wgMargin(16);
+  lBg.Layout := TwgBoxLayout.Create(bdVertical, 12, caStretch);
+  Hint(lBg, 1, 0);   // weighted, so it takes the whole root
+
+  // A row: panel on the left (weighted, so it takes the slack) and a column
+  // of buttons on the right at its natural width.
+  lRow := TwgWidget.Create(FWin);
+  lRow.Parent := lBg;
+  lRow.Layout := TwgBoxLayout.Create(bdHorizontal, 16, caStretch);
+  Hint(lRow, 1, 0);
 
   FPanel := TBox.Create(FWin);
-  FPanel.Parent := lBg;
+  FPanel.Parent := lRow;
   FPanel.Color := wgARGB(255, 36, 44, 64);
   FPanel.Radius := 14;
-  FPanel.Caption := 'panel — children are clipped to me';
-  FPanel.SetBounds(24, 24, 420, 240);
+  FPanel.Caption := 'panel — vertical box, weighted children';
+  FPanel.Padding := wgMargin(14, 34, 14, 14);
+  FPanel.Layout := TwgBoxLayout.Create(bdVertical, 8, caStretch);
+  Hint(FPanel, 1, 0);
 
   for i := 0 to 2 do
   begin
     lChild := TBox.Create(FWin);
     lChild.Parent := FPanel;
-    TBox(lChild).Radius := 8;
-    TBox(lChild).Caption := Format('child %d', [i + 1]);
+    lChild.Radius := 8;
+    lChild.Caption := Format('child %d (weight %d)', [i + 1, i]);
     case i of
-      0: TBox(lChild).Color := wgARGB(255, 70, 130, 220);
-      1: TBox(lChild).Color := wgARGB(255, 220, 120, 70);
-      2: TBox(lChild).Color := wgARGB(230, 120, 200, 140);
+      0: lChild.Color := wgARGB(255, 70, 130, 220);
+      1: lChild.Color := wgARGB(255, 220, 120, 70);
+      2: lChild.Color := wgARGB(230, 120, 200, 140);
     end;
-    // The third one deliberately overhangs the panel, to show clipping.
-    lChild.SetBounds(16 + i * 140, 60 + i * 55, 130, 46);
+    // Weights 0, 1, 2 — the slack divides 1:2 between the last two.
+    Hint(lChild, i, 0);
+    // A weight-0 child keeps its NATURAL size, and TBox has no intrinsic one
+    // (it reports its current bounds, initially zero), so give it a minimum.
+    // Without this, child 1 collapses to nothing — correct, but not a useful
+    // demonstration.
+    lHints := lChild.LayoutHints;
+    lHints.MinHeight := 48;
+    lChild.LayoutHints := lHints;
   end;
 
-  // The only thing that changes each frame; it invalidates just itself.
+  lCol := TwgWidget.Create(FWin);
+  lCol.Parent := lRow;
+  lCol.Layout := TwgBoxLayout.Create(bdVertical, 10, caStretch);
+  lCol.LayoutHints := lCol.LayoutHints;   // natural width, no weight
+
+  for i := 0 to 2 do
+  begin
+    FButtons[i] := TButton.Create(FWin);
+    FButtons[i].Parent := lCol;
+    FButtons[i].Caption := Format('button %d', [i + 1]);
+    FButtons[i].OnClick := @ButtonClicked;
+    Hint(FButtons[i], 0, 0);
+    // Minimum size via hints rather than SetBounds; the layout honours it.
+    lHints := FButtons[i].LayoutHints;
+    lHints.MinWidth := 200;
+    lHints.MinHeight := 44;
+    FButtons[i].LayoutHints := lHints;
+  end;
+  FButtons[2].Enabled := False;   // proves disabled widgets are not hit
+
   FMover := TBox.Create(FWin);
   FMover.Parent := lBg;
   FMover.Color := wgARGB(255, 240, 90, 140);
   FMover.Radius := 10;
   FMover.Caption := 'moving';
-  FMover.SetBounds(24, 300, 120, 60);
-
-  // Three interactive buttons: hover, press, click, focus and Tab traversal.
-  for i := 0 to 2 do
-  begin
-    FButtons[i] := TButton.Create(FWin);
-    FButtons[i].Parent := lBg;
-    FButtons[i].Caption := Format('button %d', [i + 1]);
-    FButtons[i].SetBounds(470, 40 + i * 62, 210, 48);
-    FButtons[i].OnClick := @ButtonClicked;
-  end;
-  FButtons[2].Enabled := False;   // proves disabled widgets are not hit
+  // Not laid out: the animation drives its bounds directly, which is exactly
+  // what a box layout would fight over, so it goes in its own fixed strip.
+  FMoverStrip := TwgWidget.Create(FWin);
+  FMoverStrip.Parent := lBg;
+  FMover.Parent := FMoverStrip;
+  FMover.SetBounds(0, 0, 120, 56);
+  lHints := FMoverStrip.LayoutHints;
+  lHints.MinHeight := 56;
+  FMoverStrip.LayoutHints := lHints;
 
   FStatus := TBox.Create(FWin);
   FStatus.Parent := lBg;
   FStatus.Color := wgARGB(255, 28, 34, 48);
   FStatus.Radius := 8;
-  FStatus.SetBounds(24, 380, 660, 52);
+  lHints := FStatus.LayoutHints;
+  lHints.MinHeight := 46;
+  FStatus.LayoutHints := lHints;
 end;
 
 procedure TApp.ButtonClicked(Sender: TObject);
@@ -329,16 +380,9 @@ begin
 end;
 
 procedure TApp.DoLayout(Sender: TObject);
-var
-  lBg: TwgWidget;
 begin
-  // Root is sized by TwgWindow; keep the backdrop and the status bar with it.
-  if FWin.Root.ChildCount = 0 then
-    Exit;
-  lBg := FWin.Root.Children[0];
-  lBg.SetBounds(0, 0, FWin.ClientWidth, FWin.ClientHeight);
-  FStatus.SetBounds(24, FWin.ClientHeight - 80,
-    Max(80, FWin.ClientWidth - 48), 52);
+  // Nothing to do: the box layouts handle the whole form, including resize.
+  // Kept so the hook is visible in the example.
 end;
 
 procedure TApp.Animate;
@@ -347,7 +391,7 @@ var
   lSecs: Double;
 begin
   lX := FMover.Left + FDirX;
-  if (lX < 24) or (lX + FMover.Width > FWin.ClientWidth - 24) then
+  if (lX < 0) or (lX + FMover.Width > FMoverStrip.Width) then
   begin
     FDirX := -FDirX;
     lX := FMover.Left + FDirX;
