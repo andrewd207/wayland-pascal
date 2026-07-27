@@ -33,8 +33,9 @@ uses
   wlg.surface, wlg.canvas.base, wlg.text.fontcache,
   wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.layout,
   wlg.widget.gesture,      // paVertical — the pan axis the scroll box uses
-  wlg.widget.theme, wlg.widget.controls, wlg.widget.scroll, wlg.widget.window,
-  wlg.widget.presenter.gl;
+  wlg.widget.theme, wlg.widget.controls, wlg.widget.scroll, wlg.widget.text,
+  wlg.widget.window,
+  wlg.widget.presenter.gl, wlg.widget.keyboard.xkb;
 
 type
 
@@ -65,6 +66,9 @@ type
     FSlider: TwgSlider;
     FCheck: TwgCheckBox;
     FScroll: TwgScrollBox;
+    FEntry: TwgTextEdit;
+    FSecret: TwgTextEdit;
+    FEcho: TwgLabel;
     FClicks: Integer;
     FCancels: Integer;
     FFrames: Integer;
@@ -73,6 +77,8 @@ type
     procedure BuildUI;
     procedure ButtonClicked(Sender: TObject);
     procedure ButtonCancelled(Sender: TObject);
+    procedure EntryChanged(Sender: TObject);
+    procedure EntryAccepted(Sender: TObject);
     procedure SliderChanged(Sender: TObject);
     procedure CheckChanged(Sender: TObject);
     procedure Tick;
@@ -134,6 +140,11 @@ begin
     else
       FBackend := 'software (GL unavailable, fell back)';
   end;
+
+  // Keysym and UTF-8 translation for wl_keyboard's raw evdev codes. Without
+  // it the text fields below would take focus and show a caret but never
+  // receive a character — see IwgKeyTranslator.
+  wgUseXkbKeyboard(FWin);
 
   BuildUI;
   FStart := GetTickCount64;
@@ -267,7 +278,36 @@ begin
   FSliderValue.Caption := 'slider: 35 — drag past the edge, it keeps tracking';
   FSliderValue.Dim := True;
   FSliderValue.Align := chLeft;
-  Hint(FSliderValue, 1, 20);
+  Hint(FSliderValue, 0, 20);
+
+  { --- text entry --- }
+  lLbl := TwgLabel.Create(FWin);
+  lLbl.Parent := lRight;
+  lLbl.Caption := 'type here — select, drag, double-click, Ctrl+A/C/X/V';
+  lLbl.Dim := True;
+  lLbl.Align := chLeft;
+  Hint(lLbl, 0, 20);
+
+  FEntry := TwgTextEdit.Create(FWin);
+  FEntry.Parent := lRight;
+  FEntry.Placeholder := 'your name';
+  FEntry.OnChange := @EntryChanged;
+  FEntry.OnAccept := @EntryAccepted;
+  Hint(FEntry, 0, FTheme.Metrics.ControlHeight);
+
+  FSecret := TwgTextEdit.Create(FWin);
+  FSecret.Parent := lRight;
+  FSecret.Placeholder := 'a password';
+  FSecret.PasswordChar := '*';
+  FSecret.MaxLength := 32;
+  Hint(FSecret, 0, FTheme.Metrics.ControlHeight);
+
+  FEcho := TwgLabel.Create(FWin);
+  FEcho.Parent := lRight;
+  FEcho.Caption := '(nothing typed yet)';
+  FEcho.Dim := True;
+  FEcho.Align := chLeft;
+  Hint(FEcho, 1, 20);
 
   { --- status --- }
   FStatus := TwgLabel.Create(FWin);
@@ -306,6 +346,19 @@ begin
   // Nothing to do; the control repaints itself from its own state.
 end;
 
+procedure TApp.EntryChanged(Sender: TObject);
+begin
+  if FEntry.Text = '' then
+    FEcho.Caption := '(nothing typed yet)'
+  else
+    FEcho.Caption := Format('%d bytes: "%s"', [Length(FEntry.Text), FEntry.Text]);
+end;
+
+procedure TApp.EntryAccepted(Sender: TObject);
+begin
+  FEcho.Caption := Format('accepted: "%s"', [FEntry.Text]);
+end;
+
 procedure TApp.Tick;
 var
   lSecs: Double;
@@ -314,6 +367,9 @@ begin
   // Kinetic coasting needs a clock, and the pointer stream stops producing
   // events the moment the finger lifts — so the frame loop is what drives it.
   FScroll.Step;
+  // Caret blink has no event to hang off either.
+  FEntry.Step;
+  FSecret.Step;
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs <= 0 then
     Exit;
@@ -326,6 +382,7 @@ procedure TApp.Run;
 begin
   WriteLn('widget demo open (', FBackend, ') — close the window to quit');
   WriteLn('  drag the list to scroll (or use the wheel); flick it to coast');
+  WriteLn('  Tab to the text fields and type; Ctrl+A/C/X/V work');
   WriteLn('  pass --gl to render on the GPU');
   Flush(Output);
   while not FWin.Closed do

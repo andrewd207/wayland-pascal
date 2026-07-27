@@ -30,10 +30,16 @@ wayland-client/widgets/     [off by default] RTL-only
   wlg.widget.theme            TwgTheme, TwgDesktopTheme
   wlg.widget.controls         label, button, checkbox, radio, slider, panel
   wlg.widget.scroll           TwgScrollBox
-  wlg.widget.window           TwgWindow, IwgPresenter, TwgShmPresenter
+  wlg.widget.text             TwgTextEdit (single line, UTF-8, clipboard)
+  wlg.widget.window           TwgWindow, IwgPresenter, TwgShmPresenter,
+                              IwgKeyTranslator, key repeat, clipboard host
 
 wayland-client/widgets-gl/  [off by default] bridge
   wlg.widget.presenter.gl     TwgGLPresenter + wgUseGLPresenter
+
+wayland-client/widgets-xkb/ [off by default] bridge
+  wlg.widget.keyboard.xkb     TwgXkbTranslator + wgUseXkbKeyboard
+                              (evdev codes + keymap fd -> keysyms and text)
 
 wayland-client/classes/     gained wl_touch (was pointer + keyboard only)
 ```
@@ -53,6 +59,8 @@ Headless harnesses, all passing:
 | Layouts: box weights, margins, hidden, grid, anchors, resize deltas | 25 |
 | Gesture claim/cancel handshake | 15 |
 | Scroll box in a real layout: sizing, overflow, clipping, wheel, drag-vs-click, coast | 18 |
+| Text entry: typing, UTF-8 stepping, selection, word moves, clipboard, password, max length, mouse | 33 |
+| xkb translator against a real compiled keymap: the +8, shift levels, keysyms, repeat flags | 20 |
 | FreeType/fontconfig: aliases, weights, cache keying incl. HiDPI sharing | manual, confirmed |
 
 Live on a compositor: nested weston screenshots for the canvas, the widget tree,
@@ -67,7 +75,13 @@ the controls with desktop theming, and the GPU path.
   exactly; treat it as unproven.
 - **No pinch/rotate recognisers**, and `zwp_pointer_gestures_v1` (touchpad
   pinch/swipe/hold, which the compositor pre-disambiguates) is bound by nothing.
-- **No text input widget**, so no `text-input-v3`, no IME, no caret.
+- **No `text-input-v3`, so no IME.** `TwgTextEdit` takes direct key input and
+  handles XKB compose (dead keys), which covers Latin layouts; it does not
+  speak to an input method, so CJK and friends cannot be typed.
+- **No multi-line text.** `TwgTextEdit` is one line by design — wrapping, a
+  line index, and up/down with a remembered goal column are enough of a
+  different model to want a second widget rather than a flag.
+- **No undo** in the text entry.
 - **No accessibility**, no UI designer, no `.lfm`-style streaming (the
   `TComponent` base leaves room for it).
 - `TwgGridLayout` has no row/column spans.
@@ -76,6 +90,20 @@ the controls with desktop theming, and the GPU path.
 
 ## Constraints worth remembering
 
+- **Asking a seat for a device it does not advertise crashes GNOME.**
+  `get_pointer`/`get_keyboard`/`get_touch` are a protocol violation unless the
+  capability is (or has been) present, and gnome-shell 46 answers with SIGSEGV
+  rather than the error — so a client bug takes the whole session down. Create
+  seat devices only from `wl_seat.capabilities`.
+- **Test compositor-facing changes against NESTED gnome-shell**, not only
+  weston: `dbus-run-session -- gnome-shell --nested --wayland --wayland-display
+  wl-nested`. weston's seat advertises touch and is generally more forgiving,
+  which is exactly why the above went unnoticed. (In any script driving it,
+  write the pgrep/pkill pattern as `[g]nome-shell` — a plain one matches the
+  script's own command line and kills the harness.)
+- **XKB keycode = evdev code + 8.** Nothing in the wl_keyboard documentation
+  says so, and getting it wrong produces plausible wrong letters rather than an
+  error.
 - **`wl_compositor` is bound at version 1** by the classes layer. Anything above
   v1 is a protocol error — notably `wl_surface.damage_buffer` (needs v4), which
   fails as a baffling "stream write error" when the compositor disconnects. Use
@@ -104,7 +132,7 @@ named after their library (`egl_fpc`, `gl_fpc`, `freetype_fpc`,
 
 ## Plausible next steps
 
-1. A text entry widget (caret, selection, clipboard), then `text-input-v3`.
+1. `text-input-v3`, so an input method can drive `TwgTextEdit` (IME, CJK).
 2. Raise the `wl_compositor` bind version in `classes` and switch to
    `damage_buffer`; needed for fractional scaling anyway.
 3. Pinch/rotate, plus `zwp_pointer_gestures_v1` for touchpads.

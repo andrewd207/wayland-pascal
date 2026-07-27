@@ -38,7 +38,7 @@ unit wlg.widget.window;
 interface
 
 uses
-  Classes, SysUtils, Types, Math,
+  Classes, SysUtils, Types, Math, BaseUnix,
   wayland,               // TWlPointer, for the seat event signatures
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base, wlg.canvas.software,
@@ -46,6 +46,38 @@ uses
 
 type
   EwgWindow = class(Exception);
+
+  { IwgKeyTranslator — evdev scancodes into keysyms and text.
+
+    wl_keyboard delivers raw evdev codes plus an XKB keymap over an fd, and
+    nothing else: turning "keycode 38 with these modifiers" into the keysym 'a'
+    or the UTF-8 text "A" is the client's job, and doing it properly means
+    compiling that keymap. libxkbcommon is what compiles it, and it is a C
+    library — which the widget layer deliberately does not link, so that a
+    software-rendered widget program stays RTL-only.
+
+    Hence this seam. TwgWindow hooks the keyboard either way, but without a
+    translator it can only report scancodes: no keysyms, no text, so nothing
+    can be typed. wlg.widget.keyboard.xkb (in the widgets-xkb module) is the
+    implementation; an application that wants a text field installs it, and one
+    that does not never links libxkbcommon.
+
+    Nothing here caches: a compositor may send a new keymap at any time, and
+    modifiers change constantly. }
+  IwgKeyTranslator = interface
+    ['{4F82C6D1-9A37-4E05-B8C2-71D6E9038A5B}']
+    // A new keymap arrived on this fd. The implementation must close it.
+    procedure SetKeymap(AFd: LongInt; ASize: Integer);
+    procedure UpdateModifiers(ADepressed, ALatched, ALocked, AGroup: LongWord);
+    // Translate one key. False when it produces nothing at all (no keymap yet,
+    // or a code the layout does not map).
+    function  Translate(AEvdevCode: LongWord; out AKeySym: LongWord;
+      out AText: String): Boolean;
+    // Current modifier state, as the widget layer names it.
+    function  Modifiers: TwgModifiers;
+    // Should holding this key repeat it? Modifier keys must not.
+    function  Repeats(AEvdevCode: LongWord): Boolean;
+  end;
 
   { IwgPresenter — how finished frames reach the compositor. }
 
@@ -94,7 +126,7 @@ type
 
   { TwgWindow }
 
-  TwgWindow = class(TComponent, IwgWidgetHost)
+  TwgWindow = class(TComponent, IwgWidgetHost, IwgClipboardHost)
   private
     FDisplay: TfpgwDisplay;
     FWindow: TfpgwWindow;
@@ -110,6 +142,13 @@ type
     // wl_pointer.button and .axis carry no coordinates — only .motion and
     // .enter do — so the last known position is kept here for them.
     FLastMouseX, FLastMouseY: Integer;
+    FKeys: IwgKeyTranslator;
+    // Key repeat state. Rate/delay come from the compositor; 0 means it has
+    // not told us, in which case the usual defaults apply.
+    FRepeatKey: LongWord;
+    FRepeatActive: Boolean;
+    FRepeatNextMs: QWord;
+    FRepeatRate, FRepeatDelay: Integer;
     FOnCloseQuery: TwgWindowCloseEvent;
     FOnLayout: TNotifyEvent;
 
@@ -132,6 +171,18 @@ type
     procedure HandleTouchMotion(Sender: TObject; ATime: LongWord; AId: Integer;
       AX, AY: Integer);
     procedure HandleTouchCancel(Sender: TObject);
+    procedure HandleKeymap(Sender: TObject; AFormat: TWlKeyboard.TKeymapFormat;
+      AFileDesc: LongInt; ASize: LongInt);
+    procedure HandleKey(Sender: TObject; ATime: LongWord; AKey: LongWord;
+      AState: TWlKeyboard.TKeyState);
+    procedure HandleModifiers(Sender: TObject;
+      AModsDepressed, AModsLatched, AModsLocked, AGroup: LongWord);
+    procedure HandleKeyboardLeave(Sender: TObject);
+    procedure HandleRepeatInfo(Sender: TObject; ARate, ADelay: LongInt);
+    // Re-send the held key while it stays down. Driven from ProcessFrame,
+    // because a held key produces exactly one wl_keyboard.key event.
+    procedure PollKeyRepeat;
+    procedure DeliverKey(AEvdev: LongWord; ATime: LongWord; ARepeated: Boolean);
     procedure HandleClose(Sender: TObject);
     procedure HandlePaint(Sender: TObject);
     function  GetClientWidth: Integer;
@@ -141,6 +192,10 @@ type
     procedure WidgetInvalidated(const ARect: TRect);
     procedure WidgetLayoutInvalidated;
     function  HostFont: IwgGlyphSource;
+
+    { IwgClipboardHost — the wl_data_device selection, via the classes layer. }
+    function  HostClipboardText: String;
+    procedure HostSetClipboardText(const AText: String);
 
     // Root gets the whole client area. Overridden once real layouts land.
     procedure DoLayout; virtual;
@@ -152,6 +207,10 @@ type
     // Must be called before the first frame. Defaults to TwgShmPresenter, so
     // this is only needed to opt into the GL one.
     procedure SetPresenter(const APresenter: IwgPresenter);
+
+    // Install keysym/text translation. Without one, keys arrive as scancodes
+    // with no text and nothing can be typed — see IwgKeyTranslator.
+    procedure SetKeyTranslator(const ATranslator: IwgKeyTranslator);
 
     // Repaint everything next frame.
     procedure Invalidate;
@@ -384,6 +443,24 @@ begin
   Result := FFont;
 end;
 
+function TwgWindow.HostClipboardText: String;
+begin
+  Result := '';
+  if FDisplay <> nil then
+    Result := FDisplay.ClipboardText;
+end;
+
+procedure TwgWindow.HostSetClipboardText(const AText: String);
+begin
+  if FDisplay <> nil then
+    FDisplay.SetClipboardText(AText);
+end;
+
+procedure TwgWindow.SetKeyTranslator(const ATranslator: IwgKeyTranslator);
+begin
+  FKeys := ATranslator;
+end;
+
 { --- frame --- }
 
 procedure TwgWindow.Invalidate;
@@ -411,6 +488,10 @@ var
 begin
   if FClosed or (FWindow = nil) or (not FWindow.Configured) then
     Exit;
+
+  // A held key sends exactly one wl_keyboard.key event, so repeat has to be
+  // driven from the frame loop. Same reason TwgLongPressRecogniser needs Poll.
+  PollKeyRepeat;
 
   if FLayoutDirty then
   begin
@@ -498,6 +579,123 @@ begin
   FDisplay.OnTouchUp := @HandleTouchUp;
   FDisplay.OnTouchMotion := @HandleTouchMotion;
   FDisplay.OnTouchCancel := @HandleTouchCancel;
+  FDisplay.OnKeyboardKeymap := @HandleKeymap;
+  FDisplay.OnKeyboardKey := @HandleKey;
+  FDisplay.OnKeyboardModifiers := @HandleModifiers;
+  FDisplay.OnKeyboardLeave := @HandleKeyboardLeave;
+  FDisplay.OnKeyBoardRepeatInfo := @HandleRepeatInfo;
+end;
+
+{ --- keyboard ---
+
+  The classes layer hands up raw evdev codes and the keymap fd; everything
+  that makes those into typing happens through IwgKeyTranslator. }
+
+procedure TwgWindow.HandleKeymap(Sender: TObject;
+  AFormat: TWlKeyboard.TKeymapFormat; AFileDesc: LongInt; ASize: LongInt);
+begin
+  // Note this one is NOT gated on IsForMe: the keymap belongs to the seat, not
+  // to a window, and is dispatched with the focused window's owner as Sender —
+  // which may be another window, or none at all when it first arrives.
+  if FKeys <> nil then
+    FKeys.SetKeymap(AFileDesc, ASize)
+  else
+    // Nobody will read it; leaving it open leaks an fd per keymap change.
+    FpClose(AFileDesc);
+end;
+
+procedure TwgWindow.HandleModifiers(Sender: TObject;
+  AModsDepressed, AModsLatched, AModsLocked, AGroup: LongWord);
+begin
+  if FKeys = nil then
+    Exit;
+  FKeys.UpdateModifiers(AModsDepressed, AModsLatched, AModsLocked, AGroup);
+  FRouter.SetModifiers(FKeys.Modifiers);
+end;
+
+procedure TwgWindow.DeliverKey(AEvdev: LongWord; ATime: LongWord;
+  ARepeated: Boolean);
+var
+  lSym: LongWord;
+  lText: String;
+begin
+  if FKeys = nil then
+  begin
+    // No translator: the scancode is all we have. Deliver it anyway so a
+    // program that only wants raw keys still gets them, but there is no
+    // keysym and no text, so nothing can be typed.
+    FRouter.KeyDown(0, AEvdev, '', ARepeated, ATime);
+    Exit;
+  end;
+  if not FKeys.Translate(AEvdev, lSym, lText) then
+    Exit;
+  FRouter.KeyDown(lSym, AEvdev, lText, ARepeated, ATime);
+end;
+
+procedure TwgWindow.HandleKey(Sender: TObject; ATime: LongWord;
+  AKey: LongWord; AState: TWlKeyboard.TKeyState);
+var
+  lSym: LongWord;
+  lText: String;
+begin
+  if not IsForMe(Sender) then
+    Exit;
+  if AState = TWlKeyboard.TKeyState.kePressed then
+  begin
+    DeliverKey(AKey, ATime, False);
+    // Arm the repeat. Only one key repeats at a time — the last one pressed,
+    // which is what every toolkit does and what users expect when rolling
+    // from one key onto another.
+    if (FKeys <> nil) and FKeys.Repeats(AKey) then
+    begin
+      FRepeatKey := AKey;
+      FRepeatActive := True;
+      FRepeatNextMs := GetTickCount64 + FRepeatDelay;
+    end;
+  end
+  else
+  begin
+    if FRepeatActive and (AKey = FRepeatKey) then
+      FRepeatActive := False;
+    if FKeys <> nil then
+    begin
+      if FKeys.Translate(AKey, lSym, lText) then
+        FRouter.KeyUp(lSym, AKey, ATime);
+    end
+    else
+      FRouter.KeyUp(0, AKey, ATime);
+  end;
+end;
+
+procedure TwgWindow.HandleKeyboardLeave(Sender: TObject);
+begin
+  // Focus left while a key was down: the release will never arrive, so the
+  // key would otherwise repeat forever.
+  FRepeatActive := False;
+end;
+
+procedure TwgWindow.HandleRepeatInfo(Sender: TObject; ARate, ADelay: LongInt);
+begin
+  FRepeatDelay := ADelay;
+  // Rate is in characters per second; zero means the compositor is asking for
+  // no repeat at all, which must be honoured rather than divided by.
+  if ARate > 0 then
+    FRepeatRate := 1000 div ARate
+  else
+    FRepeatRate := 0;
+end;
+
+procedure TwgWindow.PollKeyRepeat;
+var
+  lNow: QWord;
+begin
+  if (not FRepeatActive) or (FRepeatRate <= 0) then
+    Exit;
+  lNow := GetTickCount64;
+  if lNow < FRepeatNextMs then
+    Exit;
+  DeliverKey(FRepeatKey, LongWord(lNow), True);
+  FRepeatNextMs := lNow + FRepeatRate;
 end;
 
 procedure TwgWindow.HandleMouseEnter(Sender: TObject; AX, AY: Integer);

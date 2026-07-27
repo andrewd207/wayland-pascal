@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>wayland-widgets-xkb</name>
+  <!-- version inherited from aggregator -->
+  <author>Andrew Haines</author>
+  <license>BSD-3-Clause</license>
+
+  <!-- Keyboard translation: turns the raw evdev codes and XKB keymap fd that
+       wl_keyboard delivers into keysyms and UTF-8 text, which is what a text
+       field needs before it can be typed into.
+
+       Its own module for the same reason as widgets-gl: doing this properly
+       needs libxkbcommon, and wayland-widgets is deliberately RTL-only. A
+       program that draws widgets but takes no text input should not acquire a
+       C library for the privilege, so installing the translator is an explicit
+       act (wgUseXkbKeyboard). -->
+  <build>
+    <packaging>library</packaging>
+    <outputDirectory>target</outputDirectory>
+    <unitPaths>
+      <path>src/main/pascal</path>
+    </unitPaths>
+  </build>
+
+  <moduleDependencies>
+    <module>../rt</module>
+    <module>../stable</module>
+    <module>../unstable</module>
+    <module>../staging</module>
+    <module>../classes</module>
+    <module>../widgets</module>
+  </moduleDependencies>
+
+  <profiles>
+    <profile>
+      <id>debug</id>
+      <defines>
+        <define>DEBUG</define>
+      </defines>
+      <compilerOptions>
+        <option>-g</option>
+        <option>-gl</option>
+        <option>-gw3</option>
+        <option>-gh</option>
+      </compilerOptions>
+    </profile>
+  </profiles>
+</project>

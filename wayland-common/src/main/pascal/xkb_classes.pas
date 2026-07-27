@@ -36,6 +36,15 @@ type
     function KeySymToUtf8(AKeySym: xkb_keysym_t): UTF8String;
     function KeyCodeName(AKeyCode: xkb_keycode_t): String;
     function KeyGetSyms(AKey: LongWord; ASyms: PPxkb_keysym_t): Integer;
+    { The single keysym a key produces in the current state — layout, shift
+      level and group all applied. AKey is an XKB keycode, which is the evdev
+      code plus 8. }
+    function KeyGetOneSym(AKey: xkb_keycode_t): xkb_keysym_t;
+    { Does holding this key repeat? The keymap says so per key, which is how
+      modifiers avoid repeating. Same +8 convention. }
+    function KeyRepeats(AKey: xkb_keycode_t): Boolean;
+    { False when no keymap has compiled — every lookup would be meaningless. }
+    function HasKeymap: Boolean;
     property LastSym: xkb_keysym_t read FLastSym;
 
   end;
@@ -184,6 +193,23 @@ end;
 function TXKBHelper.KeyGetSyms(AKey: LongWord; ASyms: PPxkb_keysym_t): Integer;
 begin
   Result := xkb_state_key_get_syms(FState, AKey, ASyms);
+end;
+
+function TXKBHelper.KeyGetOneSym(AKey: xkb_keycode_t): xkb_keysym_t;
+begin
+  if FState = nil then
+    Exit(0);
+  Result := xkb_state_key_get_one_sym(FState, AKey);
+end;
+
+function TXKBHelper.KeyRepeats(AKey: xkb_keycode_t): Boolean;
+begin
+  Result := (FKeymap <> nil) and (xkb_keymap_key_repeats(FKeymap, AKey) <> 0);
+end;
+
+function TXKBHelper.HasKeymap: Boolean;
+begin
+  Result := (FKeymap <> nil) and (FState <> nil);
 end;
 
 end.

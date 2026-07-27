@@ -58,6 +58,19 @@ type
     function  HostFont: IwgGlyphSource;
   end;
 
+  { IwgClipboardHost — an OPTIONAL extra a host may also implement.
+
+    Separate from IwgWidgetHost, and found with Supports() rather than being
+    part of it, because a clipboard needs a compositor connection: the
+    ten-line host a headless test implements should not have to fake a
+    selection just to make the tree compile. Widgets that want cut and paste
+    ask, and do nothing when the answer is no. }
+  IwgClipboardHost = interface
+    ['{0C7F44A1-6B9E-4D52-91A8-3E5D0B7C264F}']
+    function  HostClipboardText: String;
+    procedure HostSetClipboardText(const AText: String);
+  end;
+
   TwgWidgetList = array of TwgWidget;
 
   { TwgLayout — how a container arranges its children.
