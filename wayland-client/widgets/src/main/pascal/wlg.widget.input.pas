@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, SysUtils, Types, Math,
-  wlg.widget.types, wlg.widget.core;
+  wlg.widget.types, wlg.widget.core, wlg.widget.gesture;
 
 type
   { What a widget overrides to receive input. Separate from TwgWidget so the
@@ -75,6 +75,9 @@ type
         Source: TwgInputSource;
         LastX, LastY: Integer;    // root coordinates
         Active: Boolean;
+        // Non-nil once a recogniser has claimed: every further event goes to
+        // it alone and the widget underneath has already been cancelled.
+        Claimed: TwgGestureRecogniser;
       end;
   private
     FRoot: TwgWidget;
@@ -83,6 +86,16 @@ type
     FHoverChain: array of TwgWidget;
     FFocused: TwgWidget;
     FModifiers: TwgModifiers;
+    FRecognisers: array of TwgGestureRecogniser;
+    // Feed recognisers on the hit widget's ancestor chain. Returns the one
+    // that claimed, if any.
+    // ARootX/ARootY are ROOT coordinates; each recogniser is handed the point
+    // in its own host's space. Taking root coords explicitly avoids having to
+    // re-derive them from whichever widget's frame AEvent happens to be in.
+    function  OfferToRecognisers(AHit: TwgWidget; ARootX, ARootY: Integer;
+      ASource: TwgInputSource; ASeq: TwgSequenceId; ATime: LongWord;
+      APhase: TwgGesturePhase): TwgGestureRecogniser;
+    procedure ClaimFor(var ASeq: TSequence; ARecogniser: TwgGestureRecogniser);
 
     function  IndexOfSeq(AId: TwgSequenceId): Integer;
     function  Seq(AId: TwgSequenceId; ASource: TwgInputSource): Integer;
@@ -131,6 +144,16 @@ type
     procedure WidgetDestroyed(AWidget: TwgWidget);
     // Take the sequence away from whoever holds it (a gesture recogniser won).
     procedure CancelSequence(AId: TwgSequenceId);
+
+    { --- gestures --- }
+    // The recogniser watches every sequence starting on its host or a
+    // descendant, before ordinary routing acts on it.
+    procedure AddRecogniser(ARecogniser: TwgGestureRecogniser);
+    procedure RemoveRecogniser(ARecogniser: TwgGestureRecogniser);
+    // Give time-based recognisers (long press) a chance to fire; call once a
+    // frame. A held, motionless press produces no events, so without this a
+    // long press could never be detected.
+    procedure PollGestures(ANowMs: LongWord);
 
     property Root: TwgWidget read FRoot write FRoot;
     property Focused: TwgWidget read FFocused;
@@ -208,6 +231,119 @@ begin
   i := IndexOfSeq(AId);
   if i >= 0 then
     FSequences[i] := Default(TSequence);   // Active := False
+end;
+
+procedure TwgInputRouter.AddRecogniser(ARecogniser: TwgGestureRecogniser);
+begin
+  if ARecogniser = nil then
+    Exit;
+  SetLength(FRecognisers, Length(FRecognisers) + 1);
+  FRecognisers[High(FRecognisers)] := ARecogniser;
+end;
+
+procedure TwgInputRouter.RemoveRecogniser(ARecogniser: TwgGestureRecogniser);
+var
+  i, j: Integer;
+begin
+  for i := 0 to High(FRecognisers) do
+    if FRecognisers[i] = ARecogniser then
+    begin
+      for j := i to High(FRecognisers) - 1 do
+        FRecognisers[j] := FRecognisers[j + 1];
+      SetLength(FRecognisers, Length(FRecognisers) - 1);
+      Exit;
+    end;
+end;
+
+// Is AAncestor AWidget or one of its ancestors?
+function IsAncestorOf(AAncestor, AWidget: TwgWidget): Boolean;
+var
+  w: TwgWidget;
+begin
+  w := AWidget;
+  while w <> nil do
+  begin
+    if w = AAncestor then
+      Exit(True);
+    w := w.Parent;
+  end;
+  Result := False;
+end;
+
+function TwgInputRouter.OfferToRecognisers(AHit: TwgWidget;
+  ARootX, ARootY: Integer; ASource: TwgInputSource; ASeq: TwgSequenceId;
+  ATime: LongWord; APhase: TwgGesturePhase): TwgGestureRecogniser;
+var
+  i: Integer;
+  lRec: TwgGestureRecogniser;
+  lLocal: TwgPointerEvent;
+  p: TPoint;
+begin
+  Result := nil;
+  if AHit = nil then
+    Exit;
+  for i := 0 to High(FRecognisers) do
+  begin
+    lRec := FRecognisers[i];
+    if (lRec.Host = nil) or (not IsAncestorOf(lRec.Host, AHit)) then
+      Continue;
+    lLocal := Default(TwgPointerEvent);
+    p := lRec.Host.RootToLocal(ARootX, ARootY);
+    lLocal.X := p.X;
+    lLocal.Y := p.Y;
+    lLocal.Source := ASource;
+    lLocal.Sequence := ASeq;
+    lLocal.Modifiers := FModifiers;
+    lLocal.Time := ATime;
+    if lRec.Feed(lLocal, APhase) = grRecognised then
+    begin
+      // First claim wins. Innermost-first would let a nested scroller beat an
+      // outer one, but registration order is the simpler rule and the caller
+      // controls it.
+      Result := lRec;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TwgInputRouter.ClaimFor(var ASeq: TSequence;
+  ARecogniser: TwgGestureRecogniser);
+var
+  lEvent: TwgPointerEvent;
+begin
+  if ASeq.Claimed = ARecogniser then
+    Exit;
+  // Tell the widget that thought it had this sequence to unwind. This is the
+  // half of the handshake that makes a button inside a scroller behave: it was
+  // legitimately pressed, and now it must NOT fire.
+  if ASeq.Capture <> nil then
+  begin
+    ASeq.Capture.SetState(wsPressed, False);
+    lEvent := MakeEvent(ASeq.Capture, ASeq.LastX, ASeq.LastY, ASeq.Source,
+      ASeq.Id, 0, 0);
+    Deliver(ASeq.Capture, lEvent, wgEvCancel);
+  end;
+  ASeq.Claimed := ARecogniser;
+  ASeq.Capture := nil;
+  ASeq.Pressed := nil;   // no click can follow a claimed sequence
+end;
+
+procedure TwgInputRouter.PollGestures(ANowMs: LongWord);
+var
+  i, j: Integer;
+  lRec: TwgLongPressRecogniser;
+begin
+  for i := 0 to High(FRecognisers) do
+  begin
+    if not (FRecognisers[i] is TwgLongPressRecogniser) then
+      Continue;
+    lRec := TwgLongPressRecogniser(FRecognisers[i]);
+    if not lRec.Poll(ANowMs) then
+      Continue;
+    j := IndexOfSeq(lRec.Sequence);
+    if j >= 0 then
+      ClaimFor(FSequences[j], lRec);
+  end;
 end;
 
 function TwgInputRouter.Target(AWidget: TwgWidget; out AIntf: IwgInputTarget): Boolean;
@@ -378,6 +514,7 @@ var
   i: Integer;
   lHit: TwgWidget;
   lEvent: TwgPointerEvent;
+  lRec: TwgGestureRecogniser;
 begin
   if FRoot = nil then
     Exit;
@@ -386,13 +523,35 @@ begin
   // While captured, the grab holder gets the motion wherever the pointer is —
   // that is the whole point of a grab — but hover still tracks the real
   // widget under the cursor.
-  if (i >= 0) and (FSequences[i].Capture <> nil) then
+  if i >= 0 then
   begin
     FSequences[i].LastX := AX;
     FSequences[i].LastY := AY;
-    lEvent := MakeEvent(FSequences[i].Capture, AX, AY, isMouse, wgMouseSequence, 0, ATime);
-    Deliver(FSequences[i].Capture, lEvent, wgEvMove);
-    Exit;
+
+    // A claimed sequence belongs to the recogniser alone.
+    if FSequences[i].Claimed <> nil then
+    begin
+      lEvent := MakeEvent(FSequences[i].Claimed.Host, AX, AY, isMouse,
+        wgMouseSequence, 0, ATime);
+      OfferToRecognisers(FSequences[i].Claimed.Host, AX, AY, isMouse,
+        wgMouseSequence, ATime, gpMove);
+      Exit;
+    end;
+
+    if FSequences[i].Capture <> nil then
+    begin
+      lEvent := MakeEvent(FSequences[i].Capture, AX, AY, isMouse, wgMouseSequence, 0, ATime);
+      // Offer BEFORE the widget acts, so a pan can steal the drag mid-gesture.
+      lRec := OfferToRecognisers(FSequences[i].Capture, AX, AY, isMouse,
+        wgMouseSequence, ATime, gpMove);
+      if lRec <> nil then
+      begin
+        ClaimFor(FSequences[i], lRec);
+        Exit;
+      end;
+      Deliver(FSequences[i].Capture, lEvent, wgEvMove);
+      Exit;
+    end;
   end;
 
   lHit := FRoot.HitTest(AX, AY);
@@ -432,6 +591,8 @@ begin
 
   lEvent := MakeEvent(lHit, AX, AY, isMouse, wgMouseSequence, AButton, ATime);
   Deliver(lHit, lEvent, wgEvDown);
+  // Recognisers see the press too, so a pan knows where the drag started.
+  OfferToRecognisers(lHit, AX, AY, isMouse, wgMouseSequence, ATime, gpDown);
 end;
 
 procedure TwgInputRouter.MouseUp(AX, AY: Integer; AButton: LongWord;
@@ -446,9 +607,25 @@ begin
   i := IndexOfSeq(wgMouseSequence);
   if i < 0 then
     Exit;
+  if FSequences[i].Claimed <> nil then
+  begin
+    lEvent := MakeEvent(FSequences[i].Claimed.Host, AX, AY, isMouse,
+      wgMouseSequence, AButton, ATime);
+    OfferToRecognisers(FSequences[i].Claimed.Host, AX, AY, isMouse,
+      wgMouseSequence, ATime, gpUp);
+    DropSeq(wgMouseSequence);
+    MouseMove(AX, AY, ATime);
+    Exit;
+  end;
+
   lCapture := FSequences[i].Capture;
   if lCapture = nil then
+  begin
+    DropSeq(wgMouseSequence);
     Exit;
+  end;
+  // Let a recogniser see the release; a tap recogniser decides here.
+  OfferToRecognisers(lCapture, AX, AY, isMouse, wgMouseSequence, ATime, gpUp);
   lCapture.SetState(wsPressed, False);
 
   lEvent := MakeEvent(lCapture, AX, AY, isMouse, wgMouseSequence, AButton, ATime);
@@ -539,6 +716,7 @@ begin
 
   lEvent := MakeEvent(lHit, AX, AY, isTouch, lSeq, 0, ATime);
   Deliver(lHit, lEvent, wgEvDown);
+  OfferToRecognisers(lHit, AX, AY, isMouse, wgMouseSequence, ATime, gpDown);
 end;
 
 procedure TwgInputRouter.TouchMove(AId: Integer; AX, AY: Integer; ATime: LongWord);
@@ -546,14 +724,33 @@ var
   i: Integer;
   lEvent: TwgPointerEvent;
   lSeq: TwgSequenceId;
+  lRec: TwgGestureRecogniser;
 begin
   lSeq := wgFirstTouchSequence + AId;
   i := IndexOfSeq(lSeq);
-  if (i < 0) or (FSequences[i].Capture = nil) then
+  if i < 0 then
+    Exit;
+  if (FSequences[i].Capture = nil) and (FSequences[i].Claimed = nil) then
     Exit;
   FSequences[i].LastX := AX;
   FSequences[i].LastY := AY;
+
+  if FSequences[i].Claimed <> nil then
+  begin
+    lEvent := MakeEvent(FSequences[i].Claimed.Host, AX, AY, isTouch, lSeq, 0, ATime);
+    OfferToRecognisers(FSequences[i].Claimed.Host, AX, AY, isTouch, lSeq,
+      ATime, gpMove);
+    Exit;
+  end;
+
   lEvent := MakeEvent(FSequences[i].Capture, AX, AY, isTouch, lSeq, 0, ATime);
+  lRec := OfferToRecognisers(FSequences[i].Capture, AX, AY, isTouch, lSeq,
+    ATime, gpMove);
+  if lRec <> nil then
+  begin
+    ClaimFor(FSequences[i], lRec);
+    Exit;
+  end;
   Deliver(FSequences[i].Capture, lEvent, wgEvMove);
 end;
 
@@ -573,8 +770,18 @@ begin
   // wl_touch.up carries no coordinates, so the last motion is where it ended.
   lX := FSequences[i].LastX;
   lY := FSequences[i].LastY;
+
+  if FSequences[i].Claimed <> nil then
+  begin
+    OfferToRecognisers(FSequences[i].Claimed.Host, lX, lY, isTouch, lSeq,
+      ATime, gpUp);
+    DropSeq(lSeq);
+    Exit;
+  end;
+
   if lCapture <> nil then
   begin
+    OfferToRecognisers(lCapture, lX, lY, isTouch, lSeq, ATime, gpUp);
     lCapture.SetState(wsPressed, False);
     lEvent := MakeEvent(lCapture, lX, lY, isTouch, lSeq, 0, ATime);
     Deliver(lCapture, lEvent, wgEvUp);
