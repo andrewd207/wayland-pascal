@@ -89,8 +89,9 @@ type
     procedure DropSeq(AId: TwgSequenceId);
 
     function  Target(AWidget: TwgWidget; out AIntf: IwgInputTarget): Boolean;
-    // Deliver to AWidget and bubble to ancestors until Handled.
-    procedure Dispatch(AWidget: TwgWidget; var AEvent: TwgPointerEvent;
+    // Deliver to AWidget and bubble to ancestors until Handled. NOT named
+    // Dispatch: TObject already has one, and hiding it is asking for trouble.
+    procedure Deliver(AWidget: TwgWidget; var AEvent: TwgPointerEvent;
       AKind: Integer);
     procedure DispatchScroll(AWidget: TwgWidget; var AEvent: TwgScrollEvent);
     procedure UpdateHover(AHit: TwgWidget; AX, AY: Integer; ATime: LongWord);
@@ -235,7 +236,7 @@ begin
   Result.Time := ATime;
 end;
 
-procedure TwgInputRouter.Dispatch(AWidget: TwgWidget; var AEvent: TwgPointerEvent;
+procedure TwgInputRouter.Deliver(AWidget: TwgWidget; var AEvent: TwgPointerEvent;
   AKind: Integer);
 var
   w: TwgWidget;
@@ -354,7 +355,7 @@ begin
     begin
       FHoverChain[i].SetState(wsHovered, False);
       lEvent := MakeEvent(FHoverChain[i], AX, AY, isMouse, wgMouseSequence, 0, ATime);
-      Dispatch(FHoverChain[i], lEvent, wgEvLeave);
+      Deliver(FHoverChain[i], lEvent, wgEvLeave);
     end;
 
   // Enter, outermost first.
@@ -362,7 +363,7 @@ begin
   begin
     lNew[i].SetState(wsHovered, True);
     lEvent := MakeEvent(lNew[i], AX, AY, isMouse, wgMouseSequence, 0, ATime);
-    Dispatch(lNew[i], lEvent, wgEvEnter);
+    Deliver(lNew[i], lEvent, wgEvEnter);
   end;
 
   SetLength(FHoverChain, lCount);
@@ -390,7 +391,7 @@ begin
     FSequences[i].LastX := AX;
     FSequences[i].LastY := AY;
     lEvent := MakeEvent(FSequences[i].Capture, AX, AY, isMouse, wgMouseSequence, 0, ATime);
-    Dispatch(FSequences[i].Capture, lEvent, wgEvMove);
+    Deliver(FSequences[i].Capture, lEvent, wgEvMove);
     Exit;
   end;
 
@@ -399,7 +400,7 @@ begin
   if lHit <> nil then
   begin
     lEvent := MakeEvent(lHit, AX, AY, isMouse, wgMouseSequence, 0, ATime);
-    Dispatch(lHit, lEvent, wgEvMove);
+    Deliver(lHit, lEvent, wgEvMove);
   end;
 end;
 
@@ -430,7 +431,7 @@ begin
     SetFocus(lHit);
 
   lEvent := MakeEvent(lHit, AX, AY, isMouse, wgMouseSequence, AButton, ATime);
-  Dispatch(lHit, lEvent, wgEvDown);
+  Deliver(lHit, lEvent, wgEvDown);
 end;
 
 procedure TwgInputRouter.MouseUp(AX, AY: Integer; AButton: LongWord;
@@ -451,7 +452,7 @@ begin
   lCapture.SetState(wsPressed, False);
 
   lEvent := MakeEvent(lCapture, AX, AY, isMouse, wgMouseSequence, AButton, ATime);
-  Dispatch(lCapture, lEvent, wgEvUp);
+  Deliver(lCapture, lEvent, wgEvUp);
 
   // A click only happens if the release is still over the widget that was
   // pressed — dragging off and letting go must not activate it.
@@ -460,7 +461,7 @@ begin
   begin
     lEvent := MakeEvent(lHit, AX, AY, isMouse, wgMouseSequence, AButton, ATime);
     lEvent.Handled := False;
-    Dispatch(lHit, lEvent, wgEvClick);
+    Deliver(lHit, lEvent, wgEvClick);
   end;
 
   DropSeq(wgMouseSequence);
@@ -478,7 +479,7 @@ begin
     begin
       FHoverChain[i].SetState(wsHovered, False);
       lEvent := MakeEvent(FHoverChain[i], 0, 0, isMouse, wgMouseSequence, 0, 0);
-      Dispatch(FHoverChain[i], lEvent, wgEvLeave);
+      Deliver(FHoverChain[i], lEvent, wgEvLeave);
     end;
   SetLength(FHoverChain, 0);
 end;
@@ -537,7 +538,7 @@ begin
     SetFocus(lHit);
 
   lEvent := MakeEvent(lHit, AX, AY, isTouch, lSeq, 0, ATime);
-  Dispatch(lHit, lEvent, wgEvDown);
+  Deliver(lHit, lEvent, wgEvDown);
 end;
 
 procedure TwgInputRouter.TouchMove(AId: Integer; AX, AY: Integer; ATime: LongWord);
@@ -553,7 +554,7 @@ begin
   FSequences[i].LastX := AX;
   FSequences[i].LastY := AY;
   lEvent := MakeEvent(FSequences[i].Capture, AX, AY, isTouch, lSeq, 0, ATime);
-  Dispatch(FSequences[i].Capture, lEvent, wgEvMove);
+  Deliver(FSequences[i].Capture, lEvent, wgEvMove);
 end;
 
 procedure TwgInputRouter.TouchUp(AId: Integer; ATime: LongWord);
@@ -576,7 +577,7 @@ begin
   begin
     lCapture.SetState(wsPressed, False);
     lEvent := MakeEvent(lCapture, lX, lY, isTouch, lSeq, 0, ATime);
-    Dispatch(lCapture, lEvent, wgEvUp);
+    Deliver(lCapture, lEvent, wgEvUp);
 
     if FRoot <> nil then
     begin
@@ -585,7 +586,7 @@ begin
       begin
         lEvent := MakeEvent(lHit, lX, lY, isTouch, lSeq, 0, ATime);
         lEvent.Handled := False;
-        Dispatch(lHit, lEvent, wgEvClick);
+        Deliver(lHit, lEvent, wgEvClick);
       end;
     end;
   end;
@@ -607,7 +608,7 @@ begin
         FSequences[i].Capture.SetState(wsPressed, False);
         lEvent := MakeEvent(FSequences[i].Capture, FSequences[i].LastX,
           FSequences[i].LastY, isTouch, FSequences[i].Id, 0, 0);
-        Dispatch(FSequences[i].Capture, lEvent, wgEvCancel);
+        Deliver(FSequences[i].Capture, lEvent, wgEvCancel);
       end;
       FSequences[i] := Default(TSequence);
     end;
@@ -626,7 +627,7 @@ begin
     FSequences[i].Capture.SetState(wsPressed, False);
     lEvent := MakeEvent(FSequences[i].Capture, FSequences[i].LastX,
       FSequences[i].LastY, FSequences[i].Source, AId, 0, 0);
-    Dispatch(FSequences[i].Capture, lEvent, wgEvCancel);
+    Deliver(FSequences[i].Capture, lEvent, wgEvCancel);
   end;
   FSequences[i] := Default(TSequence);
 end;
