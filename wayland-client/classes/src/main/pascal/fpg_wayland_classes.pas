@@ -2160,20 +2160,17 @@ begin
       begin
         AWlRegistry.Bind(AName, AInterface, 1, TWlSeat, FSeat);
         FSeat.AddListener(Self);
-        FMouse := FSeat.GetPointer;
-        if Assigned(FMouse) then
-          FMouse.AddListener(Self);
+        { The devices are created in wl_seat_capabilities, NOT here.
 
-        FKeyboard := FSeat.GetKeyboard;
-        if Assigned(FKeyboard) then
-          FKeyboard.AddListener(Self);
-
-        { Ask for touch unconditionally, as we already do for pointer and
-          keyboard: wl_seat.capabilities may not have arrived yet at bind time,
-          and a seat that has no touch simply never sends touch events. }
-        FTouch := FSeat.GetTouch;
-        if Assigned(FTouch) then
-          FTouch.AddListener(Self);
+          get_pointer/get_keyboard/get_touch are a protocol VIOLATION on a seat
+          that has never advertised the matching capability — the spec says the
+          compositor sends missing_capability — so they cannot be issued at bind
+          time, before the capabilities event has told us what exists. This used
+          to ask for all three unconditionally, which on a machine with no
+          touchscreen made every client of this library kill gnome-shell 46
+          outright (it segfaults rather than sending the error, taking the whole
+          session down with it). Capabilities always arrive before the roundtrip
+          in AfterCreate returns, so nothing observes the devices any later. }
         SetupDataDevice;
       end;
     'zwp_linux_dmabuf_v1':
@@ -2346,10 +2343,39 @@ end;
 procedure TfpgwDisplay.wl_seat_capabilities(AWlSeat: TWlSeat;
   ACapabilities: TWlSeat.TCapability);
 begin
-  //WL_SEAT_CAPABILITY_KEYBOARD;
-  //WL_SEAT_CAPABILITY_POINTER;
-  //WL_SEAT_CAPABILITY_TOUCH;
   FCapabilities:=ACapabilities.Value;
+
+  { This is the ONLY place the seat's devices may be created: asking for one
+    the seat has never advertised is a protocol violation (see the note in the
+    wl_seat registry branch). Capabilities can also change while running — a
+    tablet folding into laptop mode, a keyboard being unplugged — so this runs
+    again on every change and creates whatever has just appeared.
+
+    A capability going AWAY leaves our object alone. Releasing it needs
+    wl_pointer.release / wl_keyboard.release / wl_touch.release, which exist
+    only from wl_seat version 3, and this binds version 1 — issuing one here
+    would be the same class of violation we are fixing. A device that has gone
+    simply stops sending events. }
+  if ACapabilities.Pointer and (FMouse = nil) then
+  begin
+    FMouse := FSeat.GetPointer;
+    if Assigned(FMouse) then
+      FMouse.AddListener(Self);
+  end;
+
+  if ACapabilities.Keyboard and (FKeyboard = nil) then
+  begin
+    FKeyboard := FSeat.GetKeyboard;
+    if Assigned(FKeyboard) then
+      FKeyboard.AddListener(Self);
+  end;
+
+  if ACapabilities.Touch and (FTouch = nil) then
+  begin
+    FTouch := FSeat.GetTouch;
+    if Assigned(FTouch) then
+      FTouch.AddListener(Self);
+  end;
 end;
 
 procedure TfpgwDisplay.wl_seat_name(AWlSeat: TWlSeat; AName: String);
