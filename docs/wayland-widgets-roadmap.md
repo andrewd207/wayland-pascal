@@ -53,6 +53,8 @@ TwgWidget                       geometry, tree, paint, damage, ticks
 │  │  ├─ TwgSplitPanel          two children + a draggable splitter
 │  │  └─ TwgTabPanel            tab strip + page stack
 │  │
+│  ├─ TwgDecoration             client-side title bar: caption, buttons,
+│  │                            drag-to-move, edge resize, window menu
 │  └─ TwgPopup                  escapes clipping, grabs input, closes on Esc
 │     ├─ TwgMenu                items, submenus, accelerators, keyboard nav
 │     ├─ TwgTooltip             hover-delay driven by the tick scheduler
@@ -137,6 +139,44 @@ Two things the surface backend forces, both worth having anyway:
   its children, or the popup never paints and the loop sleeps through its
   animations.
 
+## Window decoration
+
+**GNOME does not implement server-side decorations for xdg-toplevel.** The demo
+asks for them and the request is simply not honoured, so on mutter our windows
+have no title bar, no close button and no drag-to-move at all — the toolkit is
+relying on a decoration that is never going to arrive. That makes a client-side
+decorator not a nicety but the difference between a window a user can move and
+one they cannot.
+
+`TwgDecoration` is a widget like any other, wrapped around the content:
+
+```
+TwgWindow
+  Root
+    TwgDecoration        title bar + resize borders, drawn from the theme
+      <application content>
+```
+
+It needs, in rough order:
+
+- caption, icon and the close/minimise/maximise buttons;
+- **drag to move** (`xdg_toplevel.move`) and **edge resize**
+  (`xdg_toplevel.resize`) — both are compositor requests, so the decorator
+  hands the gesture straight over rather than moving anything itself;
+- right-click for the compositor's window menu (`show_window_menu`);
+- rounded corners with an alpha edge, which needs the surface to be
+  non-opaque, and a shadow if we want to match GNOME;
+- honouring `xdg_toplevel.configure` states — a maximised window has square
+  corners and no drag-to-move.
+
+The existing `themed_window` example already does most of this by hand against
+`desktop_theme`; the work is largely moving it into a widget and driving it
+from the theme rather than from literals.
+
+It must be OPTIONAL and negotiated: when a compositor does support
+`zxdg_decoration_manager_v1` and chooses server-side, the decorator has to
+stay out of the way, or the window gets two title bars.
+
 ## Build order
 
 1. **`TwgTrackControl` + `TwgScrollBar`** — completes `TwgScrollBox`, which
@@ -145,10 +185,13 @@ Two things the surface backend forces, both worth having anyway:
    concepts, and they are what make a real form buildable.
 3. **`TwgButtonBase`** + toggle/tool buttons + `TwgToolBar`.
 4. **Popups**: overlay layer, `TwgPopup`, the fit rule, then the `xdg_popup`
-   backend (with input chaining and child pumping). Then `TwgMenu`,
-   `TwgTooltip`, `TwgComboBox`.
-5. **`TwgItemView` → `TwgListBox`**, then `TwgTreeView`, `TwgTableView`.
-6. **`TwgTextBase` refactor + `TwgTextMemo`**; `TwgSplitPanel`, `TwgTabPanel`,
+   backend (with input chaining and child pumping). DONE except that surface
+   popups are placed at the parent's origin instead of at the anchor — see the
+   status document. Then `TwgMenu`, `TwgComboBox`.
+5. **`TwgDecoration`**, because on GNOME there is otherwise no title bar at
+   all.
+6. **`TwgItemView` → `TwgListBox`**, then `TwgTreeView`, `TwgTableView`.
+7. **`TwgTextBase` refactor + `TwgTextMemo`**; `TwgSplitPanel`, `TwgTabPanel`,
    `TwgDialog`.
 
 ## Open questions

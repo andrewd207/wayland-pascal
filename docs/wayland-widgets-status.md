@@ -30,6 +30,7 @@ wayland-client/widgets/     [off by default] RTL-only
   wlg.widget.theme            TwgTheme, TwgDesktopTheme
   wlg.widget.controls         label, button, checkbox, radio, slider, panel,
                               spinner (the one continuous animation)
+  wlg.widget.popup            TwgPopup (overlay + xdg_popup), TwgTooltip
   wlg.widget.scroll           TwgScrollBox
   wlg.widget.text             TwgTextEdit (single line, UTF-8, clipboard)
   wlg.widget.window           TwgWindow, IwgPresenter, TwgShmPresenter,
@@ -96,6 +97,18 @@ controlled test; there is no key injector here.
   never seen a real touchscreen — no touch device here and weston's nested
   backend will not synthesise one. It compiles and mirrors the pointer path
   exactly; treat it as unproven.
+- **Surface popups are positioned wrong.** The fit rule works — a popup that
+  fits uses the overlay, one that does not creates a real `xdg_popup`, and the
+  demo shows `hint=overlay menu=surface` — and the surface is created, sized,
+  painted and dismissed correctly. But it lands at the parent's origin instead
+  of at its anchor: requested 558,480, `xdg_popup.configure` reported 0,0.
+  Suspect the positioner in `TfpgwXDGShellSurface.SetPopup` (window geometry
+  never set on the popup, or the `SetOffset` content shift) rather than the
+  widget layer. Until that is fixed, force `Backend := pbOverlay` for anything
+  that must be positioned accurately.
+- **No window decorator**, and GNOME does not do server-side decorations for
+  xdg-toplevel — so on mutter our windows currently have no title bar and
+  cannot be moved. See the roadmap.
 - **No pinch/rotate recognisers**, and `zwp_pointer_gestures_v1` (touchpad
   pinch/swipe/hold, which the compositor pre-disambiguates) is bound by nothing.
 - **No `text-input-v3`, so no IME.** `TwgTextEdit` takes direct key input and

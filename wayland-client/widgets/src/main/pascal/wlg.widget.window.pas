@@ -79,6 +79,18 @@ type
     function  Repeats(AEvdevCode: LongWord): Boolean;
   end;
 
+  { IwgWindowHost — "which TwgWindow is this host?"
+
+    A widget only ever sees IwgWidgetHost, which is deliberate: the core must
+    not depend on the window layer. But a popup genuinely needs the concrete
+    window — to ask its size, to parent into its overlay, to create a child
+    surface. Rather than rely on an interface-to-class cast, the window says so
+    explicitly. }
+  IwgWindowHost = interface
+    ['{2A6F19C4-8D53-4B07-9E1A-5C4D8F03B762}']
+    function HostWindow: TObject;
+  end;
+
   { IwgPresenter — how finished frames reach the compositor. }
 
   IwgPresenter = interface
@@ -126,11 +138,26 @@ type
 
   { TwgWindow }
 
-  TwgWindow = class(TComponent, IwgWidgetHost, IwgClipboardHost, IwgTickHost)
+  TwgWindow = class(TComponent, IwgWidgetHost, IwgClipboardHost, IwgTickHost,
+    IwgWindowHost)
   private
     FDisplay: TfpgwDisplay;
     FWindow: TfpgwWindow;
+    { Three layers, not one. FTreeRoot is what the router and the painter see;
+      it holds exactly two children and never anything else.
+
+        FTreeRoot
+          +- FRoot      the application's content (published as Root)
+          +- FOverlay   popups, painted after and hit-tested before
+
+      Child order gives the z-order for free: PaintTree paints children in
+      order, so the overlay lands on top, and HitTest walks them last-first, so
+      the overlay gets first refusal on every event. No special cases anywhere
+      else — an overlay popup is an ordinary widget that happens to live in a
+      layer that paints late. }
+    FTreeRoot: TwgWidget;
     FRoot: TwgWidget;
+    FOverlay: TwgWidget;
     FDamage: TwgDamage;
     FPresenter: IwgPresenter;
     FFont: IwgGlyphSource;
@@ -162,6 +189,15 @@ type
       "pending" as "draw now" turns the wait for a buffer release into a busy
       loop at 100% of a core. }
     FStalled: Boolean;
+    { Popup windows anchored to this one. A popup surface has its own damage,
+      presenter and tick deadlines, so the parent's frame pump and wait
+      timeout have to include it — otherwise the popup never paints and the
+      loop sleeps straight through its animations. }
+    FChildren: array of TwgWindow;
+    FParentWindow: TwgWindow;
+    FIsPopup: Boolean;
+    procedure AddChildWindow(AWindow: TwgWindow);
+    procedure RemoveChildWindow(AWindow: TwgWindow);
 
     procedure HandleConfigure(Sender: TObject; AEdges: LongWord;
       AWidth, AHeight: LongInt);
@@ -209,6 +245,9 @@ type
     function  HostClipboardText: String;
     procedure HostSetClipboardText(const AText: String);
 
+    { IwgWindowHost }
+    function  HostWindow: TObject;
+
     { IwgTickHost }
     procedure WidgetRequestsTick(AWidget: TwgWidget; AAtMs: QWord);
     procedure WidgetCancelTick(AWidget: TwgWidget);
@@ -218,6 +257,15 @@ type
   public
     constructor Create(ADisplay: TfpgwDisplay; const ATitle: String;
       AWidth, AHeight: Integer); reintroduce;
+    { A popup SURFACE, positioned relative to AParent's client area. The
+      compositor may move it to keep it on screen, which is the whole reason to
+      use one — an overlay cannot leave the window.
+
+      AGrab asks for an explicit grab, which makes the compositor dismiss the
+      popup on an outside click and send popup_done. Menus want it; tooltips
+      must not have it, because a grabbed tooltip steals the pointer. }
+    constructor CreatePopup(AParent: TwgWindow; AX, AY, AWidth, AHeight: Integer;
+      AGrab: Boolean); reintroduce;
     destructor Destroy; override;
 
     // Must be called before the first frame. Defaults to TwgShmPresenter, so
@@ -242,6 +290,8 @@ type
       hard-codes a timeout is choosing to burn that many wakeups a second
       forever, whether or not anything is moving. }
     function  WaitTimeout: Integer;
+    // This window's own timeout, ignoring popups. WaitTimeout folds in theirs.
+    function  SelfTimeout: Integer;
     // The soonest a widget has asked to be Ticked, or 0 for none.
     function  NextTickAt: QWord;
     // Convenience loop: pump events and frames until the window closes. Blocks
@@ -252,7 +302,12 @@ type
     property Display: TfpgwDisplay read FDisplay;
     // The underlying surface, for anything the widget layer does not wrap.
     property Window: TfpgwWindow read FWindow;
+    // The application's content layer. Parent your tree here.
     property Root: TwgWidget read FRoot;
+    { Where popups live when they are shown as overlays. Painted after Root and
+      hit-tested before it. Children are positioned in WINDOW coordinates and
+      are not laid out — a popup decides its own rectangle. }
+    property OverlayLayer: TwgWidget read FOverlay;
     property Closed: Boolean read FClosed;
     property ClientWidth: Integer read GetClientWidth;
     property ClientHeight: Integer read GetClientHeight;
@@ -291,6 +346,215 @@ var
   wgPaintPixels: Int64 = 0;
   wgLastDamage: TRect;
 {$ENDIF}
+
+{ TwgSeatDispatch — one set of seat handlers per display, fanned out by window.
+
+  Seat events arrive with Sender set to the surface's Owner, which is the
+  TwgWindow that owns it, so routing is a lookup rather than a guess. Events
+  that belong to the SEAT rather than to a surface — the keymap, the repeat
+  rate — go to every window, because each keeps its own translator state.
+
+  Lives in this unit so it can reach TwgWindow's private handlers directly:
+  private is unit-visible in Object Pascal. }
+
+type
+  TwgSeatDispatch = class
+  private
+    FDisplay: TfpgwDisplay;
+    FWindows: array of TwgWindow;
+    function  Find(Sender: TObject): TwgWindow;
+    procedure MouseEnter(Sender: TObject; AX, AY: Integer);
+    procedure MouseLeave(Sender: TObject);
+    procedure MouseMotion(Sender: TObject; ATime: LongWord; AX, AY: Integer);
+    procedure MouseButton(Sender: TObject; ATime: LongWord; AButton: LongWord;
+      AState: TWlPointer.TButtonState);
+    procedure MouseAxis(Sender: TObject; ATime: LongWord;
+      AAxis: TWlPointer.TAxis; AValue: LongInt);
+    procedure TouchDown(Sender: TObject; ATime: LongWord; AId: Integer;
+      AX, AY: Integer);
+    procedure TouchUp(Sender: TObject; ATime: LongWord; AId: Integer);
+    procedure TouchMotion(Sender: TObject; ATime: LongWord; AId: Integer;
+      AX, AY: Integer);
+    procedure TouchCancel(Sender: TObject);
+    procedure Keymap(Sender: TObject; AFormat: TWlKeyboard.TKeymapFormat;
+      AFileDesc: LongInt; ASize: LongInt);
+    procedure Key(Sender: TObject; ATime: LongWord; AKey: LongWord;
+      AState: TWlKeyboard.TKeyState);
+    procedure Modifiers(Sender: TObject;
+      AModsDepressed, AModsLatched, AModsLocked, AGroup: LongWord);
+    procedure KeyboardLeave(Sender: TObject);
+    procedure RepeatInfo(Sender: TObject; ARate, ADelay: LongInt);
+  public
+    constructor Create(ADisplay: TfpgwDisplay);
+    procedure Add(AWindow: TwgWindow);
+    procedure Remove(AWindow: TwgWindow);
+    function  Count: Integer;
+  end;
+
+var
+  gDispatchers: array of TwgSeatDispatch;
+
+function wgSeatDispatch(ADisplay: TfpgwDisplay): TwgSeatDispatch;
+var
+  i: Integer;
+begin
+  for i := 0 to High(gDispatchers) do
+    if gDispatchers[i].FDisplay = ADisplay then
+      Exit(gDispatchers[i]);
+  Result := TwgSeatDispatch.Create(ADisplay);
+  SetLength(gDispatchers, Length(gDispatchers) + 1);
+  gDispatchers[High(gDispatchers)] := Result;
+end;
+
+constructor TwgSeatDispatch.Create(ADisplay: TfpgwDisplay);
+begin
+  inherited Create;
+  FDisplay := ADisplay;
+  FDisplay.OnMouseEnter := @MouseEnter;
+  FDisplay.OnMouseLeave := @MouseLeave;
+  FDisplay.OnMouseMotion := @MouseMotion;
+  FDisplay.OnMouseButton := @MouseButton;
+  FDisplay.OnMouseAxis := @MouseAxis;
+  FDisplay.OnTouchDown := @TouchDown;
+  FDisplay.OnTouchUp := @TouchUp;
+  FDisplay.OnTouchMotion := @TouchMotion;
+  FDisplay.OnTouchCancel := @TouchCancel;
+  FDisplay.OnKeyboardKeymap := @Keymap;
+  FDisplay.OnKeyboardKey := @Key;
+  FDisplay.OnKeyboardModifiers := @Modifiers;
+  FDisplay.OnKeyboardLeave := @KeyboardLeave;
+  FDisplay.OnKeyBoardRepeatInfo := @RepeatInfo;
+end;
+
+function TwgSeatDispatch.Count: Integer;
+begin
+  Result := Length(FWindows);
+end;
+
+procedure TwgSeatDispatch.Add(AWindow: TwgWindow);
+var
+  i: Integer;
+begin
+  for i := 0 to High(FWindows) do
+    if FWindows[i] = AWindow then
+      Exit;
+  SetLength(FWindows, Length(FWindows) + 1);
+  FWindows[High(FWindows)] := AWindow;
+end;
+
+procedure TwgSeatDispatch.Remove(AWindow: TwgWindow);
+var
+  i, j: Integer;
+begin
+  for i := 0 to High(FWindows) do
+    if FWindows[i] = AWindow then
+    begin
+      for j := i to High(FWindows) - 1 do
+        FWindows[j] := FWindows[j + 1];
+      SetLength(FWindows, Length(FWindows) - 1);
+      Exit;
+    end;
+end;
+
+function TwgSeatDispatch.Find(Sender: TObject): TwgWindow;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FWindows) do
+    if FWindows[i] = Sender then
+      Exit(FWindows[i]);
+  Result := nil;
+end;
+
+procedure TwgSeatDispatch.MouseEnter(Sender: TObject; AX, AY: Integer);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleMouseEnter(Sender, AX, AY); end;
+
+procedure TwgSeatDispatch.MouseLeave(Sender: TObject);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleMouseLeave(Sender); end;
+
+procedure TwgSeatDispatch.MouseMotion(Sender: TObject; ATime: LongWord;
+  AX, AY: Integer);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleMouseMotion(Sender, ATime, AX, AY); end;
+
+procedure TwgSeatDispatch.MouseButton(Sender: TObject; ATime: LongWord;
+  AButton: LongWord; AState: TWlPointer.TButtonState);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleMouseButton(Sender, ATime, AButton, AState); end;
+
+procedure TwgSeatDispatch.MouseAxis(Sender: TObject; ATime: LongWord;
+  AAxis: TWlPointer.TAxis; AValue: LongInt);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleMouseAxis(Sender, ATime, AAxis, AValue); end;
+
+procedure TwgSeatDispatch.TouchDown(Sender: TObject; ATime: LongWord;
+  AId: Integer; AX, AY: Integer);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleTouchDown(Sender, ATime, AId, AX, AY); end;
+
+procedure TwgSeatDispatch.TouchUp(Sender: TObject; ATime: LongWord; AId: Integer);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleTouchUp(Sender, ATime, AId); end;
+
+procedure TwgSeatDispatch.TouchMotion(Sender: TObject; ATime: LongWord;
+  AId: Integer; AX, AY: Integer);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleTouchMotion(Sender, ATime, AId, AX, AY); end;
+
+procedure TwgSeatDispatch.TouchCancel(Sender: TObject);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleTouchCancel(Sender); end;
+
+procedure TwgSeatDispatch.Keymap(Sender: TObject;
+  AFormat: TWlKeyboard.TKeymapFormat; AFileDesc: LongInt; ASize: LongInt);
+var
+  i: Integer;
+  lDup: LongInt;
+begin
+  { The keymap belongs to the seat, not to a window, and every window keeps its
+    own translator. Each needs its own fd because the receiver closes it. }
+  if Length(FWindows) = 0 then
+  begin
+    FpClose(AFileDesc);
+    Exit;
+  end;
+  for i := 0 to High(FWindows) - 1 do
+  begin
+    lDup := FpDup(AFileDesc);
+    if lDup >= 0 then
+      FWindows[i].HandleKeymap(FWindows[i], AFormat, lDup, ASize);
+  end;
+  FWindows[High(FWindows)].HandleKeymap(FWindows[High(FWindows)], AFormat,
+    AFileDesc, ASize);
+end;
+
+procedure TwgSeatDispatch.Key(Sender: TObject; ATime: LongWord;
+  AKey: LongWord; AState: TWlKeyboard.TKeyState);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleKey(Sender, ATime, AKey, AState); end;
+
+procedure TwgSeatDispatch.Modifiers(Sender: TObject;
+  AModsDepressed, AModsLatched, AModsLocked, AGroup: LongWord);
+var w: TwgWindow;
+begin
+  w := Find(Sender);
+  if w <> nil then
+    w.HandleModifiers(Sender, AModsDepressed, AModsLatched, AModsLocked, AGroup);
+end;
+
+procedure TwgSeatDispatch.KeyboardLeave(Sender: TObject);
+var w: TwgWindow;
+begin w := Find(Sender); if w <> nil then w.HandleKeyboardLeave(Sender); end;
+
+procedure TwgSeatDispatch.RepeatInfo(Sender: TObject; ARate, ADelay: LongInt);
+var i: Integer;
+begin
+  // Seat-wide: every window repeats at the user's rate.
+  for i := 0 to High(FWindows) do
+    FWindows[i].HandleRepeatInfo(FWindows[i], ARate, ADelay);
+end;
 
 { TwgShmPresenter }
 
@@ -422,12 +686,24 @@ begin
   FPresenter := TwgShmPresenter.Create(FWindow);
   FDamage := TwgDamage.Create(FPresenter.BufferCount);
 
+  FTreeRoot := TwgWidget.Create(Self);
+  FTreeRoot.SetHost(Self as IwgWidgetHost);
+  FTreeRoot.SetBounds(0, 0, AWidth, AHeight);
+  FTreeRoot.ClipChildren := True;
+
   FRoot := TwgWidget.Create(Self);
-  FRoot.SetHost(Self as IwgWidgetHost);
+  FRoot.Parent := FTreeRoot;
   FRoot.SetBounds(0, 0, AWidth, AHeight);
   FRoot.ClipChildren := True;
 
-  FRouter := TwgInputRouter.Create(FRoot);
+  // Deliberately NOT clipping: an overlay popup is positioned in window
+  // coordinates and must be free to sit anywhere, including over the content's
+  // own clip boundaries.
+  FOverlay := TwgWidget.Create(Self);
+  FOverlay.Parent := FTreeRoot;
+  FOverlay.SetBounds(0, 0, AWidth, AHeight);
+
+  FRouter := TwgInputRouter.Create(FTreeRoot);
   FRepeat := TwgKeyRepeat.Create;
   FRoot.SetHost(Self as IwgWidgetHost);
   HookInput;
@@ -440,13 +716,89 @@ destructor TwgWindow.Destroy;
 begin
   // Drop the tree before the surface: a widget's Invalidate reaches back into
   // this object, and the host reference must still be valid while it does.
-  FreeAndNil(FRoot);
+  if FInputHooked and (FDisplay <> nil) then
+    wgSeatDispatch(FDisplay).Remove(Self);
+  if FParentWindow <> nil then
+    FParentWindow.RemoveChildWindow(Self);
+  // Close any popups still open on us before our own surface goes.
+  while Length(FChildren) > 0 do
+    FChildren[High(FChildren)].Free;
+  FreeAndNil(FTreeRoot);   // frees both layers with it
   FreeAndNil(FRouter);
   FreeAndNil(FRepeat);
   FPresenter := nil;
   FreeAndNil(FDamage);
   FreeAndNil(FWindow);
   inherited Destroy;
+end;
+
+constructor TwgWindow.CreatePopup(AParent: TwgWindow;
+  AX, AY, AWidth, AHeight: Integer; AGrab: Boolean);
+begin
+  inherited Create(nil);
+  if AParent = nil then
+    raise EwgWindow.Create('TwgWindow: a popup needs a parent window');
+  FDisplay := AParent.Display;
+  FScale := AParent.Scale;
+  FIsPopup := True;
+  FParentWindow := AParent;
+
+  // Self as Owner, exactly as for a toplevel: that is what lets the seat
+  // dispatcher route this surface's input back here.
+  FWindow := TfpgwWindow.Create(Self, FDisplay, AParent.Window, AX, AY,
+    AWidth, AHeight, AParent.Window, AGrab, AParent.Window.ButtonPressSerial);
+  FWindow.OnConfigure := @HandleConfigure;
+  FWindow.OnClose := @HandleClose;
+  FWindow.OnPaint := @HandlePaint;
+
+  FPresenter := TwgShmPresenter.Create(FWindow);
+  FDamage := TwgDamage.Create(FPresenter.BufferCount);
+
+  FTreeRoot := TwgWidget.Create(Self);
+  FTreeRoot.SetHost(Self as IwgWidgetHost);
+  FTreeRoot.SetBounds(0, 0, AWidth, AHeight);
+  FTreeRoot.ClipChildren := True;
+
+  FRoot := TwgWidget.Create(Self);
+  FRoot.Parent := FTreeRoot;
+  FRoot.SetBounds(0, 0, AWidth, AHeight);
+  FRoot.ClipChildren := True;
+
+  FOverlay := TwgWidget.Create(Self);
+  FOverlay.Parent := FTreeRoot;
+  FOverlay.SetBounds(0, 0, AWidth, AHeight);
+
+  FRouter := TwgInputRouter.Create(FTreeRoot);
+  FRepeat := TwgKeyRepeat.Create;
+  // A popup inherits the parent's font and key translation; it is the same
+  // application and the same seat.
+  FFont := AParent.Font;
+  FKeys := AParent.FKeys;
+  HookInput;
+
+  FDamage.AddAll(AWidth, AHeight);
+  FLayoutDirty := True;
+  AParent.AddChildWindow(Self);
+end;
+
+procedure TwgWindow.AddChildWindow(AWindow: TwgWindow);
+begin
+  SetLength(FChildren, Length(FChildren) + 1);
+  FChildren[High(FChildren)] := AWindow;
+end;
+
+procedure TwgWindow.RemoveChildWindow(AWindow: TwgWindow);
+var
+  i, j: Integer;
+begin
+  for i := 0 to High(FChildren) do
+    if FChildren[i] = AWindow then
+    begin
+      for j := i to High(FChildren) - 1 do
+        FChildren[j] := FChildren[j + 1];
+      SetLength(FChildren, Length(FChildren) - 1);
+      Exit;
+    end;
 end;
 
 procedure TwgWindow.SetPresenter(const APresenter: IwgPresenter);
@@ -502,6 +854,11 @@ begin
   Result := FFont;
 end;
 
+function TwgWindow.HostWindow: TObject;
+begin
+  Result := Self;
+end;
+
 function TwgWindow.HostClipboardText: String;
 begin
   Result := '';
@@ -533,7 +890,13 @@ begin
   // children, which runs theirs. SetBounds is a no-op when nothing moved, so
   // the explicit PerformLayout covers the first pass and any case where only
   // the CONTENT changed.
+  FTreeRoot.SetBounds(0, 0, ClientWidth, ClientHeight);
   FRoot.SetBounds(0, 0, ClientWidth, ClientHeight);
+  FOverlay.SetBounds(0, 0, ClientWidth, ClientHeight);
+  { PerformLayout on the CONTENT layer, not on FTreeRoot: the tree root has no
+    layout of its own and PerformLayout is a no-op without one, so laying it
+    out would silently do nothing and the whole window would stay blank. The
+    overlay needs none — popups position themselves absolutely. }
   FRoot.PerformLayout;
   if Assigned(FOnLayout) then
     FOnLayout(Self);
@@ -544,7 +907,13 @@ var
   lCanvas: TwgCanvas;
   lIndex: Integer;
   lDamage: TRect;
+  i: Integer;
 begin
+  // Popups first: they are on top, and a parent that painted first would leave
+  // them a frame behind.
+  for i := High(FChildren) downto 0 do
+    FChildren[i].ProcessFrame;
+
   if FClosed or (FWindow = nil) or (not FWindow.Configured) then
     Exit;
 
@@ -611,7 +980,7 @@ begin
     // background instead.
     lCanvas.ClipRect(lDamage.Left, lDamage.Top,
       lDamage.Right - lDamage.Left, lDamage.Bottom - lDamage.Top);
-    FRoot.PaintTree(lCanvas, lDamage);
+    FTreeRoot.PaintTree(lCanvas, lDamage);
   finally
     lCanvas.EndFrame;
   end;
@@ -730,6 +1099,33 @@ end;
 function TwgWindow.WaitTimeout: Integer;
 var
   lNext, lNow: QWord;
+  i, lChild: Integer;
+begin
+  if FClosed then
+    Exit(0);
+  { A popup's deadlines are the parent's problem too, since the application
+    only ever pumps the toplevel. Take the soonest of everyone's. }
+  for i := 0 to High(FChildren) do
+  begin
+    lChild := FChildren[i].WaitTimeout;
+    if lChild = 0 then
+      Exit(0);
+    if lChild > 0 then
+    begin
+      Result := SelfTimeout;
+      if (Result < 0) or (lChild < Result) then
+        Result := lChild;
+      if Result = 0 then
+        Exit(0);
+      Exit(Result);
+    end;
+  end;
+  Result := SelfTimeout;
+end;
+
+function TwgWindow.SelfTimeout: Integer;
+var
+  lNext, lNow: QWord;
 begin
   if FClosed then
     Exit(0);
@@ -785,25 +1181,14 @@ begin
   if FInputHooked then
     Exit;
   FInputHooked := True;
-  { Seat input is global to the display, not per window, so these handlers are
-    shared: every TwgWindow installs the same ones and each ignores what is not
-    addressed to it. Chaining rather than overwriting would be nicer for
-    multi-window apps, but the display exposes one slot per event, so the
-    Sender check is what keeps them apart. }
-  FDisplay.OnMouseEnter := @HandleMouseEnter;
-  FDisplay.OnMouseLeave := @HandleMouseLeave;
-  FDisplay.OnMouseMotion := @HandleMouseMotion;
-  FDisplay.OnMouseButton := @HandleMouseButton;
-  FDisplay.OnMouseAxis := @HandleMouseAxis;
-  FDisplay.OnTouchDown := @HandleTouchDown;
-  FDisplay.OnTouchUp := @HandleTouchUp;
-  FDisplay.OnTouchMotion := @HandleTouchMotion;
-  FDisplay.OnTouchCancel := @HandleTouchCancel;
-  FDisplay.OnKeyboardKeymap := @HandleKeymap;
-  FDisplay.OnKeyboardKey := @HandleKey;
-  FDisplay.OnKeyboardModifiers := @HandleModifiers;
-  FDisplay.OnKeyboardLeave := @HandleKeyboardLeave;
-  FDisplay.OnKeyBoardRepeatInfo := @HandleRepeatInfo;
+  { Seat input is global to the display and TfpgwDisplay has ONE slot per
+    event, so windows cannot each install their own: the last one to do so
+    would win and every other window would silently receive nothing. That was
+    survivable while an application had a single window, and stops being so the
+    moment a popup gets its own surface.
+
+    So a per-display dispatcher owns the slots and routes by Sender. }
+  wgSeatDispatch(FDisplay).Add(Self);
 end;
 
 { --- keyboard ---

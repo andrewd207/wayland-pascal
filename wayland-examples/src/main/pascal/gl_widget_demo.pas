@@ -34,7 +34,7 @@ uses
   wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.layout,
   wlg.widget.gesture,      // paVertical — the pan axis the scroll box uses
   wlg.widget.theme, wlg.widget.controls, wlg.widget.scroll, wlg.widget.text,
-  wlg.widget.window,
+  wlg.widget.popup, wlg.widget.window,
   wlg.widget.presenter.gl, wlg.widget.keyboard.xkb;
 
 type
@@ -70,6 +70,12 @@ type
     FSecret: TwgTextEdit;
     FEcho: TwgLabel;
     FSpinner: TwgSpinner;
+    FMenu: TwgPopup;
+    FTip: TwgTooltip;
+    FPopupWhere: String;
+    FShowPopups: Boolean;
+    FTipAnchor: TwgButton;
+    FTitle: TwgLabel;
     FSpinBtn: TwgButton;
     FRepaints: Integer;
     FLastStatusMs: QWord;
@@ -84,6 +90,10 @@ type
     procedure EntryChanged(Sender: TObject);
     procedure EntryAccepted(Sender: TObject);
     procedure SpinClicked(Sender: TObject);
+    procedure PopupClicked(Sender: TObject);
+    procedure TipClicked(Sender: TObject);
+    procedure OpenBoth;
+    procedure MenuItemClicked(Sender: TObject);
     procedure Repainted(Sender: TObject);
     procedure SliderChanged(Sender: TObject);
     procedure CheckChanged(Sender: TObject);
@@ -131,13 +141,14 @@ begin
   FTheme := TwgDesktopTheme.Create;
   FFonts := TwgFontCache.Create;
 
-  FWin := TwgWindow.Create(FDisplay, 'wlg — widgets', 760, 500);
+  FWin := TwgWindow.Create(FDisplay, 'wlg — widgets', 760, 580);
   FWin.Font := FFonts.GetFont(FTheme.FontFamily, FTheme.FontSize);
   FWin.Window.SurfaceShell.SetServerSideDecorations;
 
   // The ONLY difference between a CPU-rendered and a GPU-rendered window.
   // Everything below this line — tree, layouts, theme, controls, input — is
   // identical either way.
+  FPopupWhere := 'no popup yet';
   FBackend := 'software (wl_shm)';
   if ParamStr(1) = '--gl' then
   begin
@@ -158,6 +169,12 @@ begin
   // be measured without a human holding the button down.
   if (ParamStr(1) = '--spin') or (ParamStr(2) = '--spin') then
     SpinClicked(nil);
+  { Opens BOTH popups so a screenshot can show each backend at once: the hint
+    is anchored to the title at the top, where it fits and therefore uses the
+    free overlay; the menu is anchored to a button near the bottom, where it
+    does not fit and therefore becomes a real xdg_popup. }
+  if (ParamStr(1) = '--popup') or (ParamStr(2) = '--popup') then
+    FShowPopups := True;
   FStart := GetTickCount64;
 end;
 
@@ -196,6 +213,7 @@ begin
   lLbl.Caption := 'wlg widget toolkit — desktop theme, ' + FTheme.FontFamily;
   lLbl.Align := chLeft;
   Hint(lLbl, 0, 24);
+  FTitle := lLbl;
 
   lBody := TwgPanel.Create(FWin);
   lBody.Parent := lRoot;
@@ -320,6 +338,25 @@ begin
   FEcho.Align := chLeft;
   Hint(FEcho, 1, 20);
 
+  { --- popups: the same popup, two backends, chosen by whether it fits --- }
+  lRow := TwgPanel.Create(FWin);
+  lRow.Parent := lRight;
+  lRow.Padding := wgMargin(0);
+  lRow.Layout := TwgBoxLayout.Create(bdHorizontal, 8, caCenter);
+  Hint(lRow, 0, FTheme.Metrics.ControlHeight);
+
+  lBtn := TwgButton.Create(FWin);
+  lBtn.Parent := lRow;
+  lBtn.Caption := 'menu';
+  lBtn.OnClick := @PopupClicked;
+  Hint(lBtn, 1, FTheme.Metrics.ControlHeight);
+
+  FTipAnchor := TwgButton.Create(FWin);
+  FTipAnchor.Parent := lRow;
+  FTipAnchor.Caption := 'hint';
+  FTipAnchor.OnClick := @TipClicked;
+  Hint(FTipAnchor, 1, FTheme.Metrics.ControlHeight);
+
   { --- a continuous animation, to show the loop adapt --- }
   lRow := TwgPanel.Create(FWin);
   lRow.Parent := lRight;
@@ -387,6 +424,87 @@ begin
   FEcho.Caption := Format('accepted: "%s"', [FEntry.Text]);
 end;
 
+{ One popup, opened from a button near the bottom of the window. Its content
+  does not fit below the anchor, so the fit rule picks an xdg_popup; drag the
+  window up until it does fit and the same call uses the free overlay path
+  instead. The status line reports which. }
+procedure TApp.PopupClicked(Sender: TObject);
+var
+  lPanel: TwgPanel;
+  lItem: TwgButton;
+  i: Integer;
+begin
+  if FMenu = nil then
+  begin
+    FMenu := TwgPopup.Create(FWin);
+    FMenu.Grab := True;          // a menu wants dismiss-on-outside-click
+    lPanel := TwgPanel.Create(FMenu);
+    lPanel.Layout := TwgBoxLayout.Create(bdVertical, 4, caStretch);
+    lPanel.Padding := wgMargin(0);
+    for i := 1 to 3 do
+    begin
+      lItem := TwgButton.Create(FMenu);
+      lItem.Parent := lPanel;
+      lItem.Caption := Format('menu item %d', [i]);
+      lItem.OnClick := @MenuItemClicked;
+      Hint(lItem, 0, FTheme.Metrics.ControlHeight);
+    end;
+    FMenu.SetContent(lPanel);
+  end;
+  if FMenu.IsOpen then
+    FMenu.Close
+  else
+  begin
+    FMenu.ShowFor(TwgWidget(Sender), Rect(0, 0, 0, 0));
+    if FMenu.UsedSurface then
+    begin
+      FPopupWhere := FPopupWhere + ' menu=surface';
+      WriteLn(Format('menu: asked for %d,%d %dx%d; compositor put it at %d,%d',
+        [FMenu.RequestedRect.Left, FMenu.RequestedRect.Top,
+         FMenu.RequestedRect.Right - FMenu.RequestedRect.Left,
+         FMenu.RequestedRect.Bottom - FMenu.RequestedRect.Top,
+         FMenu.SurfaceWindow.Window.PopupX, FMenu.SurfaceWindow.Window.PopupY]));
+      Flush(Output);
+    end
+    else
+      FPopupWhere := FPopupWhere + ' menu=overlay';
+  end;
+end;
+
+procedure TApp.MenuItemClicked(Sender: TObject);
+begin
+  FPopupWhere := 'chose ' + TwgButton(Sender).Caption;
+  FMenu.Close;
+end;
+
+{ A hint, same machinery, never grabbing — a tooltip that took the pointer
+  grab would stop you clicking the thing it describes. }
+procedure TApp.TipClicked(Sender: TObject);
+begin
+  if FTip = nil then
+  begin
+    FTip := TwgTooltip.Create(FWin);
+    FTip.Text := 'a hint — same two backends, same fit rule';
+  end;
+  if FTip.IsOpen then
+    FTip.Close
+  else
+  begin
+    FTip.ShowFor(TwgWidget(Sender), Rect(0, 0, 0, 0));
+    if FTip.UsedSurface then
+      FPopupWhere := 'hint=surface'
+    else
+      FPopupWhere := 'hint=overlay';
+  end;
+end;
+
+procedure TApp.OpenBoth;
+begin
+  FShowPopups := False;
+  TipClicked(FTitle);          // top of the window: fits -> overlay
+  PopupClicked(FTipAnchor);    // bottom of the window: does not fit -> surface
+end;
+
 procedure TApp.SpinClicked(Sender: TObject);
 begin
   FSpinner.Active := not FSpinner.Active;
@@ -403,6 +521,15 @@ end;
 procedure TApp.Repainted(Sender: TObject);
 begin
   Inc(FRepaints);
+  { Open the demo popups only once something has actually been painted, which
+    means the layout has run. Anchoring to a widget that has not been laid out
+    yet gives its bounds as 0x0 at the origin, and the popup lands in the
+    corner rather than at the button. }
+  { Wait until the anchor has actually been laid out. A widget with 0x0 bounds
+    anchors the popup at the window origin, which looks like a positioning bug
+    but is just an impatient caller. }
+  if FShowPopups and (FTipAnchor.Width > 0) then
+    OpenBoth;
 end;
 
 procedure TApp.Tick;
@@ -415,13 +542,17 @@ begin
   if GetTickCount64 - FLastStatusMs < 500 then
     Exit;
   FLastStatusMs := GetTickCount64;
+  { Ask to be woken for the next update. The loop BLOCKS when nothing is
+    damaged and nothing is scheduled, so an application that wants periodic
+    work has to say so — that is the whole point of the adaptive loop. Any
+    widget will do as the peg; the wake is what matters. }
+  FStatus.RequestTick(500);
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs <= 0 then
     Exit;
   FStatus.Caption := Format(
-    '%d repaints · %.1f/s · %d clicks · %d stolen by the pan · scroll %d · %s',
-    [FRepaints, FRepaints / lSecs, FClicks, FCancels, FScroll.OffsetY,
-     FBackend]);
+    '%d repaints · %.1f/s · %d clicks · %s · %s',
+    [FRepaints, FRepaints / lSecs, FClicks, FPopupWhere, FBackend]);
 end;
 
 procedure TApp.Run;
