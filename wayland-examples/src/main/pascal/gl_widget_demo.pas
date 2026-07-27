@@ -13,6 +13,14 @@
   coordinates anywhere), damage-driven partial repaint, and the input router's
   hover, press, click, focus, Tab traversal and drag capture.
 
+  The scrolling list on the left is the interesting part. It is full of buttons,
+  which is exactly the case ordinary input handling cannot serve: a press
+  legitimately lands on a button, and only once the pointer has travelled does
+  it become a scroll. Click a button and it fires; drag one and the pan
+  recogniser claims the sequence, the button is CANCELLED rather than clicked,
+  and the list scrolls — then coasts under friction when you let go. Watch the
+  click counter to see that a drag never counts as a click.
+
   Close the window to quit. }
 program gl_widget_demo;
 
@@ -24,10 +32,25 @@ uses
   fpg_wayland_classes,
   wlg.surface, wlg.canvas.base, wlg.text.fontcache,
   wlg.widget.types, wlg.widget.core, wlg.widget.input, wlg.widget.layout,
-  wlg.widget.theme, wlg.widget.controls, wlg.widget.window,
+  wlg.widget.gesture,      // paVertical — the pan axis the scroll box uses
+  wlg.widget.theme, wlg.widget.controls, wlg.widget.scroll, wlg.widget.window,
   wlg.widget.presenter.gl;
 
 type
+
+  { TDemoButton — a button that says when it was cancelled.
+
+    An ordinary TwgButton simply does not fire when a gesture steals its
+    sequence, which is correct but invisible. This one counts the cancels so
+    the demo can show the handshake happening rather than only its absence. }
+
+  TDemoButton = class(TwgButton)
+  private
+    FOnCancelled: TNotifyEvent;
+  public
+    procedure PointerCancel(var AEvent: TwgPointerEvent); override;
+    property OnCancelled: TNotifyEvent read FOnCancelled write FOnCancelled;
+  end;
 
   { TApp }
 
@@ -41,12 +64,15 @@ type
     FSliderValue: TwgLabel;
     FSlider: TwgSlider;
     FCheck: TwgCheckBox;
+    FScroll: TwgScrollBox;
     FClicks: Integer;
+    FCancels: Integer;
     FFrames: Integer;
     FStart: QWord;
     FBackend: String;
     procedure BuildUI;
     procedure ButtonClicked(Sender: TObject);
+    procedure ButtonCancelled(Sender: TObject);
     procedure SliderChanged(Sender: TObject);
     procedure CheckChanged(Sender: TObject);
     procedure Tick;
@@ -66,6 +92,15 @@ begin
   if AMinH > 0 then
     h.MinHeight := AMinH;
   AWidget.LayoutHints := h;
+end;
+
+{ TDemoButton }
+
+procedure TDemoButton.PointerCancel(var AEvent: TwgPointerEvent);
+begin
+  inherited PointerCancel(AEvent);
+  if Assigned(FOnCancelled) then
+    FOnCancelled(Self);
 end;
 
 { TApp }
@@ -115,8 +150,9 @@ end;
 
 procedure TApp.BuildUI;
 var
-  lRoot, lBody, lLeft, lRight: TwgPanel;
+  lRoot, lBody, lLeft, lRight, lList: TwgPanel;
   lBtn: TwgButton;
+  lDemoBtn: TDemoButton;
   lRadio: TwgRadioButton;
   lLbl: TwgLabel;
   i: Integer;
@@ -133,7 +169,9 @@ begin
 
   lLbl := TwgLabel.Create(FWin);
   lLbl.Parent := lRoot;
-  lLbl.Caption := 'wlg widget toolkit — software canvas, desktop theme';
+  // The backend is reported in the status line rather than claimed here; this
+  // same tree runs on either one.
+  lLbl.Caption := 'wlg widget toolkit — desktop theme, ' + FTheme.FontFamily;
   lLbl.Align := chLeft;
   Hint(lLbl, 0, 24);
 
@@ -143,7 +181,7 @@ begin
   lBody.Padding := wgMargin(0);
   Hint(lBody, 1);
 
-  { --- left: buttons --- }
+  { --- left: a scrolling list of buttons --- }
   lLeft := TwgPanel.Create(FWin);
   lLeft.Parent := lBody;
   lLeft.Padding := wgMargin(12);
@@ -152,27 +190,42 @@ begin
 
   lLbl := TwgLabel.Create(FWin);
   lLbl.Parent := lLeft;
-  lLbl.Caption := 'buttons — hover, click, Tab, Space';
+  lLbl.Caption := 'click a button — or DRAG the list to scroll';
   lLbl.Dim := True;
   lLbl.Align := chLeft;
   Hint(lLbl, 0, 20);
 
-  for i := 1 to 3 do
+  // The viewport. Weight 1 so the box layout gives it the rest of the column:
+  // TwgScrollBox measures to a deliberately tiny 64x64, because reporting the
+  // content's size would make the layout big enough to need no scrolling.
+  FScroll := TwgScrollBox.Create(FWin);
+  FScroll.Parent := lLeft;
+  FScroll.Axis := paVertical;
+  Hint(FScroll, 1);
+
+  // The content. A plain panel with a vertical box layout — the scroll box
+  // gives it the viewport's width and as much HEIGHT as it measures to, which
+  // is what makes it overflow and therefore scroll.
+  lList := TwgPanel.Create(FWin);
+  lList.Padding := wgMargin(8);
+  lList.Layout := TwgBoxLayout.Create(bdVertical, 6, caStretch);
+  FScroll.SetContent(lList);
+
+  for i := 1 to 20 do
   begin
-    lBtn := TwgButton.Create(FWin);
-    lBtn.Parent := lLeft;
-    lBtn.Caption := Format('button %d', [i]);
-    lBtn.OnClick := @ButtonClicked;
-    Hint(lBtn, 0, FTheme.Metrics.ControlHeight);
+    lDemoBtn := TDemoButton.Create(FWin);
+    lDemoBtn.Parent := lList;
+    lDemoBtn.Caption := Format('item %d', [i]);
+    lDemoBtn.OnClick := @ButtonClicked;
+    lDemoBtn.OnCancelled := @ButtonCancelled;
+    Hint(lDemoBtn, 0, FTheme.Metrics.ControlHeight);
   end;
   // A disabled one, to show it is neither hit nor focusable.
   lBtn := TwgButton.Create(FWin);
-  lBtn.Parent := lLeft;
+  lBtn.Parent := lList;
   lBtn.Caption := 'disabled';
   lBtn.Enabled := False;
   Hint(lBtn, 0, FTheme.Metrics.ControlHeight);
-  Hint(TwgWidget(lLeft.Children[lLeft.ChildCount - 1]), 0,
-       FTheme.Metrics.ControlHeight);
 
   { --- right: toggles and a slider --- }
   lRight := TwgPanel.Create(FWin);
@@ -222,11 +275,24 @@ begin
   FStatus.Align := chLeft;
   FStatus.Dim := True;
   Hint(FStatus, 0, 22);
+
+  // The pan recogniser has to be registered with the router, and a scroll box
+  // has no way to reach one on its own — it only knows its parent chain, not
+  // the window at the top of it. Doing it here, once the tree is assembled, is
+  // the whole of the wiring.
+  FScroll.AttachTo(FWin.Router);
 end;
 
 procedure TApp.ButtonClicked(Sender: TObject);
 begin
   Inc(FClicks);
+end;
+
+procedure TApp.ButtonCancelled(Sender: TObject);
+begin
+  // The pan claimed the sequence out from under this button. It was pressed,
+  // it is now unwinding, and it must NOT count as a click.
+  Inc(FCancels);
 end;
 
 procedure TApp.SliderChanged(Sender: TObject);
@@ -245,16 +311,21 @@ var
   lSecs: Double;
 begin
   Inc(FFrames);
+  // Kinetic coasting needs a clock, and the pointer stream stops producing
+  // events the moment the finger lifts — so the frame loop is what drives it.
+  FScroll.Step;
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs <= 0 then
     Exit;
-  FStatus.Caption := Format('%d frames · %.0f fps · %d clicks · %s · %s',
-    [FFrames, FFrames / lSecs, FClicks, FBackend, FTheme.FontFamily]);
+  FStatus.Caption := Format(
+    '%d frames · %.0f fps · %d clicks · %d stolen by the pan · scroll %d · %s',
+    [FFrames, FFrames / lSecs, FClicks, FCancels, FScroll.OffsetY, FBackend]);
 end;
 
 procedure TApp.Run;
 begin
   WriteLn('widget demo open (', FBackend, ') — close the window to quit');
+  WriteLn('  drag the list to scroll (or use the wheel); flick it to coast');
   WriteLn('  pass --gl to render on the GPU');
   Flush(Output);
   while not FWin.Closed do
@@ -264,7 +335,8 @@ begin
       Tick;
     FWin.ProcessFrame;
   end;
-  WriteLn(Format('presented %d frames, %d clicks', [FFrames, FClicks]));
+  WriteLn(Format('presented %d frames, %d clicks, %d cancelled by the pan',
+    [FFrames, FClicks, FCancels]));
 end;
 
 var

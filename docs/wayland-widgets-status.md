@@ -52,6 +52,7 @@ Headless harnesses, all passing:
 | Input router: capture, chain enter/leave, multi-touch, focus, cancel | 28 |
 | Layouts: box weights, margins, hidden, grid, anchors, resize deltas | 25 |
 | Gesture claim/cancel handshake | 15 |
+| Scroll box in a real layout: sizing, overflow, clipping, wheel, drag-vs-click, coast | 18 |
 | FreeType/fontconfig: aliases, weights, cache keying incl. HiDPI sharing | manual, confirmed |
 
 Live on a compositor: nested weston screenshots for the canvas, the widget tree,
@@ -64,16 +65,14 @@ the controls with desktop theming, and the GPU path.
   never seen a real touchscreen — no touch device here and weston's nested
   backend will not synthesise one. It compiles and mirrors the pointer path
   exactly; treat it as unproven.
-- **`TwgScrollBox` is untested live.** Unit-tested via the recogniser, but never
-  put in a running window with real content. Not wired into the demo.
 - **No pinch/rotate recognisers**, and `zwp_pointer_gestures_v1` (touchpad
   pinch/swipe/hold, which the compositor pre-disambiguates) is bound by nothing.
 - **No text input widget**, so no `text-input-v3`, no IME, no caret.
 - **No accessibility**, no UI designer, no `.lfm`-style streaming (the
   `TComponent` base leaves room for it).
 - `TwgGridLayout` has no row/column spans.
-- The scroll bar paints *before* children, so non-opaque content would draw over
-  it. Needs an after-children paint pass the core does not currently have.
+- The scroll bar is drawn, but there is no dragging it — it is an indicator, not
+  a control. Wheel and drag-to-scroll are the ways to move the content.
 
 ## Constraints worth remembering
 
@@ -88,6 +87,10 @@ the controls with desktop theming, and the GPU path.
 - **The root widget needs a layout**, or nothing below it is ever given bounds.
 - A weight-0 child of a type reporting no intrinsic size collapses to nothing —
   correct, but wants a `MinHeight` hint.
+- **A control with a layout measures its content, not its caption.** `TwgPanel`
+  used to inherit the caption measurement, so a panel asked for its intrinsic
+  size reported one control's worth. It never mattered while every panel had a
+  weight; the scroll box's content is the first thing that asks.
 - `pasbuild compile --all` fails on `wayland-common`, which is documented as not
   standalone-buildable. Pre-existing, not a regression.
 
@@ -101,10 +104,8 @@ named after their library (`egl_fpc`, `gl_fpc`, `freetype_fpc`,
 
 ## Plausible next steps
 
-1. Wire `TwgScrollBox` into the demo with a long list — the one piece of new
-   code with no live exercise.
-2. A text entry widget (caret, selection, clipboard), then `text-input-v3`.
-3. Raise the `wl_compositor` bind version in `classes` and switch to
+1. A text entry widget (caret, selection, clipboard), then `text-input-v3`.
+2. Raise the `wl_compositor` bind version in `classes` and switch to
    `damage_buffer`; needed for fractional scaling anyway.
-4. Pinch/rotate, plus `zwp_pointer_gestures_v1` for touchpads.
-5. Real touchscreen validation.
+3. Pinch/rotate, plus `zwp_pointer_gestures_v1` for touchpads.
+4. Real touchscreen validation.

@@ -54,6 +54,7 @@ type
     procedure DrawBar(ACanvas: TwgCanvas; AVertical: Boolean);
   protected
     procedure Paint(ACanvas: TwgCanvas); override;
+    procedure PaintOverlay(ACanvas: TwgCanvas); override;
     procedure BoundsChanged; override;
     function  MeasureSize(AAvailW, AAvailH: Integer): TSize; override;
   public
@@ -318,17 +319,18 @@ begin
   // The viewport paints its own background: a partial repaint never clears,
   // and the content does not necessarily cover the whole of it.
   ACanvas.FillRect(0, 0, Width, Height, lTheme.Palette.SurfaceAlt);
-  // Bars are drawn here, BEFORE the children, so scrolled content covers them
-  // — wrong for a real overlay bar, but the alternative needs a paint pass
-  // after children, which the core deliberately does not have. Good enough
-  // while the content is opaque.
-  if FShowBars then
-  begin
-    if FAxis in [paVertical, paBoth] then
-      DrawBar(ACanvas, True);
-    if FAxis in [paHorizontal, paBoth] then
-      DrawBar(ACanvas, False);
-  end;
+end;
+
+procedure TwgScrollBox.PaintOverlay(ACanvas: TwgCanvas);
+begin
+  // The bars go in the overlay pass, after the content: content is normally
+  // opaque, so a bar drawn with the background would simply be buried.
+  if not FShowBars then
+    Exit;
+  if FAxis in [paVertical, paBoth] then
+    DrawBar(ACanvas, True);
+  if FAxis in [paHorizontal, paBoth] then
+    DrawBar(ACanvas, False);
 end;
 
 end.

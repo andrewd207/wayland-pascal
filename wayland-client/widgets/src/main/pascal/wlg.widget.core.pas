@@ -108,6 +108,9 @@ type
     // Draw ONLY this widget, in local coordinates with (0,0) at its top-left.
     // Children are painted by the core afterwards; never paint them here.
     procedure Paint(ACanvas: TwgCanvas); virtual;
+    // Drawn AFTER this widget's children, in the same coordinates as Paint.
+    // For decoration that must not be buried by opaque content — scroll bars.
+    procedure PaintOverlay(ACanvas: TwgCanvas); virtual;
     // Called after the bounds change; override to re-lay-out children.
     procedure BoundsChanged; virtual;
     // Natural size when unconstrained. With a layout assigned this defers to
@@ -438,6 +441,11 @@ begin
   // Nothing by default: a bare TwgWidget is an invisible container.
 end;
 
+procedure TwgWidget.PaintOverlay(ACanvas: TwgCanvas);
+begin
+  // Almost nothing needs one.
+end;
+
 procedure TwgWidget.BoundsChanged;
 begin
   // A resize invalidates the arrangement of whatever is inside.
@@ -521,6 +529,10 @@ begin
     Paint(ACanvas);
     for i := 0 to FChildCount - 1 do
       FChildren[i].PaintTree(ACanvas, AClipRoot);
+    // After the children, still inside this widget's clip and transform. For
+    // anything that has to sit ON TOP of its own content — a scroll bar being
+    // the case that needs it, since opaque content would otherwise bury it.
+    PaintOverlay(ACanvas);
   finally
     ACanvas.Restore;
   end;

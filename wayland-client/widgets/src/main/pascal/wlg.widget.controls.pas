@@ -232,8 +232,13 @@ var
   lTheme: TwgTheme;
   lFont: IwgGlyphSource;
 begin
+  // A control with a layout is a CONTAINER, and a container's size is its
+  // content's, not its caption's. TwgPanel is the usual case. This only shows
+  // up when something actually asks a panel what size it wants — a panel given
+  // a weight never is — which is why a scroll box's content was the first
+  // thing to notice.
   lTheme := Theme;
-  if lTheme = nil then
+  if (Layout <> nil) or (lTheme = nil) then
     Exit(inherited MeasureSize(AAvailW, AAvailH));
   lFont := EffectiveFont;
   Result.cx := CaptionWidth(lFont) + lTheme.Metrics.Padding * 2;
