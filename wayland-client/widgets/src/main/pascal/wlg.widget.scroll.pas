@@ -55,6 +55,8 @@ type
   protected
     procedure Paint(ACanvas: TwgCanvas); override;
     procedure PaintOverlay(ACanvas: TwgCanvas); override;
+    // Advances the kinetic coast. Scheduled only while actually coasting.
+    procedure Tick(ANowMs: QWord); override;
     procedure BoundsChanged; override;
     function  MeasureSize(AAvailW, AAvailH: Integer): TSize; override;
   public
@@ -69,8 +71,6 @@ type
     procedure SetContent(AWidget: TwgWidget);
     procedure ScrollBy(ADX, ADY: Integer);
     procedure ScrollTo(AX, AY: Integer);
-    // Advance kinetic coasting. Call once a frame; harmless when not coasting.
-    procedure Step;
 
     function  CanFocus: Boolean; override;
     procedure Scroll(var AEvent: TwgScrollEvent); override;
@@ -232,6 +232,9 @@ begin
         FVY := -AEvent.VY;
         FCoasting := (Abs(FVX) > MinVelocity) or (Abs(FVY) > MinVelocity);
         FLastStep := GetTickCount64;
+        // Drive the coast from the loop's clock rather than the caller's.
+        if FCoasting then
+          RequestTick(0);
       end;
     grFailed:
       FCoasting := False;
@@ -240,7 +243,7 @@ begin
   end;
 end;
 
-procedure TwgScrollBox.Step;
+procedure TwgScrollBox.Tick(ANowMs: QWord);
 var
   lNow: QWord;
   lDT: Single;
@@ -248,7 +251,7 @@ var
 begin
   if not FCoasting then
     Exit;
-  lNow := GetTickCount64;
+  lNow := ANowMs;
   lDT := (lNow - FLastStep) / 1000.0;
   FLastStep := lNow;
   if lDT <= 0 then
@@ -269,6 +272,11 @@ begin
   else if ((FVY < 0) and (FOffsetY = 0)) or
           ((FVY > 0) and (FOffsetY = MaxOffsetY)) then
     FCoasting := False;
+
+  // Keep going only while there is something to do; when the coast ends this
+  // simply stops asking and the loop goes back to sleep.
+  if FCoasting then
+    RequestTick(0);
 end;
 
 procedure TwgScrollBox.DrawBar(ACanvas: TwgCanvas; AVertical: Boolean);

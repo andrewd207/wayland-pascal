@@ -69,6 +69,10 @@ type
     FEntry: TwgTextEdit;
     FSecret: TwgTextEdit;
     FEcho: TwgLabel;
+    FSpinner: TwgSpinner;
+    FSpinBtn: TwgButton;
+    FRepaints: Integer;
+    FLastStatusMs: QWord;
     FClicks: Integer;
     FCancels: Integer;
     FFrames: Integer;
@@ -79,6 +83,8 @@ type
     procedure ButtonCancelled(Sender: TObject);
     procedure EntryChanged(Sender: TObject);
     procedure EntryAccepted(Sender: TObject);
+    procedure SpinClicked(Sender: TObject);
+    procedure Repainted(Sender: TObject);
     procedure SliderChanged(Sender: TObject);
     procedure CheckChanged(Sender: TObject);
     procedure Tick;
@@ -147,6 +153,11 @@ begin
   wgUseXkbKeyboard(FWin);
 
   BuildUI;
+  FWin.OnPainted := @Repainted;
+  // --spin starts the animation immediately, so the loop's animating cost can
+  // be measured without a human holding the button down.
+  if (ParamStr(1) = '--spin') or (ParamStr(2) = '--spin') then
+    SpinClicked(nil);
   FStart := GetTickCount64;
 end;
 
@@ -161,7 +172,7 @@ end;
 
 procedure TApp.BuildUI;
 var
-  lRoot, lBody, lLeft, lRight, lList: TwgPanel;
+  lRoot, lBody, lLeft, lRight, lList, lRow: TwgPanel;
   lBtn: TwgButton;
   lDemoBtn: TDemoButton;
   lRadio: TwgRadioButton;
@@ -309,6 +320,23 @@ begin
   FEcho.Align := chLeft;
   Hint(FEcho, 1, 20);
 
+  { --- a continuous animation, to show the loop adapt --- }
+  lRow := TwgPanel.Create(FWin);
+  lRow.Parent := lRight;
+  lRow.Padding := wgMargin(0);
+  lRow.Layout := TwgBoxLayout.Create(bdHorizontal, 8, caCenter);
+  Hint(lRow, 0, FTheme.Metrics.ControlHeight);
+
+  FSpinner := TwgSpinner.Create(FWin);
+  FSpinner.Parent := lRow;
+  Hint(FSpinner, 0, FTheme.Metrics.ControlHeight);
+
+  FSpinBtn := TwgButton.Create(FWin);
+  FSpinBtn.Parent := lRow;
+  FSpinBtn.Caption := 'start spinner';
+  FSpinBtn.OnClick := @SpinClicked;
+  Hint(FSpinBtn, 1, FTheme.Metrics.ControlHeight);
+
   { --- status --- }
   FStatus := TwgLabel.Create(FWin);
   FStatus.Parent := lRoot;
@@ -359,23 +387,41 @@ begin
   FEcho.Caption := Format('accepted: "%s"', [FEntry.Text]);
 end;
 
+procedure TApp.SpinClicked(Sender: TObject);
+begin
+  FSpinner.Active := not FSpinner.Active;
+  if FSpinner.Active then
+    FSpinBtn.Caption := 'stop spinner'
+  else
+    FSpinBtn.Caption := 'start spinner';
+end;
+
+{ Counts what actually reached the compositor, which is the only number worth
+  reporting. The old counter counted LOOP ITERATIONS and updated a label every
+  one of them — so it dirtied the window every iteration and then reported the
+  resulting repaint rate as if it were a benchmark. It was measuring itself. }
+procedure TApp.Repainted(Sender: TObject);
+begin
+  Inc(FRepaints);
+end;
+
 procedure TApp.Tick;
 var
   lSecs: Double;
 begin
-  Inc(FFrames);
-  // Kinetic coasting needs a clock, and the pointer stream stops producing
-  // events the moment the finger lifts — so the frame loop is what drives it.
-  FScroll.Step;
-  // Caret blink has no event to hang off either.
-  FEntry.Step;
-  FSecret.Step;
+  { Update at most twice a second. Rewriting this label is itself a damage
+    event, so doing it every iteration is a self-sustaining repaint loop — it
+    was costing 22% of a core to display a window that was doing nothing. }
+  if GetTickCount64 - FLastStatusMs < 500 then
+    Exit;
+  FLastStatusMs := GetTickCount64;
   lSecs := (GetTickCount64 - FStart) / 1000.0;
   if lSecs <= 0 then
     Exit;
   FStatus.Caption := Format(
-    '%d frames · %.0f fps · %d clicks · %d stolen by the pan · scroll %d · %s',
-    [FFrames, FFrames / lSecs, FClicks, FCancels, FScroll.OffsetY, FBackend]);
+    '%d repaints · %.1f/s · %d clicks · %d stolen by the pan · scroll %d · %s',
+    [FRepaints, FRepaints / lSecs, FClicks, FCancels, FScroll.OffsetY,
+     FBackend]);
 end;
 
 procedure TApp.Run;
@@ -383,17 +429,22 @@ begin
   WriteLn('widget demo open (', FBackend, ') — close the window to quit');
   WriteLn('  drag the list to scroll (or use the wheel); flick it to coast');
   WriteLn('  Tab to the text fields and type; Ctrl+A/C/X/V work');
+  WriteLn('  the spinner button starts a continuous animation — watch the rate');
   WriteLn('  pass --gl to render on the GPU');
   Flush(Output);
   while not FWin.Closed do
   begin
-    FDisplay.WaitEvent(16);
+    { The window says how long it may sleep: -1 (block until the compositor
+      says something) when nothing is damaged and nothing is animating, the
+      time until the next caret blink or spinner frame otherwise. Hard-coding
+      an interval here is choosing to wake that often forever. }
+    FDisplay.WaitEvent(FWin.WaitTimeout);
     if FWin.Window.Configured then
       Tick;
     FWin.ProcessFrame;
   end;
-  WriteLn(Format('presented %d frames, %d clicks, %d cancelled by the pan',
-    [FFrames, FClicks, FCancels]));
+  WriteLn(Format('presented %d repaints, %d clicks, %d cancelled by the pan',
+    [FRepaints, FClicks, FCancels]));
 end;
 
 var

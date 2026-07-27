@@ -126,7 +126,7 @@ type
 
   { TwgWindow }
 
-  TwgWindow = class(TComponent, IwgWidgetHost, IwgClipboardHost)
+  TwgWindow = class(TComponent, IwgWidgetHost, IwgClipboardHost, IwgTickHost)
   private
     FDisplay: TfpgwDisplay;
     FWindow: TfpgwWindow;
@@ -147,8 +147,21 @@ type
     // because the timings come from the compositor, which only this layer
     // talks to.
     FRepeat: TwgKeyRepeat;
+    { Widgets that asked to be woken, and when. Small and linear on purpose:
+      a window has a handful of animating widgets at most, and a heap would
+      cost more to maintain than it saves to search. }
+    FTicks: array of record
+      Widget: TwgWidget;
+      At: QWord;
+    end;
     FOnCloseQuery: TwgWindowCloseEvent;
     FOnLayout: TNotifyEvent;
+    FOnPainted: TNotifyEvent;
+    { Set when the presenter had nothing to draw into — every buffer is still
+      with the compositor. Damage stays pending in that case, and treating
+      "pending" as "draw now" turns the wait for a buffer release into a busy
+      loop at 100% of a core. }
+    FStalled: Boolean;
 
     procedure HandleConfigure(Sender: TObject; AEdges: LongWord;
       AWidth, AHeight: LongInt);
@@ -180,6 +193,7 @@ type
     // Re-send the held key while it stays down. Driven from ProcessFrame,
     // because a held key produces exactly one wl_keyboard.key event.
     procedure PollKeyRepeat;
+    procedure RunDueTicks;
     procedure DeliverKey(AEvdev: LongWord; ATime: LongWord; ARepeated: Boolean);
     procedure HandleClose(Sender: TObject);
     procedure HandlePaint(Sender: TObject);
@@ -194,6 +208,10 @@ type
     { IwgClipboardHost — the wl_data_device selection, via the classes layer. }
     function  HostClipboardText: String;
     procedure HostSetClipboardText(const AText: String);
+
+    { IwgTickHost }
+    procedure WidgetRequestsTick(AWidget: TwgWidget; AAtMs: QWord);
+    procedure WidgetCancelTick(AWidget: TwgWidget);
 
     // Root gets the whole client area. Overridden once real layouts land.
     procedure DoLayout; virtual;
@@ -215,8 +233,20 @@ type
     // Lay out if needed and paint if anything is damaged. Safe to call every
     // loop iteration; it does nothing when there is nothing to do.
     procedure ProcessFrame;
-    // Convenience loop: pump events and frames until the window closes.
-    procedure Run(APollMs: Integer = 30);
+    { How long the event loop may sleep, in milliseconds, before it must call
+      ProcessFrame again. -1 means "indefinitely": nothing is damaged and
+      nothing has asked to be woken, so the only thing that can matter next is
+      a compositor event, and those wake the poll by themselves.
+
+      Pass it straight to TfpgwDisplay.WaitEvent. An application that instead
+      hard-codes a timeout is choosing to burn that many wakeups a second
+      forever, whether or not anything is moving. }
+    function  WaitTimeout: Integer;
+    // The soonest a widget has asked to be Ticked, or 0 for none.
+    function  NextTickAt: QWord;
+    // Convenience loop: pump events and frames until the window closes. Blocks
+    // when idle and wakes for animation, using WaitTimeout.
+    procedure Run;
     procedure Close;
 
     property Display: TfpgwDisplay read FDisplay;
@@ -234,11 +264,29 @@ type
     // Return ACanClose False to veto a close request.
     property OnCloseQuery: TwgWindowCloseEvent read FOnCloseQuery write FOnCloseQuery;
     property OnLayout: TNotifyEvent read FOnLayout write FOnLayout;
+    // Fired once per frame that actually reached the compositor — as opposed
+    // to a loop iteration, which usually draws nothing.
+    property OnPainted: TNotifyEvent read FOnPainted write FOnPainted;
     // Hit testing, capture, hover, focus and key routing for this window.
     property Router: TwgInputRouter read FRouter;
+    {$IFDEF WG_TRACE_DAMAGE}
+    function DebugDamageCount: Integer;
+    function DebugAnyDirty: Boolean;
+    function DebugStalled: Boolean;
+    function DebugLayoutCount: Integer;
+    function DebugTickRuns: Integer;
+    function DebugPendingTicks: Integer;
+    {$ENDIF}
   end;
 
 implementation
+
+{$IFDEF WG_TRACE_DAMAGE}
+var
+  wgDamageCount: Integer = 0;
+  wgLayoutCount: Integer = 0;
+  wgTickRunCount: Integer = 0;
+{$ENDIF}
 
 { TwgShmPresenter }
 
@@ -377,6 +425,7 @@ begin
 
   FRouter := TwgInputRouter.Create(FRoot);
   FRepeat := TwgKeyRepeat.Create;
+  FRoot.SetHost(Self as IwgWidgetHost);
   HookInput;
 
   FDamage.AddAll(AWidth, AHeight);
@@ -421,6 +470,9 @@ procedure TwgWindow.WidgetInvalidated(const ARect: TRect);
 var
   lClipped: TRect;
 begin
+  {$IFDEF WG_TRACE_DAMAGE}
+  Inc(wgDamageCount);
+  {$ENDIF}
   // A tree can be invalidated before the window has finished coming up, or
   // while it is being torn down; there is nothing to record in either case.
   if (FDamage = nil) or FClosed then
@@ -435,6 +487,9 @@ end;
 
 procedure TwgWindow.WidgetLayoutInvalidated;
 begin
+  {$IFDEF WG_TRACE_DAMAGE}
+  Inc(wgLayoutCount);
+  {$ENDIF}
   FLayoutDirty := True;
 end;
 
@@ -492,6 +547,8 @@ begin
   // A held key sends exactly one wl_keyboard.key event, so repeat has to be
   // driven from the frame loop. Same reason TwgLongPressRecogniser needs Poll.
   PollKeyRepeat;
+  // Whatever asked to be woken by now.
+  RunDueTicks;
 
   if FLayoutDirty then
   begin
@@ -504,19 +561,33 @@ begin
   if not FDamage.AnyDirty then
     Exit;
   if not FPresenter.BeginFrame(lCanvas, lIndex) then
-    Exit;   // every buffer still on screen; try again next tick
+  begin
+    // Every buffer is still on screen. The release (or the frame callback) is
+    // a compositor event and will wake the poll, so there is nothing to do but
+    // sleep until it arrives — see WaitTimeout.
+    FStalled := True;
+    Exit;
+  end;
+  FStalled := False;
 
   lDamage := FDamage.Take(lIndex);
   if wgRectEmpty(lDamage) then
   begin
-    // Another buffer is dirty but this one is already current — nothing to
-    // repaint into it.
+    { Another buffer is dirty but THIS one is already current, so there is
+      nothing to paint into it. No progress is possible until the compositor
+      hands back the buffer that does need repairing — which is a stall, and
+      must be reported as one. Without this the loop sees "damage pending",
+      refuses to sleep, acquires this same up-to-date buffer again, and spins
+      at 100% of a core. }
+    FStalled := True;
     FPresenter.AbortFrame;
     Exit;
   end;
   lDamage := wgIntersectRect(lDamage, Rect(0, 0, ClientWidth, ClientHeight));
   if wgRectEmpty(lDamage) then
   begin
+    // Damage entirely outside the surface (a stale rect after a resize).
+    // Nothing to draw and nothing to wait for.
     FPresenter.AbortFrame;
     Exit;
   end;
@@ -537,21 +608,156 @@ begin
   end;
 
   FPresenter.EndFrame(lDamage);
+  if Assigned(FOnPainted) then
+    FOnPainted(Self);
 end;
 
-procedure TwgWindow.Run(APollMs: Integer);
+procedure TwgWindow.Run;
 begin
   while not FClosed do
   begin
-    FDisplay.WaitEvent(APollMs);
+    FDisplay.WaitEvent(WaitTimeout);
     ProcessFrame;
   end;
+end;
+
+{$IFDEF WG_TRACE_DAMAGE}
+function TwgWindow.DebugDamageCount: Integer;
+begin Result := wgDamageCount; end;
+function TwgWindow.DebugAnyDirty: Boolean;
+begin Result := (FDamage <> nil) and FDamage.AnyDirty; end;
+function TwgWindow.DebugStalled: Boolean;
+begin Result := FStalled; end;
+function TwgWindow.DebugLayoutCount: Integer;
+begin Result := wgLayoutCount; end;
+function TwgWindow.DebugTickRuns: Integer;
+begin Result := wgTickRunCount; end;
+function TwgWindow.DebugPendingTicks: Integer;
+begin Result := Length(FTicks); end;
+{$ENDIF}
+
+{ --- ticks --- }
+
+procedure TwgWindow.WidgetRequestsTick(AWidget: TwgWidget; AAtMs: QWord);
+var
+  i: Integer;
+begin
+  if (AWidget = nil) or FClosed then
+    Exit;
+  for i := 0 to High(FTicks) do
+    if FTicks[i].Widget = AWidget then
+    begin
+      // One pending tick per widget, and the earlier deadline wins: a caret
+      // asking for 530ms must not push back a spinner's next frame.
+      if AAtMs < FTicks[i].At then
+        FTicks[i].At := AAtMs;
+      Exit;
+    end;
+  SetLength(FTicks, Length(FTicks) + 1);
+  FTicks[High(FTicks)].Widget := AWidget;
+  FTicks[High(FTicks)].At := AAtMs;
+end;
+
+procedure TwgWindow.WidgetCancelTick(AWidget: TwgWidget);
+var
+  i, j: Integer;
+begin
+  for i := 0 to High(FTicks) do
+    if FTicks[i].Widget = AWidget then
+    begin
+      for j := i to High(FTicks) - 1 do
+        FTicks[j] := FTicks[j + 1];
+      SetLength(FTicks, Length(FTicks) - 1);
+      Exit;
+    end;
+end;
+
+function TwgWindow.NextTickAt: QWord;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 0 to High(FTicks) do
+    if (Result = 0) or (FTicks[i].At < Result) then
+      Result := FTicks[i].At;
+end;
+
+procedure TwgWindow.RunDueTicks;
+var
+  i: Integer;
+  lNow: QWord;
+  lDue: array of TwgWidget;
+  lCount: Integer;
+begin
+  if Length(FTicks) = 0 then
+    Exit;
+  lNow := GetTickCount64;
+  { Collect first, then call. Tick almost always calls RequestTick again, which
+    mutates FTicks — iterating it while that happens would skip or repeat
+    entries. Removing the entry before the call is also what makes "stop by
+    not asking again" work. }
+  SetLength(lDue, Length(FTicks));
+  lCount := 0;
+  for i := High(FTicks) downto 0 do
+    if FTicks[i].At <= lNow then
+    begin
+      lDue[lCount] := FTicks[i].Widget;
+      Inc(lCount);
+      WidgetCancelTick(FTicks[i].Widget);
+    end;
+  for i := 0 to lCount - 1 do
+  begin
+    {$IFDEF WG_TRACE_DAMAGE}
+    Inc(wgTickRunCount);
+    {$ENDIF}
+    lDue[i].Tick(lNow);
+  end;
+end;
+
+function TwgWindow.WaitTimeout: Integer;
+var
+  lNext, lNow: QWord;
+begin
+  if FClosed then
+    Exit(0);
+  { Stalled: every buffer is with the compositor, so NOTHING this side can make
+    progress — not a pending repaint, not an animation frame that is already
+    due. The only thing that can help is a buffer release or a frame callback,
+    and both are events that wake the poll. So block.
+
+    This is what paces a continuous animation. A spinner asks for the next
+    frame with RequestTick(0), which is due immediately; without this the loop
+    would honour that literally and spin at half a million iterations a second
+    to produce the sixty frames the display can actually show. Instead it
+    paints until the buffers run out and then sleeps until the compositor is
+    ready for more — which is exactly the right rate, defined by the
+    compositor rather than guessed at here. }
+  if FStalled then
+    Exit(-1);
+  // Something is waiting to be drawn and we can draw it: do not sleep.
+  if (FDamage <> nil) and FDamage.AnyDirty then
+    Exit(0);
+  // A key is repeating; it needs waking even with no compositor traffic.
+  if FRepeat.Active then
+    Exit(Max(1, FRepeat.IntervalMs));
+  lNext := NextTickAt;
+  if lNext = 0 then
+    // Nothing is animating and nothing is dirty. The next thing that can
+    // possibly matter is a compositor event, and that wakes the poll on its
+    // own — so block, rather than waking sixty times a second to discover
+    // there is nothing to do.
+    Exit(-1);
+  lNow := GetTickCount64;
+  if lNext <= lNow then
+    Exit(0);
+  Result := Integer(lNext - lNow);
 end;
 
 procedure TwgWindow.Close;
 begin
   FClosed := True;
   FRepeat.Stop;
+  SetLength(FTicks, 0);
 end;
 
 { --- input --- }

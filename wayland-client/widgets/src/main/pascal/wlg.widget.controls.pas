@@ -159,6 +159,43 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
+  { TwgSpinner — a busy indicator, and the toolkit's one continuous animation.
+
+    Worth having for its own sake, but it also exists to prove the event loop
+    adapts in BOTH directions. While Active it asks to be ticked every frame
+    and the loop runs at the compositor's rate; the moment it stops, nothing is
+    scheduled and the loop goes back to blocking indefinitely. Nothing polls
+    it, and the application does not have to remember to drive it.
+
+    It damages only its own rectangle, so a spinner in the corner of a window
+    does not repaint the window. }
+
+  TwgSpinner = class(TwgControl)
+  private
+    FActive: Boolean;
+    FAngle: Single;         // radians
+    FLastMs: QWord;
+    FSpeed: Single;         // radians per second
+    FArcs: Integer;
+    // 0 = every frame the compositor offers. Set it to throttle deliberately.
+    FIntervalMs: Integer;
+    procedure SetActive(AValue: Boolean);
+  protected
+    procedure Paint(ACanvas: TwgCanvas); override;
+    function  MeasureSize(AAvailW, AAvailH: Integer): TSize; override;
+  public
+    constructor Create(AOwner: TComponent); override;
+    procedure Tick(ANowMs: QWord); override;
+    function  CanFocus: Boolean; override;
+
+    // Starts and stops the animation, and with it the loop's need to wake.
+    property Active: Boolean read FActive write SetActive;
+    property Speed: Single read FSpeed write FSpeed;
+    property Arcs: Integer read FArcs write FArcs;
+    // Milliseconds between frames. 0 (the default) follows the display.
+    property IntervalMs: Integer read FIntervalMs write FIntervalMs;
+  end;
+
   { TwgPanel — a themed container. Not interactive; exists to be a surface. }
 
   TwgPanel = class(TwgControl)
@@ -169,6 +206,7 @@ type
   end;
 
 implementation
+
 
 { TwgControl }
 
@@ -686,6 +724,104 @@ begin
     wgKeyRight, wgKeyUp:   begin Value := FValue + lStep; AEvent.Handled := True; end;
     wgKeyHome:             begin Value := FMin; AEvent.Handled := True; end;
     wgKeyEnd:              begin Value := FMax; AEvent.Handled := True; end;
+  end;
+end;
+
+{ TwgSpinner }
+
+constructor TwgSpinner.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FSpeed := 3.2;
+  FArcs := 8;
+end;
+
+function TwgSpinner.CanFocus: Boolean;
+begin
+  Result := False;
+end;
+
+function TwgSpinner.MeasureSize(AAvailW, AAvailH: Integer): TSize;
+var
+  lTheme: TwgTheme;
+begin
+  lTheme := Theme;
+  if lTheme <> nil then
+    Result.cx := lTheme.Metrics.ControlHeight
+  else
+    Result.cx := 24;
+  Result.cy := Result.cx;
+end;
+
+procedure TwgSpinner.SetActive(AValue: Boolean);
+begin
+  if FActive = AValue then
+    Exit;
+  FActive := AValue;
+  if FActive then
+  begin
+    FLastMs := GetTickCount64;
+    // From here the loop wakes for us. Stopping needs no counterpart: Tick
+    // simply stops re-requesting.
+    RequestTick(FIntervalMs);
+  end;
+  Invalidate;
+end;
+
+procedure TwgSpinner.Tick(ANowMs: QWord);
+var
+  lDT: Single;
+begin
+  if not FActive then
+    Exit;
+  lDT := (ANowMs - FLastMs) / 1000.0;
+  FLastMs := ANowMs;
+  // A stalled frame must not spin the thing wildly.
+  if lDT > 0.1 then
+    lDT := 0.1;
+  FAngle := FAngle + FSpeed * lDT;
+  while FAngle > 2 * Pi do
+    FAngle := FAngle - 2 * Pi;
+  // Only our own rectangle: an animation in one corner must not cost a
+  // full-window repaint.
+  Invalidate;
+  { Zero means "next frame", and the compositor decides when that is: 60 on a
+    60Hz panel, 100 on a 100Hz one. Do NOT be tempted to hard-code 16ms as a
+    power saving — on a 100Hz display that caps a smooth animation at 62fps to
+    save nothing measurable (12.1% vs 13.0% here). Set IntervalMs deliberately
+    if an animation genuinely wants to run slower than the display. }
+  RequestTick(FIntervalMs);
+end;
+
+procedure TwgSpinner.Paint(ACanvas: TwgCanvas);
+var
+  lTheme: TwgTheme;
+  i: Integer;
+  lCX, lCY, lOuter, lInner, lA: Single;
+  lColor: TwgColor;
+  lFade: Single;
+begin
+  lTheme := Theme;
+  if (lTheme = nil) or (FArcs <= 0) then
+    Exit;
+  lCX := Width / 2;
+  lCY := Height / 2;
+  lOuter := Min(Width, Height) / 2 - 1;
+  lInner := lOuter * 0.55;
+  ACanvas.LineWidth := Max(2, lOuter * 0.22);
+  ACanvas.LineCap := clcRound;
+  for i := 0 to FArcs - 1 do
+  begin
+    lA := FAngle + i * 2 * Pi / FArcs;
+    // Trailing spokes fade out, which is what reads as motion rather than a
+    // rotating asterisk.
+    lFade := 1.0 - (i / FArcs);
+    if FActive then
+      lColor := wgColorWithAlpha(lTheme.Palette.Accent, Round(255 * lFade))
+    else
+      lColor := wgColorWithAlpha(lTheme.Palette.TextDim, 90);
+    ACanvas.Line(lCX + Cos(lA) * lInner, lCY + Sin(lA) * lInner,
+                 lCX + Cos(lA) * lOuter, lCY + Sin(lA) * lOuter, lColor);
   end;
 end;
 

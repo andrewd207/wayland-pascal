@@ -28,7 +28,8 @@ wayland-client/widgets/     [off by default] RTL-only
   wlg.widget.gesture          TwgGestureRecogniser, pan, long-press
   wlg.widget.layout           box / grid / anchor
   wlg.widget.theme            TwgTheme, TwgDesktopTheme
-  wlg.widget.controls         label, button, checkbox, radio, slider, panel
+  wlg.widget.controls         label, button, checkbox, radio, slider, panel,
+                              spinner (the one continuous animation)
   wlg.widget.scroll           TwgScrollBox
   wlg.widget.text             TwgTextEdit (single line, UTF-8, clipboard)
   wlg.widget.window           TwgWindow, IwgPresenter, TwgShmPresenter,
@@ -45,7 +46,23 @@ wayland-client/classes/     gained wl_touch (was pointer + keyboard only)
 ```
 
 Demo: `wayland-examples/gl_widget_demo`, software by default, `--gl` for the GPU
-presenter. Software ~190 fps, GL ~263 fps (paced).
+presenter, `--spin` to start the animation for benchmarking.
+
+**The event loop is adaptive.** It blocks indefinitely when nothing is damaged
+and nothing is animating, wakes on a deadline for the caret blink, and runs at
+the compositor's frame rate while something is animating. Measured in a nested
+weston, whole process:
+
+| state | client CPU | compositor |
+|---|---|---|
+| idle | **0.1%** | 0.1% |
+| spinner animating | 12.7% | 1.9% |
+
+The old figure of "190 fps" was the demo measuring itself: it rewrote a frame
+counter into a label every loop iteration, which damaged the window every
+iteration, and then reported the resulting repaint rate as a benchmark. That
+cost **22.4% of a core to display a window doing nothing**. Do not reintroduce
+a per-frame status update.
 
 ## Verified
 
@@ -62,6 +79,7 @@ Headless harnesses, all passing:
 | Text entry: typing, UTF-8 stepping, selection, word moves, clipboard, password, max length, mouse | 33 |
 | xkb translator against a real compiled keymap: the +8, shift levels, keysyms, repeat flags | 20 |
 | Key repeat: delay then rate, key takeover, every stop path, no burst after a stall | 24 |
+| Tick scheduler: deadlines, earliest wins, stop-by-not-asking, no dangling tick after Free | 16 |
 | FreeType/fontconfig: aliases, weights, cache keying incl. HiDPI sharing | manual, confirmed |
 
 Live on a compositor: nested weston screenshots for the canvas, the widget tree,
@@ -111,6 +129,15 @@ controlled test; there is no key injector here.
   repeat could not work at all — no error, just a compositor that never
   mentions the rate. It now binds `Min(AVersion, 9)`. `wl_compositor` is still
   at 1; see below.
+- **Never treat "damage pending" as "draw now".** The loop must sleep whenever
+  the presenter has no buffer (`FStalled`), including when an animation frame
+  is already due: the buffer release that unblocks it is a compositor event and
+  wakes the poll anyway. Without that the wait for a buffer becomes a busy loop
+  at 100% of a core — and it looks exactly like a runaway animation.
+- **`RequestTick(0)` means "next frame", and the COMPOSITOR sets that rate.**
+  Do not hard-code 16ms as a power saving: on a 100Hz display that caps a
+  smooth animation at 62fps and saved nothing measurable here (12.1% vs 13.0%).
+  `TwgSpinner.IntervalMs` exists for deliberate throttling.
 - **XKB keycode = evdev code + 8.** Nothing in the wl_keyboard documentation
   says so, and getting it wrong produces plausible wrong letters rather than an
   error.
@@ -131,6 +158,14 @@ controlled test; there is no key injector here.
   weight; the scroll box's content is the first thing that asks.
 - `pasbuild compile --all` fails on `wayland-common`, which is documented as not
   standalone-buildable. Pre-existing, not a regression.
+
+## Debugging damage
+
+`-dWG_TRACE_DAMAGE` adds counters to the widget core and window: how many
+invalidations happened and **which widget classes asked for them**
+(`wgInvalidateReport`), plus layout invalidations, tick runs and the stalled
+flag. That is what identified a repaint loop that three rounds of reading the
+code had misdiagnosed.
 
 ## Naming
 

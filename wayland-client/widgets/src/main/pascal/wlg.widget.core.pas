@@ -71,6 +71,29 @@ type
     procedure HostSetClipboardText(const AText: String);
   end;
 
+  { IwgTickHost — "wake me up at this time".
+
+    Also optional, also found with Supports(). This is what makes an event loop
+    able to BLOCK. Without it every application has to poll: pick some interval
+    (16ms, because it might be animating), wake that often forever, and call a
+    Step method on each widget that might have something to do — which means an
+    idle window costs the same as an animating one, and forgetting a Step call
+    silently stops the animation.
+
+    With it the direction reverses. A widget says when it next wants attention:
+    a caret in half a second, a spinner at the next frame, a kinetic scroll
+    until it stops. The loop sleeps until the earliest of those, or
+    indefinitely when there are none. Idle costs nothing, and an animation runs
+    at its own rate without anybody polling for it. }
+  IwgTickHost = interface
+    ['{6E2B90F7-5C48-4A31-8D7E-1B4F0C93A85D}']
+    // Call AWidget.Tick at (or after) AAtMs. A second request for the same
+    // widget replaces the first; the earlier deadline wins.
+    procedure WidgetRequestsTick(AWidget: TwgWidget; AAtMs: QWord);
+    // Forget any pending tick — the widget is going away, or has stopped.
+    procedure WidgetCancelTick(AWidget: TwgWidget);
+  end;
+
   TwgWidgetList = array of TwgWidget;
 
   { TwgLayout — how a container arranges its children.
@@ -192,6 +215,23 @@ type
     procedure PerformLayout;
     // What this widget would like to be, honouring its Min/Max hints.
     function  PreferredSize(AAvailW, AAvailH: Integer): TSize;
+
+    { Ask to be Ticked in AInMs milliseconds. 0 means "as soon as the loop
+      comes round", which for a continuous animation is the right answer: the
+      presenter will not draw faster than the compositor accepts frames, so
+      this paces itself rather than spinning.
+
+      Does nothing when the host offers no clock (a headless test), which is
+      the same graceful nothing as a widget with no host at all. }
+    { The time this widget asked for has arrived. Override to animate: move
+      something, Invalidate, and call RequestTick again to keep going. Simply
+      not re-requesting is how an animation stops — there is no separate "stop"
+      to forget. Public because the host calls it, like PaintTree. }
+    procedure Tick(ANowMs: QWord); virtual;
+    procedure RequestTick(AInMs: Integer = 0);
+    // Cancel a pending tick. Rarely needed — stopping usually just means not
+    // asking again — but a widget being hidden mid-animation wants it.
+    procedure CancelTick;
     // Falls back to the host's font when unset.
     property Font: IwgGlyphSource read FFont write FFont;
     function EffectiveFont: IwgGlyphSource;
@@ -230,7 +270,43 @@ type
     function  BufferCount: Integer;
   end;
 
+{$IFDEF WG_TRACE_DAMAGE}
+// Which widget classes have been asking for repaints, and how often.
+function wgInvalidateReport: String;
+{$ENDIF}
+
 implementation
+
+{$IFDEF WG_TRACE_DAMAGE}
+var
+  wgInvNames: array of String;
+  wgInvCounts: array of Integer;
+
+procedure wgNoteInvalidate(const AClass: String);
+var
+  i: Integer;
+begin
+  for i := 0 to High(wgInvNames) do
+    if wgInvNames[i] = AClass then
+    begin
+      Inc(wgInvCounts[i]);
+      Exit;
+    end;
+  SetLength(wgInvNames, Length(wgInvNames) + 1);
+  SetLength(wgInvCounts, Length(wgInvCounts) + 1);
+  wgInvNames[High(wgInvNames)] := AClass;
+  wgInvCounts[High(wgInvCounts)] := 1;
+end;
+
+function wgInvalidateReport: String;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to High(wgInvNames) do
+    Result := Result + Format('%s=%d ', [wgInvNames[i], wgInvCounts[i]]);
+end;
+{$ENDIF}
 
 { TwgWidget }
 
@@ -247,6 +323,11 @@ destructor TwgWidget.Destroy;
 var
   i: Integer;
 begin
+  // A pending tick holds a bare pointer to this widget; leaving one behind
+  // would have the loop call Tick on freed memory at some point in the future.
+  // Done before detaching, while the host can still be resolved through the
+  // parent chain.
+  CancelTick;
   // Detach first so the parent cannot paint or hit-test a half-destroyed child.
   if FParent <> nil then
     FParent.RemoveChild(Self);
@@ -459,6 +540,31 @@ begin
   // Almost nothing needs one.
 end;
 
+procedure TwgWidget.Tick(ANowMs: QWord);
+begin
+  // Nothing animates by default.
+end;
+
+procedure TwgWidget.RequestTick(AInMs: Integer);
+var
+  lHost: IwgWidgetHost;
+  lTicks: IwgTickHost;
+begin
+  lHost := GetHost;
+  if (lHost <> nil) and Supports(lHost, IwgTickHost, lTicks) then
+    lTicks.WidgetRequestsTick(Self, GetTickCount64 + QWord(Max(0, AInMs)));
+end;
+
+procedure TwgWidget.CancelTick;
+var
+  lHost: IwgWidgetHost;
+  lTicks: IwgTickHost;
+begin
+  lHost := GetHost;
+  if (lHost <> nil) and Supports(lHost, IwgTickHost, lTicks) then
+    lTicks.WidgetCancelTick(Self);
+end;
+
 procedure TwgWidget.BoundsChanged;
 begin
   // A resize invalidates the arrangement of whatever is inside.
@@ -561,6 +667,9 @@ var
   lHost: IwgWidgetHost;
   lRoot: TRect;
 begin
+  {$IFDEF WG_TRACE_DAMAGE}
+  wgNoteInvalidate(ClassName);
+  {$ENDIF}
   if wgRectEmpty(ARect) then
     Exit;
   lHost := GetHost;

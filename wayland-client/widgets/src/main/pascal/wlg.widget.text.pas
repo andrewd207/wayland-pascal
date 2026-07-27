@@ -95,6 +95,9 @@ type
   protected
     procedure Paint(ACanvas: TwgCanvas); override;
     function  MeasureSize(AAvailW, AAvailH: Integer): TSize; override;
+    // Toggles the caret and asks for the next half-period. Only ever pending
+    // while focused, so an unfocused field costs the loop nothing.
+    procedure Tick(ANowMs: QWord); override;
     // Replace the selection (or nothing, if none) with AText and put the caret
     // after it. The single funnel every edit goes through.
     procedure ReplaceSelection(const AText: String);
@@ -115,10 +118,6 @@ type
     procedure Cut;
     procedure Copy;
     procedure Paste;
-    // Advance the caret blink. Call once a frame; without it the caret simply
-    // stays solid, which is the harmless failure.
-    procedure Step;
-
     property Text: String read FText write SetText;
     property Placeholder: String read FPlaceholder write FPlaceholder;
     property CaretPos: Integer read FCaret write SetCaretPos;
@@ -335,14 +334,17 @@ procedure TwgTextEdit.ResetBlink;
 begin
   FBlinkOn := True;
   FBlinkBase := GetTickCount64;
+  // Restart the phase from now, so the caret is solid while typing rather
+  // than blinking out mid-keystroke.
+  if wsFocused in States then
+    RequestTick(BlinkMs);
 end;
 
-procedure TwgTextEdit.Step;
-var
-  lOn: Boolean;
+procedure TwgTextEdit.Tick(ANowMs: QWord);
 begin
   if not (wsFocused in States) then
   begin
+    // Focus left; stop by simply not asking again.
     if FBlinkOn then
     begin
       FBlinkOn := False;
@@ -350,12 +352,12 @@ begin
     end;
     Exit;
   end;
-  lOn := ((GetTickCount64 - FBlinkBase) div BlinkMs) mod 2 = 0;
-  if lOn <> FBlinkOn then
-  begin
-    FBlinkOn := lOn;
-    Invalidate;
-  end;
+  FBlinkOn := not FBlinkOn;
+  // Only the caret changed, so damage only the caret. This is what keeps a
+  // blinking cursor from repainting the whole field twice a second.
+  InvalidateRect(Rect(XOfPos(FCaret) + InnerRect.Left - FScrollX - 1, 0,
+                      XOfPos(FCaret) + InnerRect.Left - FScrollX + 3, Height));
+  RequestTick(BlinkMs);
 end;
 
 function TwgTextEdit.MeasureSize(AAvailW, AAvailH: Integer): TSize;
@@ -573,7 +575,7 @@ end;
 
 procedure TwgTextEdit.FocusIn;
 begin
-  ResetBlink;
+  ResetBlink;      // also starts the blink ticking
   Invalidate;
 end;
 
@@ -581,6 +583,9 @@ procedure TwgTextEdit.FocusOut;
 begin
   FSelecting := False;
   FBlinkOn := False;
+  // Nothing further is scheduled: the blink stops costing anything the moment
+  // the field is not focused.
+  CancelTick;
   Invalidate;
 end;
 
