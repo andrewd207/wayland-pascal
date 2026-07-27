@@ -2158,7 +2158,21 @@ begin
       end;
     'wl_seat':
       begin
-        AWlRegistry.Bind(AName, AInterface, 1, TWlSeat, FSeat);
+        { Bind as high as both sides go, not at 1.
+
+          Version 1 costs real functionality: wl_keyboard.repeat_info is
+          version 4, so at v1 the compositor never sends the repeat rate and
+          delay and a client cannot implement key repeat at all — held keys
+          simply do nothing. v3 additionally brings the release requests, so a
+          capability that goes away can be cleaned up rather than leaked; v5
+          the pointer frame/axis_source events, v6 touch shape/orientation,
+          v8-9 the high-resolution scroll axes. Every one of those events has a
+          handler below already.
+
+          Bind is a protocol error if the version exceeds what the compositor
+          advertised, hence the Min; 9 is what the generated TWlSeat
+          implements. }
+        AWlRegistry.Bind(AName, AInterface, Min(AVersion, 9), TWlSeat, FSeat);
         FSeat.AddListener(Self);
         { The devices are created in wl_seat_capabilities, NOT here.
 

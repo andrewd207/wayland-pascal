@@ -143,12 +143,10 @@ type
     // .enter do — so the last known position is kept here for them.
     FLastMouseX, FLastMouseY: Integer;
     FKeys: IwgKeyTranslator;
-    // Key repeat state. Rate/delay come from the compositor; 0 means it has
-    // not told us, in which case the usual defaults apply.
-    FRepeatKey: LongWord;
-    FRepeatActive: Boolean;
-    FRepeatNextMs: QWord;
-    FRepeatRate, FRepeatDelay: Integer;
+    // When a held key should fire again. Owned here rather than by the router
+    // because the timings come from the compositor, which only this layer
+    // talks to.
+    FRepeat: TwgKeyRepeat;
     FOnCloseQuery: TwgWindowCloseEvent;
     FOnLayout: TNotifyEvent;
 
@@ -378,6 +376,7 @@ begin
   FRoot.ClipChildren := True;
 
   FRouter := TwgInputRouter.Create(FRoot);
+  FRepeat := TwgKeyRepeat.Create;
   HookInput;
 
   FDamage.AddAll(AWidth, AHeight);
@@ -390,6 +389,7 @@ begin
   // this object, and the host reference must still be valid while it does.
   FreeAndNil(FRoot);
   FreeAndNil(FRouter);
+  FreeAndNil(FRepeat);
   FPresenter := nil;
   FreeAndNil(FDamage);
   FreeAndNil(FWindow);
@@ -551,6 +551,7 @@ end;
 procedure TwgWindow.Close;
 begin
   FClosed := True;
+  FRepeat.Stop;
 end;
 
 { --- input --- }
@@ -646,17 +647,12 @@ begin
     // Arm the repeat. Only one key repeats at a time — the last one pressed,
     // which is what every toolkit does and what users expect when rolling
     // from one key onto another.
-    if (FKeys <> nil) and FKeys.Repeats(AKey) then
-    begin
-      FRepeatKey := AKey;
-      FRepeatActive := True;
-      FRepeatNextMs := GetTickCount64 + FRepeatDelay;
-    end;
+    if (FKeys = nil) or FKeys.Repeats(AKey) then
+      FRepeat.Press(AKey, GetTickCount64);
   end
   else
   begin
-    if FRepeatActive and (AKey = FRepeatKey) then
-      FRepeatActive := False;
+    FRepeat.Release(AKey);
     if FKeys <> nil then
     begin
       if FKeys.Translate(AKey, lSym, lText) then
@@ -669,33 +665,34 @@ end;
 
 procedure TwgWindow.HandleKeyboardLeave(Sender: TObject);
 begin
-  // Focus left while a key was down: the release will never arrive, so the
-  // key would otherwise repeat forever.
-  FRepeatActive := False;
+  if not IsForMe(Sender) then
+    Exit;
+  { Focus left the window while a key was down. No release event is coming —
+    the compositor stops telling us about the keyboard entirely — so without
+    this the key repeats forever, typing into a widget the user is no longer
+    looking at. This is the case that matters most, because it is the one that
+    cannot fix itself. }
+  FRepeat.Stop;
+  { Modifiers go stale for the same reason: Alt+Tab away and the Alt release
+    is delivered to whoever has focus now, leaving ours held forever — after
+    which every plain keystroke looks like a shortcut. }
+  FRouter.SetModifiers([]);
 end;
 
 procedure TwgWindow.HandleRepeatInfo(Sender: TObject; ARate, ADelay: LongInt);
 begin
-  FRepeatDelay := ADelay;
-  // Rate is in characters per second; zero means the compositor is asking for
-  // no repeat at all, which must be honoured rather than divided by.
-  if ARate > 0 then
-    FRepeatRate := 1000 div ARate
-  else
-    FRepeatRate := 0;
+  // Seat-wide, not per window, so deliberately not gated on IsForMe.
+  FRepeat.SetInfo(ARate, ADelay);
 end;
 
 procedure TwgWindow.PollKeyRepeat;
 var
   lNow: QWord;
+  lKey: LongWord;
 begin
-  if (not FRepeatActive) or (FRepeatRate <= 0) then
-    Exit;
   lNow := GetTickCount64;
-  if lNow < FRepeatNextMs then
-    Exit;
-  DeliverKey(FRepeatKey, LongWord(lNow), True);
-  FRepeatNextMs := lNow + FRepeatRate;
+  while FRepeat.Poll(lNow, lKey) do
+    DeliverKey(lKey, LongWord(lNow), True);
 end;
 
 procedure TwgWindow.HandleMouseEnter(Sender: TObject; AX, AY: Integer);

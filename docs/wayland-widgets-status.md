@@ -24,7 +24,7 @@ wayland-client/gl/          [off by default] libEGL + libGL
 wayland-client/widgets/     [off by default] RTL-only
   wlg.widget.types            events (multi-pointer), layout hints, keysyms
   wlg.widget.core             TwgWidget, TwgLayout base, TwgDamage
-  wlg.widget.input            TwgInputRouter, IwgInputTarget
+  wlg.widget.input            TwgInputRouter, IwgInputTarget, TwgKeyRepeat
   wlg.widget.gesture          TwgGestureRecogniser, pan, long-press
   wlg.widget.layout           box / grid / anchor
   wlg.widget.theme            TwgTheme, TwgDesktopTheme
@@ -61,10 +61,15 @@ Headless harnesses, all passing:
 | Scroll box in a real layout: sizing, overflow, clipping, wheel, drag-vs-click, coast | 18 |
 | Text entry: typing, UTF-8 stepping, selection, word moves, clipboard, password, max length, mouse | 33 |
 | xkb translator against a real compiled keymap: the +8, shift levels, keysyms, repeat flags | 20 |
+| Key repeat: delay then rate, key takeover, every stop path, no burst after a stall | 24 |
 | FreeType/fontconfig: aliases, weights, cache keying incl. HiDPI sharing | manual, confirmed |
 
 Live on a compositor: nested weston screenshots for the canvas, the widget tree,
-the controls with desktop theming, and the GPU path.
+the controls with desktop theming, and the GPU path. Typing was confirmed live
+too — a held key produced a run of repeated characters in the entry, which
+exercises the whole chain (wl_keyboard -> xkb -> router -> TwgTextEdit) and
+shows repeat both starting and stopping. That one was incidental rather than a
+controlled test; there is no key injector here.
 
 ## What is NOT done
 
@@ -101,6 +106,11 @@ the controls with desktop theming, and the GPU path.
   which is exactly why the above went unnoticed. (In any script driving it,
   write the pgrep/pkill pattern as `[g]nome-shell` — a plain one matches the
   script's own command line and kills the harness.)
+- **Bind versions cost features, silently.** `wl_seat` was bound at version 1,
+  which meant `wl_keyboard.repeat_info` (version 4) never arrived and key
+  repeat could not work at all — no error, just a compositor that never
+  mentions the rate. It now binds `Min(AVersion, 9)`. `wl_compositor` is still
+  at 1; see below.
 - **XKB keycode = evdev code + 8.** Nothing in the wl_keyboard documentation
   says so, and getting it wrong produces plausible wrong letters rather than an
   error.

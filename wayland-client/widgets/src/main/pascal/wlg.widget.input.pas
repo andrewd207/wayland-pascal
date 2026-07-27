@@ -63,6 +63,53 @@ type
     function  CanFocus: Boolean;
   end;
 
+  { TwgKeyRepeat — when a held key should fire again.
+
+    wl_keyboard sends exactly ONE key event for a press, however long it is
+    held: repeating is the client's job, and the compositor only supplies the
+    timings (wl_keyboard.repeat_info). So this has to be driven from the frame
+    loop rather than from an event, the same way TwgLongPressRecogniser does.
+
+    Only one key repeats — the last one pressed. That is what every toolkit
+    does and what rolling from one key onto another should feel like: the new
+    key takes over rather than both machine-gunning.
+
+    Pure logic and no clock of its own (Poll is given the time), so the timing
+    and, more importantly, all the ways a repeat must STOP can be tested
+    without a compositor. Stopping is the part that matters: a repeat left
+    armed when focus leaves the window keeps inserting characters into a
+    widget the user is no longer looking at. }
+
+  TwgKeyRepeat = class
+  private
+    FKey: LongWord;
+    FActive: Boolean;
+    FNextMs: QWord;
+    FDelayMs: Integer;
+    FIntervalMs: Integer;
+  public
+    constructor Create;
+    // From wl_keyboard.repeat_info: rate in keys per second, delay in ms.
+    // A rate of zero means the user has turned repeat off and must be
+    // honoured rather than divided by.
+    procedure SetInfo(ARatePerSecond, ADelayMs: Integer);
+    // A key went down. Takes over from whatever was repeating.
+    procedure Press(AKey: LongWord; ANowMs: QWord);
+    // A key came up. Only stops the repeat if it is THAT key still held.
+    procedure Release(AKey: LongWord);
+    // Stop unconditionally: focus left the window, the window closed, the
+    // compositor cancelled. There is no release event coming in those cases,
+    // so without this the key repeats forever.
+    procedure Stop;
+    // True when the held key should fire again now; updates the schedule.
+    function  Poll(ANowMs: QWord; out AKey: LongWord): Boolean;
+
+    property Active: Boolean read FActive;
+    property Key: LongWord read FKey;
+    property DelayMs: Integer read FDelayMs;
+    property IntervalMs: Integer read FIntervalMs;
+  end;
+
   { TwgInputRouter }
 
   TwgInputRouter = class
@@ -173,6 +220,69 @@ const
   MaxChainDepth = 128;
 
 implementation
+
+{ TwgKeyRepeat }
+
+constructor TwgKeyRepeat.Create;
+begin
+  inherited Create;
+  { Defaults for a compositor that never tells us. wl_keyboard.repeat_info is
+    version 4, so anything older simply never sends it and a client with no
+    fallback would have no key repeat at all — which is exactly the bug this
+    replaces. These are the familiar X11-ish numbers. }
+  FDelayMs := 500;
+  FIntervalMs := 1000 div 25;
+end;
+
+procedure TwgKeyRepeat.SetInfo(ARatePerSecond, ADelayMs: Integer);
+begin
+  if ADelayMs > 0 then
+    FDelayMs := ADelayMs;
+  if ARatePerSecond > 0 then
+    FIntervalMs := Max(1, 1000 div ARatePerSecond)
+  else
+  begin
+    // Rate zero is "no repeat, ever" — a real setting, not a missing value.
+    FIntervalMs := 0;
+    FActive := False;
+  end;
+end;
+
+procedure TwgKeyRepeat.Press(AKey: LongWord; ANowMs: QWord);
+begin
+  if FIntervalMs <= 0 then
+    Exit;   // repeat disabled
+  FKey := AKey;
+  FActive := True;
+  FNextMs := ANowMs + QWord(FDelayMs);
+end;
+
+procedure TwgKeyRepeat.Release(AKey: LongWord);
+begin
+  // Releasing some OTHER key must not cancel the one still held down.
+  if FActive and (AKey = FKey) then
+    FActive := False;
+end;
+
+procedure TwgKeyRepeat.Stop;
+begin
+  FActive := False;
+end;
+
+function TwgKeyRepeat.Poll(ANowMs: QWord; out AKey: LongWord): Boolean;
+begin
+  AKey := 0;
+  Result := False;
+  if (not FActive) or (FIntervalMs <= 0) then
+    Exit;
+  if ANowMs < FNextMs then
+    Exit;
+  AKey := FKey;
+  Result := True;
+  // Schedule from NOW, not from the missed deadline: after a stall (a slow
+  // frame, a resize) catching up would emit a burst of characters at once.
+  FNextMs := ANowMs + QWord(FIntervalMs);
+end;
 
 { TwgInputRouter }
 
